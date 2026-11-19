@@ -46,5 +46,8 @@ jobs:
       # Docker is available on ubuntu-latest: testcontainers starts postgres:17-alpine.
       - name: Pull PostgreSQL image
         run: docker pull postgres:17-alpine
+      # The setup test drives the built app (.next/standalone/server.js) over HTTP.
+      - name: Build
+        run: npm run build
       - name: Integration tests
         run: npm run test:integration

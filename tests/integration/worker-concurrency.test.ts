@@ -13,19 +13,14 @@
  *   npm run test:integration
  */
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import * as schema from "@/lib/db/schema";
 import { normalizeUrl } from "@/lib/feeds/normalize-url";
+import { ROOT, startPostgres, type TestDatabase } from "./helpers/postgres";
 
-const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const SOURCE_COUNT = 10;
 const ITEMS_PER_FEED = 30;
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
@@ -102,40 +97,18 @@ function startServer(): Promise<void> {
 // ---------------------------------------------------------------------------
 // Database
 // ---------------------------------------------------------------------------
-let container: StartedPostgreSqlContainer | undefined;
-let adminUrl: string | undefined;
-let dbName: string | undefined;
+let pg: TestDatabase;
 let databaseUrl = "";
 let sql: ReturnType<typeof postgres>;
 
 async function startDatabase() {
-  const external = process.env.TEST_DATABASE_URL;
-  if (external) {
-    // Never touch the given database: create a throwaway one next to it.
-    adminUrl = external;
-    dbName = `veille_it_${randomBytes(4).toString("hex")}`;
-    const admin = postgres(external, { max: 1, onnotice: () => {} });
-    await admin.unsafe(`create database ${dbName}`);
-    await admin.end();
-    const u = new URL(external);
-    u.pathname = `/${dbName}`;
-    databaseUrl = u.toString();
-  } else {
-    container = await new PostgreSqlContainer("postgres:17-alpine").start();
-    databaseUrl = container.getConnectionUri();
-  }
-  sql = postgres(databaseUrl, { max: 2, onnotice: () => {} });
-  await migrate(drizzle(sql, { schema }), { migrationsFolder: path.join(ROOT, "drizzle") });
+  pg = await startPostgres();
+  databaseUrl = pg.url;
+  sql = pg.sql;
 }
 
 async function stopDatabase() {
-  await sql?.end({ timeout: 5 });
-  if (container) await container.stop();
-  if (adminUrl && dbName) {
-    const admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
-    await admin.unsafe(`drop database if exists ${dbName} with (force)`);
-    await admin.end();
-  }
+  await pg?.stop();
 }
 
 // ---------------------------------------------------------------------------
