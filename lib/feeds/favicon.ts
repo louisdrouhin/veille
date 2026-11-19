@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { sourceFavicons, topics, type Source } from "@/lib/db/schema";
+import { readLimited, safeFetch, type Resolver } from "@/lib/net/safe-fetch";
 import { FETCH_TIMEOUT_MS, USER_AGENT } from "./fetch-source";
 
 export const FAVICON_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -49,40 +50,25 @@ export function findIconLinks(html: string, baseUrl: string): string[] {
   return [...new Set(found.sort((a, b) => a.rank - b.rank).map((f) => f.url))];
 }
 
-async function readLimited(res: Response, max: number): Promise<Uint8Array | null> {
-  const declared = Number(res.headers.get("content-length") ?? 0);
-  if (declared > max) return null;
-  if (!res.body) return new Uint8Array();
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > max) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  const out = new Uint8Array(size);
-  let offset = 0;
-  for (const c of chunks) {
-    out.set(c, offset);
-    offset += c.byteLength;
-  }
-  return out;
-}
+export type FaviconFetchOptions = {
+  /** Injected in tests (defaults: system DNS, guarded undici fetch). */
+  resolve?: Resolver;
+  fetchImpl?: typeof fetch;
+};
 
-async function get(url: string, accept: string, fetchImpl: typeof fetch): Promise<Response | null> {
+/** SSRF-safe GET (see lib/net/safe-fetch.ts); any refusal or network error → null. */
+async function get(url: string, accept: string, opts: FaviconFetchOptions): Promise<Response | null> {
   try {
-    const res = await fetchImpl(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: accept },
-      redirect: "follow",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    const res = await safeFetch(url, {
+      accept,
+      userAgent: USER_AGENT,
+      timeoutMs: FETCH_TIMEOUT_MS,
+      resolve: opts.resolve,
+      fetchImpl: opts.fetchImpl,
     });
-    return res.ok ? res : null;
+    if (res.ok) return res;
+    await res.body?.cancel().catch(() => {});
+    return null;
   } catch {
     return null;
   }
@@ -91,12 +77,12 @@ async function get(url: string, accept: string, fetchImpl: typeof fetch): Promis
 /** Downloads the favicon of a site: icons declared in its home page, then /favicon.ico. */
 export async function downloadFavicon(
   siteUrl: string,
-  fetchImpl: typeof fetch = fetch,
+  opts: FaviconFetchOptions = {},
 ): Promise<{ contentType: string; data: Uint8Array } | null> {
   const origin = new URL(siteUrl).origin;
   const candidates: string[] = [];
 
-  const page = await get(`${origin}/`, "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", fetchImpl);
+  const page = await get(`${origin}/`, "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", opts);
   if (page) {
     const bytes = await readLimited(page, MAX_HTML_BYTES).catch(() => null);
     if (bytes) candidates.push(...findIconLinks(new TextDecoder().decode(bytes), page.url || `${origin}/`));
@@ -104,7 +90,7 @@ export async function downloadFavicon(
   candidates.push(`${origin}/favicon.ico`);
 
   for (const url of [...new Set(candidates)].slice(0, MAX_CANDIDATES)) {
-    const res = await get(url, "image/*", fetchImpl);
+    const res = await get(url, "image/*", opts);
     if (!res) continue;
     const data = await readLimited(res, MAX_FAVICON_BYTES).catch(() => null);
     if (!data || data.byteLength === 0) continue;
@@ -134,7 +120,7 @@ export type FaviconResult = "fresh" | "stored" | "none" | "error";
 export async function refreshFavicon(
   db: Db,
   source: Source,
-  opts: { now?: Date; fetchImpl?: typeof fetch; force?: boolean } = {},
+  opts: FaviconFetchOptions & { now?: Date; force?: boolean } = {},
 ): Promise<FaviconResult> {
   const now = opts.now ?? new Date();
   try {
@@ -144,7 +130,7 @@ export async function refreshFavicon(
       .where(eq(sourceFavicons.sourceId, source.id));
     if (!opts.force && existing && now.getTime() - existing.fetchedAt.getTime() < FAVICON_TTL_MS) return "fresh";
 
-    const icon = await downloadFavicon(await siteUrlFor(db, source), opts.fetchImpl);
+    const icon = await downloadFavicon(await siteUrlFor(db, source), { resolve: opts.resolve, fetchImpl: opts.fetchImpl });
     const values = { contentType: icon?.contentType ?? null, data: icon?.data ?? null, fetchedAt: now };
     await db
       .insert(sourceFavicons)

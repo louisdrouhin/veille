@@ -65,6 +65,11 @@ fichiers `OFL-*.txt`) et chargées par `next/font/local` : le build ne fait aucu
   de plus de 7 jours, depuis le site du dernier article (`<link rel="icon">` de la page d'accueil, sinon `/favicon.ico`).
   Seuls PNG, ICO, GIF, JPEG et WebP ≤ 100 Ko sont acceptés (identifiés par leurs octets, SVG refusé). Stockés dans la
   table `source_favicons`, servis par `/api/favicon/[sourceId]` (session requise). Repli sur l'initiale de la source.
+- **Anti-SSRF** (favicons uniquement, `lib/net/safe-fetch.ts`) : http/https seulement ; DNS résolu et toute adresse
+  privée, loopback, link-local ou réservée refusée (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16, 100.64/10,
+  0/8, multicast, ::1, fc00::/7, fe80::/10, IPv4 mappée…) ; la socket elle-même passe par un `lookup` filtré
+  (pas de fenêtre de DNS rebinding) ; redirections suivies à la main, 3 au maximum, revérifiées à chaque saut ;
+  limite de 100 Ko appliquée pendant le téléchargement (flux coupé). Les URL des flux, saisies par toi, restent libres.
 - **Worker `--once`** : `node dist/worker.js --once` (ou `npm run worker -- --once`) fait un seul cycle puis s'arrête.
 - **Dédoublonnage** : `normalized_url` unique (sans `utm_*`, `fbclid`, `gclid`, fragment ; hôte en minuscules ;
   sans `/` final), insertion en `ON CONFLICT DO NOTHING` — le worker et « Récupérer maintenant » peuvent tourner en même temps.

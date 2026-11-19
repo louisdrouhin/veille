@@ -3,7 +3,8 @@
  * (`worker/index.ts --once`, FETCH_CONCURRENCY=4) against 10 sources whose
  * feeds share many articles under URL variants (utm_*, fbclid, #fragment,
  * trailing slash), then two workers at the same time.
- * Checks: no error, no duplicate topic, every favicon stored.
+ * Checks: no error, no duplicate topic. The test sites live on 127.0.0.1, so
+ * the SSRF guard must refuse their favicons (looked up, nothing stored).
  *
  * Database: TEST_DATABASE_URL if set (a throwaway database is created and
  * dropped on that server), otherwise a postgres:17-alpine container started
@@ -33,6 +34,7 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 // Feeds: feed i contains articles (i*7 + k) % POOL, each under a URL variant
 // ---------------------------------------------------------------------------
 let pool = 60;
+let iconHits = 0; // requests that reached the icon endpoints (must stay 0: loopback is refused)
 let server: http.Server;
 let base = "";
 
@@ -81,6 +83,7 @@ function startServer(): Promise<void> {
         res.writeHead(200, { "content-type": "text/html" });
         return res.end('<html><head><link rel="icon" href="/icon.png"></head></html>');
       }
+      if (["/", "/icon.png", "/favicon.ico"].includes(url.pathname)) iconHits++; // only the favicon fetcher asks for these
       if (url.pathname === "/icon.png") {
         res.writeHead(200, { "content-type": "image/png" });
         return res.end(PNG);
@@ -192,7 +195,7 @@ describe("worker on a real PostgreSQL (FETCH_CONCURRENCY=4)", () => {
     server?.close();
   }, 60_000);
 
-  it("first import: no error, no duplicate topic, favicons stored", async () => {
+  it("first import: no error, no duplicate topic, loopback favicons refused", async () => {
     const run = await runWorker();
     expectCleanRun(run);
     await expectConsistent();
@@ -201,10 +204,11 @@ describe("worker on a real PostgreSQL (FETCH_CONCURRENCY=4)", () => {
     expect(n).toBe(new Set(feedKeys()).size);
     expect(n).toBeLessThan(SOURCE_COUNT * ITEMS_PER_FEED); // the feeds really overlap
 
-    const icons = await sql<{ content_type: string; size: number }[]>`
-      select content_type, octet_length(data)::int size from source_favicons`;
+    // SSRF guard, end to end: every source was looked up, no loopback icon was downloaded.
+    const icons = await sql<{ data: Uint8Array | null }[]>`select data from source_favicons`;
     expect(icons).toHaveLength(SOURCE_COUNT);
-    expect(icons.every((i) => i.content_type === "image/png" && i.size === PNG.length)).toBe(true);
+    expect(icons.every((i) => i.data === null)).toBe(true);
+    expect(iconHits).toBe(0);
   });
 
   it("two workers at the same time on updated feeds: still no error nor duplicate", async () => {

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { downloadFavicon, FAVICON_TTL_MS, findIconLinks, refreshFavicon, sniffImage } from "@/lib/feeds/favicon";
+import type { Resolver } from "@/lib/net/safe-fetch";
 
 const { forums, sources, sourceFavicons, topics } = schema;
 
@@ -25,6 +26,10 @@ function fakeFetch(routes: Routes, calls: string[] = []): typeof fetch {
     return route ? route() : new Response("not found", { status: 404 });
   }) as typeof fetch;
 }
+// Every test host "resolves" to a public documentation-free address (no real DNS in unit tests).
+const PUBLIC: Resolver = async () => [{ address: "93.184.215.14", family: 4 }];
+const opts = (f: typeof fetch) => ({ resolve: PUBLIC, fetchImpl: f });
+
 const html = (body: string) => () => new Response(body, { headers: { "content-type": "text/html" } });
 const bytes = (data: Uint8Array) => () => new Response(Buffer.from(data));
 
@@ -62,34 +67,30 @@ describe("findIconLinks", () => {
 
 describe("downloadFavicon", () => {
   it("uses the icon declared in the home page", async () => {
-    const icon = await downloadFavicon(
-      "https://blog.example.org/2026/article",
-      fakeFetch({
+    const icon = await downloadFavicon("https://blog.example.org/2026/article", opts(fakeFetch({
         "https://blog.example.org/": html('<link rel="icon" href="/img/fav.png">'),
         "https://blog.example.org/img/fav.png": bytes(PNG),
-      }),
+      })),
     );
     expect(icon?.contentType).toBe("image/png");
     expect(icon?.data).toEqual(PNG);
   });
 
   it("falls back to /favicon.ico and skips non-images", async () => {
-    const icon = await downloadFavicon(
-      "https://blog.example.org/a",
-      fakeFetch({
+    const icon = await downloadFavicon("https://blog.example.org/a", opts(fakeFetch({
         "https://blog.example.org/": html('<link rel="icon" href="/fake.png">'),
         "https://blog.example.org/fake.png": html("<html>soft 404</html>"),
         "https://blog.example.org/favicon.ico": bytes(ICO),
-      }),
+      })),
     );
     expect(icon?.contentType).toBe("image/x-icon");
   });
 
   it("returns null when nothing usable exists, and rejects oversized files", async () => {
-    expect(await downloadFavicon("https://none.example.org/", fakeFetch({}))).toBeNull();
+    expect(await downloadFavicon("https://none.example.org/", opts(fakeFetch({})))).toBeNull();
     const big = new Uint8Array(200 * 1024);
     big.set(PNG);
-    expect(await downloadFavicon("https://big.example.org/", fakeFetch({ "https://big.example.org/favicon.ico": bytes(big) }))).toBeNull();
+    expect(await downloadFavicon("https://big.example.org/", opts(fakeFetch({ "https://big.example.org/favicon.ico": bytes(big) })))).toBeNull();
   });
 });
 
@@ -118,7 +119,7 @@ describe("refreshFavicon", () => {
       lastActivityAt: new Date(),
     });
     const calls: string[] = [];
-    const res = await refreshFavicon(db, source, { fetchImpl: fakeFetch({ "https://blog.example.org/favicon.ico": bytes(ICO) }, calls) });
+    const res = await refreshFavicon(db, source, { resolve: PUBLIC, fetchImpl: fakeFetch({ "https://blog.example.org/favicon.ico": bytes(ICO) }, calls) });
     expect(res).toBe("stored");
     expect(calls.every((u) => u.startsWith("https://blog.example.org/"))).toBe(true);
     const row = await stored();
@@ -128,20 +129,20 @@ describe("refreshFavicon", () => {
 
   it("stores « none », skips while fresh, retries after 7 days", async () => {
     const now = new Date("2026-11-01T10:00:00Z");
-    expect(await refreshFavicon(db, source, { now, fetchImpl: fakeFetch({}) })).toBe("none");
+    expect(await refreshFavicon(db, source, { now, resolve: PUBLIC, fetchImpl: fakeFetch({}) })).toBe("none");
     expect((await stored())?.data).toBeNull();
 
     const later = new Date(now.getTime() + FAVICON_TTL_MS - 60_000);
     const routes = { "https://feeds.example.net/favicon.ico": bytes(PNG) };
-    expect(await refreshFavicon(db, source, { now: later, fetchImpl: fakeFetch(routes) })).toBe("fresh");
+    expect(await refreshFavicon(db, source, { now: later, resolve: PUBLIC, fetchImpl: fakeFetch(routes) })).toBe("fresh");
 
     const afterTtl = new Date(now.getTime() + FAVICON_TTL_MS + 60_000);
-    expect(await refreshFavicon(db, source, { now: afterTtl, fetchImpl: fakeFetch(routes) })).toBe("stored");
+    expect(await refreshFavicon(db, source, { now: afterTtl, resolve: PUBLIC, fetchImpl: fakeFetch(routes) })).toBe("stored");
     expect((await stored())?.fetchedAt).toEqual(afterTtl);
   });
 
   it("is deleted with its source", async () => {
-    await refreshFavicon(db, source, { fetchImpl: fakeFetch({ "https://feeds.example.net/favicon.ico": bytes(PNG) }) });
+    await refreshFavicon(db, source, { resolve: PUBLIC, fetchImpl: fakeFetch({ "https://feeds.example.net/favicon.ico": bytes(PNG) }) });
     await db.delete(sources).where(eq(sources.id, source.id));
     expect(await db.select().from(sourceFavicons)).toHaveLength(0);
   });
