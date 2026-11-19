@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { forums, replies, topics } from "@/lib/db/schema";
@@ -44,19 +44,18 @@ export async function addNote(formData: FormData) {
   }
 
   const db = getDb();
-  const replyId = await db.transaction(async (tx) => {
+  const postNumber = await db.transaction(async (tx) => {
     const [topic] = await tx
       .update(topics)
       .set({ replyCount: sql`${topics.replyCount} + 1` })
       .where(eq(topics.id, topicId))
       .returning({ id: topics.id });
     if (!topic) return null;
-    const [reply] = await tx
-      .insert(replies)
-      .values({ topicId, type: "note", author: session.user.name, content })
-      .returning({ id: replies.id });
-    return reply!.id;
+    await tx.insert(replies).values({ topicId, type: "note", author: session.user.name, content });
+    // Post number in the thread (#1 is the article itself).
+    const [{ n } = { n: 0 }] = await tx.select({ n: count() }).from(replies).where(eq(replies.topicId, topicId));
+    return n + 1;
   });
-  if (replyId === null) redirect("/");
-  redirect(toastUrl(`/t/${topicId}`, { kind: "ok", title: "Note ajoutée." }, `#reply-${replyId}`));
+  if (postNumber === null) redirect("/");
+  redirect(toastUrl(`/t/${topicId}`, { kind: "ok", title: "Note ajoutée." }, `#p${postNumber}`));
 }
