@@ -7,7 +7,7 @@ import { IconAlertCircle, Logo } from "@/components/ui/icons";
 import { authClient } from "@/lib/auth-client";
 
 const FIELD =
-  "h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-[16px] text-fg md:text-[15px] aria-invalid:border-err";
+  "h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-[16px] font-normal text-fg md:text-[15px] aria-invalid:border-err";
 
 export function LoginForm() {
   const router = useRouter();

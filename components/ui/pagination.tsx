@@ -14,10 +14,10 @@ export function pageItems(page: number, pageCount: number): (number | "gap")[] {
   return items;
 }
 
-const CELL =
-  "inline-flex min-w-8 h-8 items-center justify-center rounded-sm border border-line bg-surface px-1.5 font-mono text-sm no-underline";
-const LINK = `${CELL} text-fg hover:bg-surface-hover hover:text-fg`;
-const DISABLED = `${CELL} text-line-strong`;
+const CELL = "inline-flex min-w-8 h-8 items-center justify-center rounded-sm border px-1.5 font-mono text-sm no-underline";
+const LINK = `${CELL} border-line bg-surface text-fg hover:bg-surface-hover hover:text-fg`;
+const DISABLED = `${CELL} border-line bg-surface text-line-strong`;
+const CURRENT = `${CELL} border-transparent bg-accent font-semibold text-accent-fg`;
 const MOBILE = "inline-flex h-11 items-center rounded-sm border border-line bg-surface px-3 text-sm font-medium no-underline";
 
 export function Pagination({
@@ -54,7 +54,7 @@ export function Pagination({
               …
             </span>
           ) : p === page ? (
-            <span key={p} aria-current="page" className={`${CELL} border-transparent bg-accent font-semibold text-accent-fg`}>
+            <span key={p} aria-current="page" className={CURRENT}>
               {p}
             </span>
           ) : (

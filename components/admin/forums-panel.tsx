@@ -34,7 +34,7 @@ export type AdminForum = {
   topicCount: number;
 };
 
-const FIELD = "h-9 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-base text-fg max-md:h-11 max-md:text-[16px]";
+const FIELD = "h-9 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-base font-normal text-fg max-md:h-11 max-md:text-[16px]";
 const LABEL = "flex flex-col gap-1 text-xs font-semibold text-fg-muted";
 
 function IconSelect({ defaultValue }: { defaultValue?: ForumIconName }) {
@@ -274,7 +274,9 @@ export function ForumsPanel({ forums }: { forums: AdminForum[] }) {
           <input name="name" required maxLength={100} placeholder="Sécu / CVE" className={FIELD} />
         </label>
         <label className={LABEL}>
-          Description <span className="font-normal">(facultatif)</span>
+          <span>
+            Description <span className="font-normal">(facultatif)</span>
+          </span>
           <input name="description" maxLength={300} placeholder="Alertes, CVE, advisories" className={FIELD} />
         </label>
         <div className="flex items-end gap-2">

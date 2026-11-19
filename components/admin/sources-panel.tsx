@@ -12,7 +12,7 @@ import { SourceDeleteButton } from "./source-delete-button";
 import { SourceStatusBadge } from "./source-status-badge";
 
 const GRID = "grid-cols-[minmax(0,1fr)_128px_168px_104px_136px]";
-const FIELD = "h-9 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-base text-fg max-md:h-11 max-md:text-[16px]";
+const FIELD = "h-9 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-base font-normal text-fg max-md:h-11 max-md:text-[16px]";
 const LABEL = "flex min-w-0 flex-col gap-1 text-xs font-semibold text-fg-muted";
 
 export type AdminSource = Source & { forumName: string };

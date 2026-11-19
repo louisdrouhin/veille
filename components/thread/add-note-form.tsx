@@ -22,7 +22,7 @@ export function AddNoteForm({ topicId }: { topicId: number }) {
           required
           maxLength={NOTE_MAX_LENGTH}
           rows={5}
-          className="min-h-30 w-full rounded-sm border border-line-strong bg-surface px-3 py-2 text-[16px] text-fg md:text-base"
+          className="min-h-30 w-full rounded-sm border border-line-strong bg-surface px-3 py-2 text-[16px] font-normal text-fg md:text-base"
           placeholder="Ce que tu en retiens, ce qu'il faut vérifier…"
         />
         <div className="flex justify-end">

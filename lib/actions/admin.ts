@@ -203,7 +203,7 @@ export async function fetchSourceNow(formData: FormData) {
       case "ok":
         return {
           title: "Source récupérée :",
-          msg: plural(res.inserted, "nouveau topic", "nouveaux topics"),
+          msg: res.inserted === 0 ? "aucun nouveau topic" : plural(res.inserted, "nouveau topic", "nouveaux topics"),
           ctx: res.firstImport ? `${source.name} · import initial, marqués comme lus` : source.name,
         };
       case "not-modified":

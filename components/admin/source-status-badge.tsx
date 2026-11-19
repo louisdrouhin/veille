@@ -12,7 +12,7 @@ export function sourceStatus(source: Source, now: Date): SourceStatus {
   return "pending";
 }
 
-const PILL = "inline-flex h-5.5 items-center gap-1.25 rounded-full px-2 text-xs font-semibold whitespace-nowrap";
+const PILL = "justify-self-start inline-flex h-5.5 items-center gap-1.25 rounded-full px-2 text-xs font-semibold whitespace-nowrap";
 
 export function SourceStatusBadge({ source, now }: { source: Source; now: Date }) {
   const status = sourceStatus(source, now);
