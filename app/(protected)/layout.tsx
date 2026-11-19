@@ -4,10 +4,14 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
+import { getDb } from "@/lib/db";
+import { hasAnyUser } from "@/lib/users";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  // Real authorization check (proxy.ts is only a convenience redirect).
   const requestHeaders = await headers();
+  // First run: no account yet → setup wizard.
+  if (!(await hasAnyUser(getDb()))) redirect("/setup");
+  // Real authorization check (proxy.ts is only a convenience redirect).
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   if (!session) redirect("/login");
 
