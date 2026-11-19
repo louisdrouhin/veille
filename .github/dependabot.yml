@@ -16,6 +16,11 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: build
+    ignore:
+      # Stay aligned with the Node major of the Dockerfile (node:22-alpine) and CI.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       npm-minor-patch:
         update-types:
