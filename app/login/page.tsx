@@ -8,11 +8,8 @@ export const metadata: Metadata = { title: "Connexion" };
 export default async function LoginPage() {
   if (await getSession()) redirect("/");
   return (
-    <main className="mx-auto mt-[12vh] max-w-sm px-4">
-      <div className="panel">
-        <h1 className="panel-title">Veille — connexion</h1>
-        <LoginForm />
-      </div>
+    <main className="min-h-dvh bg-bg bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[18px_18px] px-4 py-[12vh]">
+      <LoginForm />
     </main>
   );
 }
