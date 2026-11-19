@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { forums, replies, topics } from "@/lib/db/schema";
 import { plural } from "@/lib/format-date";
+import { reloadArticle as reloadArticleContent } from "@/lib/reader/article";
 import { requireSession } from "@/lib/session";
 import { toastUrl } from "@/lib/toast";
 import { id, NOTE_MAX_LENGTH, str } from "@/lib/validation";
@@ -58,4 +59,27 @@ export async function addNote(formData: FormData) {
   });
   if (postNumber === null) redirect("/");
   redirect(toastUrl(`/t/${topicId}`, { kind: "ok", title: "Note ajoutée." }, `#p${postNumber}`));
+}
+
+/** « Recharger l'article » — downloads and extracts the original page again (reading mode). */
+export async function reloadArticle(formData: FormData) {
+  await requireSession();
+  const topicId = id(formData.get("topicId"));
+  const db = getDb();
+  const [topic] = await db.select({ id: topics.id, url: topics.url }).from(topics).where(eq(topics.id, topicId));
+  if (!topic) redirect("/");
+  const res = await reloadArticleContent(db, topic);
+  redirect(
+    toastUrl(
+      `/t/${topicId}`,
+      res.ok
+        ? { kind: "ok", title: "Article rechargé." }
+        : {
+            kind: "error",
+            title: "Rechargement impossible :",
+            msg: res.article?.html ? `${res.error}. Version précédente conservée.` : res.error,
+          },
+      "#article",
+    ),
+  );
 }

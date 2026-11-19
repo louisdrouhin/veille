@@ -1,12 +1,19 @@
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { sources, topics, type Source } from "@/lib/db/schema";
-import { parseFeed } from "./parse";
+import { storeFeedArticles } from "@/lib/reader/store";
+import { htmlTextLength, sanitizeArticleHtml } from "@/lib/reader/sanitize";
+import { parseFeed, type FeedEntry } from "./parse";
 
 export const FETCH_TIMEOUT_MS = 10_000;
 export const MAX_CONSECUTIVE_FAILURES = 3;
 export const PAUSE_DURATION_MS = 60 * 60 * 1000;
 export const MAX_FEED_BYTES = 10 * 1024 * 1024;
+/**
+ * Feed content shorter than this (visible text) is treated as a teaser: the
+ * reading mode then extracts the page itself instead.
+ */
+export const MIN_FEED_ARTICLE_TEXT = 500;
 export const USER_AGENT =
   process.env.FETCH_USER_AGENT ?? "VeilleBot/1.0 (+self-hosted personal feed reader)";
 
@@ -104,8 +111,9 @@ export async function fetchSource(
           })),
         )
         .onConflictDoNothing({ target: topics.normalizedUrl })
-        .returning({ id: topics.id });
+        .returning({ id: topics.id, normalizedUrl: topics.normalizedUrl });
       inserted = rows.length;
+      await storeFeedArticles(db, feedArticles(entries, rows), now);
     }
 
     await markSuccess(db, source.id, now, { etag: result.etag, lastModified: result.lastModified });
@@ -116,6 +124,19 @@ export async function fetchSource(
     const paused = await markFailure(db, source.id, now, message);
     return { status: "error", error: message, paused };
   }
+}
+
+/** Sanitized feed content of the topics just created, when it looks like the full article. */
+function feedArticles(entries: FeedEntry[], created: { id: number; normalizedUrl: string }[]) {
+  const byUrl = new Map(entries.map((e) => [e.normalizedUrl, e]));
+  const out: { topicId: number; html: string }[] = [];
+  for (const { id, normalizedUrl } of created) {
+    const entry = byUrl.get(normalizedUrl);
+    if (!entry?.content) continue;
+    const html = sanitizeArticleHtml(entry.content, entry.url);
+    if (htmlTextLength(html) >= MIN_FEED_ARTICLE_TEXT) out.push({ topicId: id, html });
+  }
+  return out;
 }
 
 async function markSuccess(

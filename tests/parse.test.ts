@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { EXCERPT_MAX_LENGTH, htmlToText, makeExcerpt, truncate } from "@/lib/feeds/excerpt";
-import { parseFeed } from "@/lib/feeds/parse";
+import { isAtomDocument, parseFeed } from "@/lib/feeds/parse";
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "fixtures", name), "utf8");
 const NOW = new Date("2026-01-15T12:00:00Z");
@@ -42,6 +42,11 @@ describe("parseFeed — RSS 2.0", async () => {
     expect(entries[3]?.url).toBe("https://secu.example.org/relatif");
     expect(entries[3]?.excerpt).toBe("Contenu complet");
   });
+
+  it("keeps content:encoded as the full content, never the <description>", () => {
+    expect(entries[3]?.content).toBe("<div>Contenu complet</div>");
+    expect(entries.slice(0, 3).every((e) => e.content === undefined)).toBe(true);
+  });
 });
 
 describe("parseFeed — Atom", () => {
@@ -59,6 +64,20 @@ describe("parseFeed — Atom", () => {
     expect(entries[1]?.publishedAt.toISOString()).toBe("2025-04-08T12:00:00.000Z");
     expect([...(entries[1]?.excerpt ?? "")].length).toBeLessThanOrEqual(EXCERPT_MAX_LENGTH);
     expect(entries[1]?.excerpt.endsWith("…")).toBe(true);
+  });
+
+  it("keeps <content> as the full content, not <summary>", async () => {
+    const xml = fixture("atom.xml").replace("LONG_CONTENT_PLACEHOLDER", "&lt;p&gt;corps&lt;/p&gt;");
+    const entries = await parseFeed(xml, { now: NOW });
+    expect(entries[0]?.content).toBeUndefined();
+    expect(entries[1]?.content).toBe("<p>corps</p>");
+  });
+
+  it("isAtomDocument looks at the root element only", () => {
+    expect(isAtomDocument(fixture("atom.xml"))).toBe(true);
+    expect(isAtomDocument('﻿<?xml version="1.0"?>\n<!-- c --><?xml-stylesheet href="a"?><atom:feed xmlns:atom="x"/>')).toBe(true);
+    expect(isAtomDocument(fixture("rss2.xml"))).toBe(false);
+    expect(isAtomDocument("<rss><channel><description>&lt;feed&gt;</description></channel></rss>")).toBe(false);
   });
 
   it("rejects documents that are not feeds", async () => {

@@ -98,6 +98,33 @@ export const topics = pgTable(
   ],
 );
 
+export const ARTICLE_SOURCES = ["feed", "readability"] as const;
+export type ArticleSource = (typeof ARTICLE_SOURCES)[number];
+
+/**
+ * Reading-mode cache (lib/reader): article HTML, already sanitized, taken from
+ * the feed (content:encoded / Atom content) or extracted from the page with
+ * Readability. `html = null` means « extraction failed » (`error` says why);
+ * failures are retried after a day or on « Recharger l'article ».
+ * Rows older than 90 days are purged by the worker.
+ */
+export const articleContents = pgTable(
+  "article_contents",
+  {
+    topicId: integer("topic_id")
+      .primaryKey()
+      .references(() => topics.id, { onDelete: "cascade" }),
+    html: text("html"),
+    source: text("source", { enum: ARTICLE_SOURCES }).notNull(),
+    error: text("error"),
+    fetchedAt: tsz("fetched_at").notNull(),
+  },
+  (t) => [
+    index("article_contents_fetched_idx").on(t.fetchedAt),
+    check("article_contents_source_check", sql`source in ('feed', 'readability')`),
+  ],
+);
+
 export const REPLY_TYPES = ["note", "source", "comment"] as const;
 export type ReplyType = (typeof REPLY_TYPES)[number];
 /**
@@ -197,3 +224,4 @@ export type Source = typeof sources.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
 export type Reply = typeof replies.$inferSelect;
 export type SourceFavicon = typeof sourceFavicons.$inferSelect;
+export type ArticleContent = typeof articleContents.$inferSelect;
