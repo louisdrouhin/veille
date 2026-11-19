@@ -49,7 +49,8 @@ npm run worker              # dans un autre terminal
 Direction artistique dans [`DA/`](DA/) : `veille-tokens.css` (copié tel quel dans `app/globals.css`) et `HANDOFF.md`
 (composants, responsive, accessibilité). Règle : **aucune couleur en dur** dans les composants, uniquement les classes
 de tokens (`bg-surface`, `text-fg-muted`, `border-line`…) — le thème sombre (v3) n'aura qu'à poser `class="dark"` sur `<html>`.
-Polices IBM Plex (Sans, Sans Condensed, Mono) via `next/font` : le build a besoin d'un accès à Google Fonts.
+Polices IBM Plex (Sans, Sans Condensed, Mono) auto-hébergées dans `app/fonts/` (sous-ensemble latin, licence SIL OFL 1.1,
+fichiers `OFL-*.txt`) et chargées par `next/font/local` : le build ne fait aucun appel réseau pour les polices.
 
 ## Fonctionnement
 
