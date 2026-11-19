@@ -16,11 +16,17 @@ const tsz = (name: string) => timestamp(name, { withTimezone: true });
 // Application tables
 // ---------------------------------------------------------------------------
 
+/** Forum icons drawn in the design system (components/forum/forum-icon.tsx). */
+export const FORUM_ICONS = ["sec", "ops", "lab", "news", "web"] as const;
+export type ForumIconName = (typeof FORUM_ICONS)[number];
+
 export const forums = pgTable("forums", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   position: integer("position").notNull().default(0),
+  description: text("description").notNull().default(""),
+  icon: text("icon", { enum: FORUM_ICONS }).notNull().default("news"),
 });
 
 export const sources = pgTable(
