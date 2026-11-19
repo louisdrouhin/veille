@@ -11,14 +11,25 @@ page topic, lu / non lu, notes perso, administration, Docker Compose.
 ```sh
 cp .env.example .env        # remplir POSTGRES_PASSWORD, BETTER_AUTH_URL, BETTER_AUTH_SECRET
 docker compose up -d --build
+```
+
+**Premier lancement** : tant qu'aucun compte n'existe, toutes les pages mènent à `/setup` (email, mot de passe
+≥ 12 caractères + confirmation). Le compte est créé côté serveur dans une transaction protégée par
+`pg_advisory_xact_lock` (un seul setup peut réussir), puis `/setup` renvoie 404 définitivement.
+⚠️ Tant que le setup n'est pas fait, n'importe qui atteignant l'app peut le faire : crée le compte **avant**
+de l'exposer via le reverse proxy, ou crée-le en ligne de commande :
+
+```sh
 docker compose exec app node dist/create-user.js --email moi@example.com --password 'un long mot de passe' --name Moi
+# Récupération (mot de passe oublié) : change le mot de passe et ferme toutes les sessions
+docker compose exec app node dist/reset-password.js --email moi@example.com --password 'un nouveau mot de passe'
 ```
 
 - `app` applique les migrations au démarrage puis lance Next (port `APP_PORT`, 3000 par défaut).
 - `worker` démarre une fois `app` healthy (donc après les migrations).
 - `db` : PostgreSQL 17, données dans le volume `db-data`.
 - Healthcheck : `GET /api/health` (200 si la base répond, 503 sinon ; non authentifié, n'expose aucune donnée).
-- Relancer `create-user` avec le même email réinitialise le mot de passe.
+- `create-user` refuse un email déjà pris ; pour changer un mot de passe, utiliser `reset-password`.
 
 Reverse proxy : il doit transmettre l'en-tête `Host` d'origine (ou `X-Forwarded-Host`),
 sinon Next refuse les server actions (protection CSRF), et `BETTER_AUTH_URL` doit être l'URL publique exacte.
@@ -32,19 +43,20 @@ npm install
 cp .env.example .env        # DATABASE_URL pointant sur un Postgres local
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db   # optionnel
 npm run db:migrate
-npm run create-user -- --email moi@example.com --password 'un long mot de passe'
-npm run dev                 # app sur http://localhost:3000
+npm run dev                 # puis http://localhost:3000 → /setup au premier lancement
+# (ou : npm run create-user -- --email moi@example.com --password 'un long mot de passe')
+# récupération : npm run reset-password -- --email moi@example.com --password '…'
 npm run worker              # dans un autre terminal
 ```
 
 | Script | Rôle |
 |---|---|
 | `npm test` | Tests (normalisation d'URL, parsing RSS/Atom, récupération sur un Postgres PGlite en mémoire) |
-| `npm run test:integration` | Worker réel (`--once`, `FETCH_CONCURRENCY=4`) sur un **vrai PostgreSQL** : 10 sources aux articles partagés (variantes `utm_*`, `fbclid`, `#…`, `/` final), puis deux workers simultanés. Vérifie : aucune erreur, aucun topic en double, favicons stockés. Postgres via testcontainers (Docker requis) ou `TEST_DATABASE_URL` (une base jetable y est créée puis supprimée) |
+| `npm run test:integration` | Nécessite `npm run build`. Setup de premier lancement (course de 8 setups libérés au même instant ; app réelle en HTTP : redirections vers `/setup`, deux soumissions simultanées, 404 ensuite). Worker réel (`--once`, `FETCH_CONCURRENCY=4`) sur un **vrai PostgreSQL** : 10 sources aux articles partagés (variantes `utm_*`, `fbclid`, `#…`, `/` final), puis deux workers simultanés. Vérifie : aucune erreur, aucun topic en double, favicons stockés. Postgres via testcontainers (Docker requis) ou `TEST_DATABASE_URL` (une base jetable y est créée puis supprimée) |
 | `npm run lint` | ESLint (config Next : core-web-vitals + TypeScript, règles React Compiler) |
 | `npm run typecheck` | TypeScript strict |
 | `npm run db:generate` | Génère une migration après modification de `lib/db/schema.ts` |
-| `npm run build` | Build Next standalone + bundles `dist/{worker,migrate,create-user}.js` |
+| `npm run build` | Build Next standalone + bundles `dist/{worker,migrate,create-user,reset-password}.js` |
 
 ## CI
 

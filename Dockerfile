@@ -18,7 +18,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Builds Next (standalone) + bundles worker, migrate and create-user into dist/
+# Builds Next (standalone) + bundles worker, migrate, create-user and reset-password into dist/
 RUN npm run build
 
 # ---------------------------------------------------------------------------
