@@ -1,7 +1,26 @@
+# Dependencies & build output
 node_modules/
 .next/
 dist/
+coverage/
 *.tsbuildinfo
 next-env.d.ts
+
+# Secrets — never commit (only the documented template is tracked)
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.npmrc
+docker-compose.override.yml
+compose.override.yml
+.claude/settings.local.json
+
+# Local noise
+*.log
+.DS_Store
+Thumbs.db
