@@ -1,10 +1,11 @@
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { AddNoteForm } from "@/components/thread/add-note-form";
 import { Post } from "@/components/thread/post";
-import { buttonClass } from "@/components/ui/button";
+import { ReaderArticle, ReaderArticleSkeleton } from "@/components/thread/reader-article";
 import { getDb } from "@/lib/db";
 import { forums, replies, sourceFavicons, sources, topics, type ReplyType } from "@/lib/db/schema";
 import { faviconUrl } from "@/lib/feeds/favicon";
@@ -29,14 +30,6 @@ async function getTopic(rawId: string) {
     .leftJoin(sourceFavicons, and(eq(sourceFavicons.sourceId, topics.sourceId), isNotNull(sourceFavicons.data)))
     .where(eq(topics.id, topicId));
   return row;
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -74,17 +67,10 @@ export default async function TopicPage({ params }: Props) {
           author={{ name: sourceName ?? "Source supprimée", role: "Source", muted: !sourceName, faviconSrc: faviconUrl(topic.sourceId, faviconAt) }}
         >
           <h1 className="text-lg font-semibold">{topic.title}</h1>
-          {topic.excerpt ? (
-            <p className="max-w-[72ch] text-md">{topic.excerpt}</p>
-          ) : (
-            <p className="text-md text-fg-muted italic">Pas de résumé dans le flux.</p>
-          )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <a href={topic.url} target="_blank" rel="noopener noreferrer" className={buttonClass("primary", "md")}>
-              Lire l&apos;article <span aria-hidden="true">↗</span>
-            </a>
-            <span className="truncate font-mono text-sm text-fg-muted">{hostOf(topic.url)}</span>
-          </div>
+          {/* Reading mode: the first opening may download the page (up to 10 s), so it is streamed. */}
+          <Suspense fallback={<ReaderArticleSkeleton topic={topic} />}>
+            <ReaderArticle topic={topic} />
+          </Suspense>
         </Post>
 
         {replyRows.map((r, i) => (

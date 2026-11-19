@@ -82,6 +82,9 @@ fichiers `OFL-*.txt`) et chargées par `next/font/local` : le build ne fait aucu
 - **Sécurité** : `proxy.ts` ne fait qu'une redirection de confort vers `/login`. Chaque layout/page protégé,
   chaque server action revérifie la session côté serveur (`requireSession()`), cf. CVE-2025-29927.
   Inscription désactivée (`disableSignUp`).
+  `proxy.ts` pose aussi sur chaque page une CSP stricte à nonce (`lib/csp.ts`) : scripts `'nonce-…' 'strict-dynamic'`,
+  `img-src 'self'`, ni `object`, ni `frame`, ni formulaire vers l'extérieur. Elle est sur toutes les pages, pas
+  seulement `/t/…`, car on arrive en général sur un topic par navigation côté client.
 - **Worker** (`worker/index.ts`) : toutes les `FETCH_INTERVAL_MINUTES`, récupère les sources actives et non en pause.
   ETag / If-Modified-Since, timeout 10 s, User-Agent explicite. 3 échecs consécutifs → pause 1 h (`paused_until`),
   erreur visible dans l'admin.
@@ -89,11 +92,29 @@ fichiers `OFL-*.txt`) et chargées par `next/font/local` : le build ne fait aucu
   de plus de 7 jours, depuis le site du dernier article (`<link rel="icon">` de la page d'accueil, sinon `/favicon.ico`).
   Seuls PNG, ICO, GIF, JPEG et WebP ≤ 100 Ko sont acceptés (identifiés par leurs octets, SVG refusé). Stockés dans la
   table `source_favicons`, servis par `/api/favicon/[sourceId]` (session requise). Repli sur l'initiale de la source.
-- **Anti-SSRF** (favicons uniquement, `lib/net/safe-fetch.ts`) : http/https seulement ; DNS résolu et toute adresse
+- **Mode lecture** (`lib/reader/`, v2) : la page topic affiche l'article lui-même.
+  - Contenu fourni par le flux (`content:encoded` en RSS, `<content>` en Atom) : assaini et stocké dès l'import,
+    s'il fait au moins 500 caractères de texte (en dessous, c'est un chapô : on extrait la page).
+  - Sinon, à la première ouverture : page téléchargée via `safeFetch` (anti-SSRF, 2 Mo max, 10 s), article extrait
+    par `@mozilla/readability` sur un DOM `linkedom` (aucun script exécuté). Le rendu est streamé (`Suspense`).
+  - Échec (HTTP 4xx/5xx, paywall, extraction de moins de 200 caractères, page d'erreur servie en 200, pas du HTML) :
+    « Article non disponible en mode lecture », la raison, l'extrait et le lien d'origine. L'échec est mis en cache
+    et retenté au bout de 24 h. « Recharger l'article » relance l'extraction ; en cas d'échec, le contenu déjà
+    disponible est conservé.
+  - Assainissement côté serveur (`sanitize-html`, `lib/reader/sanitize.ts`) avant stockage : seulement `p`, `h2`-`h4`,
+    `ul`/`ol`/`li`, `a`, `strong`, `em`, `blockquote`, `pre`/`code`, `img`, `figure`, `figcaption` ; aucun attribut
+    hors `a[href]` et `img[src|alt]` (donc ni `on*`, ni `style`) ; liens http(s)/mailto en `target=_blank`
+    `rel="noopener noreferrer"` ; `script`, `iframe`, `style`, `svg`… supprimés avec leur contenu.
+  - Images réécrites vers `/api/image-proxy?url=…` (session requise) : téléchargées via `safeFetch`, 5 Mo max,
+    PNG/JPEG/GIF/WebP/AVIF identifiés par leurs octets (SVG refusé), mises en cache 7 jours par le navigateur.
+    Le navigateur ne contacte jamais le site tiers.
+  - Cache : table `article_contents` (`topic_id`, `html`, `source` = `feed` | `readability`, `error`, `fetched_at`),
+    purgée par le worker au-delà de 90 jours (l'article est ré-extrait à la demande).
+- **Anti-SSRF** (favicons, mode lecture, proxy d'images ; `lib/net/safe-fetch.ts`) : http/https seulement ; DNS résolu et toute adresse
   privée, loopback, link-local ou réservée refusée (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16, 100.64/10,
   0/8, multicast, ::1, fc00::/7, fe80::/10, IPv4 mappée…) ; la socket elle-même passe par un `lookup` filtré
   (pas de fenêtre de DNS rebinding) ; redirections suivies à la main, 3 au maximum, revérifiées à chaque saut ;
-  limite de 100 Ko appliquée pendant le téléchargement (flux coupé). Les URL des flux, saisies par toi, restent libres.
+  limite de taille appliquée pendant le téléchargement (flux coupé). Les URL des flux, saisies par toi, restent libres.
 - **Worker `--once`** : `node dist/worker.js --once` (ou `npm run worker -- --once`) fait un seul cycle puis s'arrête.
 - **Dédoublonnage** : `normalized_url` unique (sans `utm_*`, `fbclid`, `gclid`, fragment ; hôte en minuscules ;
   sans `/` final), insertion en `ON CONFLICT DO NOTHING` — le worker et « Récupérer maintenant » peuvent tourner en même temps.

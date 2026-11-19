@@ -9,6 +9,8 @@ export interface FeedEntry {
   excerpt: string;
   /** Always in the past or present: missing, invalid or future dates fall back to `now`. */
   publishedAt: Date;
+  /** Full article HTML, unsanitized (RSS content:encoded, Atom <content>), when the feed provides it. */
+  content?: string;
 }
 
 type RawItem = {
@@ -62,6 +64,21 @@ function pickSummary(item: RawItem): string {
   return "";
 }
 
+/** True when the document root is an Atom <feed> (prolog, comments and doctype skipped). */
+export function isAtomDocument(xml: string): boolean {
+  const body = xml.replace(/^﻿?(?:\s+|<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!DOCTYPE[^>]*>)*/i, "");
+  return /^<(?:[\w.-]+:)?feed[\s>/]/.test(body);
+}
+
+/**
+ * Full content of an entry, for the reading mode. With rss-parser, `content` is
+ * the RSS <description> but the Atom <content>: it only counts for Atom.
+ */
+function pickContent(item: RawItem, atom: boolean): string | undefined {
+  const raw = atom ? item.content : item["content:encoded"];
+  return typeof raw === "string" && raw.trim() ? raw : undefined;
+}
+
 /**
  * Parses an RSS / Atom document into entries ready to become topics.
  * Items without a usable http(s) link are skipped; duplicates (same
@@ -70,6 +87,7 @@ function pickSummary(item: RawItem): string {
 export async function parseFeed(xml: string, opts: { feedUrl?: string; now?: Date } = {}): Promise<FeedEntry[]> {
   const now = opts.now ?? new Date();
   const feed = await parser.parseString(xml);
+  const atom = isAtomDocument(xml);
   const seen = new Set<string>();
   const entries: FeedEntry[] = [];
 
@@ -87,6 +105,7 @@ export async function parseFeed(xml: string, opts: { feedUrl?: string; now?: Dat
       normalizedUrl,
       excerpt: makeExcerpt(pickSummary(item)),
       publishedAt: pickDate(item, now),
+      content: pickContent(item, atom),
     });
   }
   return entries;

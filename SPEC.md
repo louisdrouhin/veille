@@ -53,7 +53,11 @@ Un tableau dense, style forum classique :
 - Inspiration visuelle forum rétro, mais **design original** : pas de logo, d'assets ni de nom JVC.
 
 ### Page topic `/t/[id]`
-- Premier message : titre, source, date, extrait, lien « Lire l'article » (nouvel onglet).
+- Premier message : titre, source, date, lien « Lire l'article » (nouvel onglet).
+- **(v2) Mode lecture** : l'article complet (contenu du flux, sinon extrait de la page avec Readability), en HTML
+  assaini côté serveur, images servies par `/api/image-proxy`. En cas d'échec : « Article non disponible en mode
+  lecture », l'extrait et le lien d'origine. Bouton « Recharger l'article ». Cache `article_contents`, purge à 90 jours.
+  CSP stricte (`img-src 'self'`).
 - Les réponses en dessous (notes perso, et en v2 les autres sources et commentaires).
 - Formulaire pour ajouter une **note perso** (= une reply de type `note`).
 - Ouvrir le topic le marque comme lu.
@@ -65,7 +69,7 @@ Un tableau dense, style forum classique :
 
 ## Feuille de route
 - **v1** : auth, forums, sources RSS, worker, liste des topics, page topic, lu/non lu, notes perso, admin, Docker Compose.
-- **v2** : fusion des doublons multi-sources, dossier rouge, sources Reddit (`/r/x.json`), Hacker News (API officielle), releases GitHub (`/releases.atom`), YouTube et Mastodon (RSS), récupération des commentaires HN/Reddit comme réponses.
+- **v2** : mode lecture (fait), fusion des doublons multi-sources, dossier rouge, sources Reddit (`/r/x.json`), Hacker News (API officielle), releases GitHub (`/releases.atom`), YouTube et Mastodon (RSS), récupération des commentaires HN/Reddit comme réponses.
 - **v3** : recherche plein texte (Postgres `tsvector`), raccourcis clavier, mode sombre.
 
 ## Déploiement
