@@ -26,15 +26,16 @@ export function SourceAvatar({
   shape?: keyof typeof SHAPES;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(!src);
+  // Remember which src failed: a new src gets a fresh chance without any effect.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = !src || failedSrc === src;
   const imgRef = useRef<HTMLImageElement>(null);
 
-  useEffect(() => setFailed(!src), [src]);
   // The error event can fire before hydration: check the image state on mount.
   useEffect(() => {
     const img = imgRef.current;
-    if (img && img.complete && img.naturalWidth === 0) setFailed(true);
-  }, []);
+    if (src && img && img.complete && img.naturalWidth === 0) setFailedSrc(src);
+  }, [src]);
 
   const initial = (name.trim()[0] ?? "?").toUpperCase();
   const box = `inline-flex shrink-0 items-center justify-center overflow-hidden ${SHAPES[shape]} ${className}`;
@@ -64,7 +65,7 @@ export function SourceAvatar({
         width={size - pad * 2}
         height={size - pad * 2}
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => setFailedSrc(src)}
       />
     </span>
   );

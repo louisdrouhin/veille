@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { Button } from "./button";
 
 /**
- * Native <dialog> confirmation. `trigger` renders the opening button; the dialog
+ * Native <dialog> confirmation, opened by an icon button (`trigger`); the dialog
  * body (`children`) usually contains forms bound to server actions.
  * The « Annuler » button gets the focus by default.
  */
@@ -15,7 +16,8 @@ export function ConfirmDialog({
 }: {
   title: string;
   description: React.ReactNode;
-  trigger: (open: () => void) => React.ReactNode;
+  /** Opening icon button: accessible label (also used as tooltip), extra classes, icon. */
+  trigger: { label: string; className?: string; icon: React.ReactNode };
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -35,7 +37,15 @@ export function ConfirmDialog({
 
   return (
     <>
-      {trigger(() => ref.current?.showModal())}
+      <Button
+        variant="ghost-icon"
+        className={trigger.className}
+        aria-label={trigger.label}
+        title={trigger.label}
+        onClick={() => ref.current?.showModal()}
+      >
+        {trigger.icon}
+      </Button>
       <dialog
         ref={ref}
         aria-labelledby={titleId}

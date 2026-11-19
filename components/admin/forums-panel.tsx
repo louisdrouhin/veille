@@ -12,7 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { FORUM_ICON_LABELS, ForumIcon } from "@/components/forum/forum-icon";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -181,17 +181,7 @@ function ForumItem({
             <ConfirmDialog
               title={`Supprimer « ${forum.name} » ?`}
               description="Le forum est vide. Cette action est définitive."
-              trigger={(open) => (
-                <Button
-                  variant="ghost-icon"
-                  className="size-7.5 text-err"
-                  aria-label={`Supprimer « ${forum.name} »`}
-                  title="Supprimer"
-                  onClick={open}
-                >
-                  <IconTrash size={14} />
-                </Button>
-              )}
+              trigger={{ label: `Supprimer « ${forum.name} »`, className: "size-7.5 text-err", icon: <IconTrash size={14} /> }}
             >
               <form action={deleteForum}>
                 <input type="hidden" name="id" value={forum.id} />
@@ -215,8 +205,13 @@ const announcements = (names: Map<number, string>): Announcements => ({
 
 export function ForumsPanel({ forums }: { forums: AdminForum[] }) {
   const [items, setItems] = useState(forums);
+  const [syncedFrom, setSyncedFrom] = useState(forums);
   const [busy, startTransition] = useTransition();
-  useEffect(() => setItems(forums), [forums]);
+  // New server data (after an action): reset the local (optimistic) order.
+  if (forums !== syncedFrom) {
+    setSyncedFrom(forums);
+    setItems(forums);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),

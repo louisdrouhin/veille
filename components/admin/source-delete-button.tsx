@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { IconTrash } from "@/components/ui/icons";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -20,11 +19,7 @@ export function SourceDeleteButton({ id, name, enabled }: { id: number; name: st
           </p>
         </>
       }
-      trigger={(open) => (
-        <Button variant="ghost-icon" className="text-err" aria-label={`Supprimer « ${name} »`} title="Supprimer" onClick={open}>
-          <IconTrash size={15} />
-        </Button>
-      )}
+      trigger={{ label: `Supprimer « ${name} »`, className: "text-err", icon: <IconTrash size={15} /> }}
     >
       {enabled && (
         <form action={setSourceEnabled}>

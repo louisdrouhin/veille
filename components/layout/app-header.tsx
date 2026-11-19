@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 import { IconClose, IconLogout, IconMenu, Logo } from "@/components/ui/icons";
 
@@ -44,7 +44,11 @@ export function AppHeader({ userName }: { userName: string }) {
   const menuId = useId();
 
   // Close the mobile menu after navigation.
-  useEffect(() => setOpen(false), [pathname]);
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (pathname !== menuPath) {
+    setMenuPath(pathname);
+    setOpen(false);
+  }
 
   return (
     <header className="border-b border-black/30 bg-bar text-bar-fg">
