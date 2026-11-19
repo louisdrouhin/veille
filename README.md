@@ -41,9 +41,15 @@ npm run worker              # dans un autre terminal
 |---|---|
 | `npm test` | Tests (normalisation d'URL, parsing RSS/Atom, récupération sur un Postgres PGlite en mémoire) |
 | `npm run test:integration` | Worker réel (`--once`, `FETCH_CONCURRENCY=4`) sur un **vrai PostgreSQL** : 10 sources aux articles partagés (variantes `utm_*`, `fbclid`, `#…`, `/` final), puis deux workers simultanés. Vérifie : aucune erreur, aucun topic en double, favicons stockés. Postgres via testcontainers (Docker requis) ou `TEST_DATABASE_URL` (une base jetable y est créée puis supprimée) |
+| `npm run lint` | ESLint (config Next : core-web-vitals + TypeScript, règles React Compiler) |
 | `npm run typecheck` | TypeScript strict |
 | `npm run db:generate` | Génère une migration après modification de `lib/db/schema.ts` |
 | `npm run build` | Build Next standalone + bundles `dist/{worker,migrate,create-user}.js` |
+
+## CI
+
+`.github/workflows/ci.yml` (push sur `master`/`main`, pull requests) : un job lint + typecheck + `npm test`,
+et en parallèle un job `npm run test:integration` (PostgreSQL 17 lancé par testcontainers, Docker des runners `ubuntu-latest`).
 
 ## Design
 
