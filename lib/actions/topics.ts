@@ -2,11 +2,12 @@
 
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { flashUrl } from "@/components/flash";
 import { getDb } from "@/lib/db";
 import { forums, replies, topics } from "@/lib/db/schema";
+import { plural } from "@/lib/format-date";
 import { requireSession } from "@/lib/session";
-import { id, NOTE_MAX_LENGTH, str, ValidationError } from "@/lib/validation";
+import { toastUrl } from "@/lib/toast";
+import { id, NOTE_MAX_LENGTH, str } from "@/lib/validation";
 
 /** « Tout marquer comme lu » — applies to the whole forum, not just the current page. */
 export async function markForumRead(formData: FormData) {
@@ -20,7 +21,13 @@ export async function markForumRead(formData: FormData) {
     .set({ readAt: new Date() })
     .where(and(eq(topics.forumId, forumId), isNull(topics.readAt)))
     .returning({ id: topics.id });
-  redirect(flashUrl(`/f/${forum.slug}`, "ok", `${marked.length} topic(s) marqué(s) comme lu(s).`));
+  redirect(
+    toastUrl(`/f/${forum.slug}`, {
+      kind: "ok",
+      title: "Forum lu :",
+      msg: marked.length ? `${plural(marked.length, "topic")} marqué${marked.length > 1 ? "s" : ""} comme lu${marked.length > 1 ? "s" : ""}` : "rien de nouveau",
+    }),
+  );
 }
 
 /** Adds a personal note (a reply of type `note`). Does not bump `last_activity_at`. */
@@ -30,9 +37,10 @@ export async function addNote(formData: FormData) {
   let content: string;
   try {
     content = str(formData, "content", { max: NOTE_MAX_LENGTH });
-  } catch (err) {
-    const message = err instanceof ValidationError ? "La note ne peut pas être vide (10 000 caractères max)." : "Erreur";
-    redirect(flashUrl(`/t/${topicId}`, "error", message, "#note-form"));
+  } catch {
+    redirect(
+      toastUrl(`/t/${topicId}`, { kind: "error", title: "Note vide.", msg: "Écris quelque chose (10 000 caractères max)." }, "#note-form"),
+    );
   }
 
   const db = getDb();
@@ -50,5 +58,5 @@ export async function addNote(formData: FormData) {
     return reply!.id;
   });
   if (replyId === null) redirect("/");
-  redirect(`/t/${topicId}#reply-${replyId}`);
+  redirect(toastUrl(`/t/${topicId}`, { kind: "ok", title: "Note ajoutée." }, `#reply-${replyId}`));
 }
