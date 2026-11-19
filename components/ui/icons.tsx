@@ -1,0 +1,159 @@
+/** Inline SVG icon set (stroke icons, 16 px grid). Decorative by default (aria-hidden). */
+import type { SVGProps } from "react";
+
+type IconProps = SVGProps<SVGSVGElement> & { size?: number };
+
+function Svg({ size = 16, children, ...rest }: IconProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      {...rest}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const IconCheck = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 8.5l3 3 6-7" />
+  </Svg>
+);
+export const IconAlert = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 4.5v4.5" />
+    <path d="M8 11.5v.01" strokeWidth={2} />
+  </Svg>
+);
+export const IconAlertCircle = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="6.25" />
+    <path d="M8 5v3.5" />
+    <path d="M8 10.75v.01" strokeWidth={2} />
+  </Svg>
+);
+export const IconPause = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 4v8M10 4v8" />
+  </Svg>
+);
+export const IconBan = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="M4.2 11.8l7.6-7.6" />
+  </Svg>
+);
+export const IconClock = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="M8 5v3l2 1.5" />
+  </Svg>
+);
+export const IconRefresh = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M13 3.5v3h-3" />
+    <path d="M12.6 6.5A5 5 0 1 0 13 9.5" />
+  </Svg>
+);
+export const IconPower = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 2.5v5" />
+    <path d="M4.6 4.6a5 5 0 1 0 6.8 0" />
+  </Svg>
+);
+export const IconPencil = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10.5 3l2.5 2.5L6 12.5H3.5V10z" />
+  </Svg>
+);
+export const IconTrash = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" />
+  </Svg>
+);
+export const IconArrowUp = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 13V3M4 7l4-4 4 4" />
+  </Svg>
+);
+export const IconArrowDown = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 3v10M4 9l4 4 4-4" />
+  </Svg>
+);
+export const IconGrip = (p: IconProps) => (
+  <Svg {...p} stroke="none" fill="currentColor">
+    {[4, 8, 12].map((y) => (
+      <g key={y}>
+        <circle cx="6" cy={y} r="1.1" />
+        <circle cx="10" cy={y} r="1.1" />
+      </g>
+    ))}
+  </Svg>
+);
+export const IconPlus = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 3v10M3 8h10" />
+  </Svg>
+);
+export const IconClose = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 4l8 8M12 4l-8 8" />
+  </Svg>
+);
+export const IconMenu = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+  </Svg>
+);
+export const IconRss = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 7a5.5 5.5 0 0 1 5.5 5.5M3.5 3.5a9 9 0 0 1 9 9" />
+    <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+  </Svg>
+);
+export const IconNote = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 2.5h6l3 3v8h-9z" />
+    <path d="M5.5 8h5M5.5 10.5h3.5" />
+  </Svg>
+);
+export const IconChat = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M2.5 3.5h11v7H7l-3 2.5v-2.5H2.5z" />
+  </Svg>
+);
+export const IconRepost = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 6.5V5h8.5M9.5 3l2 2-2 2M13 9.5V11H4.5M6.5 13l-2-2 2-2" />
+  </Svg>
+);
+export const IconLogout = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6.5 3H3.5v10h3M10 5l3 3-3 3M13 8H6.5" />
+  </Svg>
+);
+
+/** App logo: a folder with a signal wave — 26 px in the header, 44 px tile on the login page. */
+export function Logo({ size = 26, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true" focusable="false" className={className}>
+      <rect width="26" height="26" rx="5" fill="var(--bar-accent)" />
+      <path
+        d="M5 9c0-.83.67-1.5 1.5-1.5h4.1c.4 0 .78.16 1.06.44L13 9.25h6.5c.83 0 1.5.67 1.5 1.5V18.5c0 .83-.67 1.5-1.5 1.5h-13c-.83 0-1.5-.67-1.5-1.5z"
+        fill="var(--bar)"
+      />
+      <path d="M8.5 16.5a4 4 0 0 1 4-4M8.5 13.75a1.25 1.25 0 0 1 1.25-1.25" stroke="var(--bar-accent)" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <circle cx="9" cy="16" r="1" fill="var(--bar-accent)" />
+    </svg>
+  );
+}
