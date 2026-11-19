@@ -49,6 +49,12 @@ npm run dev                 # puis http://localhost:3000 → /setup au premier l
 npm run worker              # dans un autre terminal
 ```
 
+**Sans Docker ni Postgres** : `npm run db:dev` lance un Postgres embarqué (PGlite, données dans `.pglite/`) sur
+`localhost:5432` ; dans `.env`, `DATABASE_URL=postgres://postgres@localhost:5432/postgres` et
+`BETTER_AUTH_URL=http://localhost:3000`. Puis, dans un autre terminal, `npm run db:migrate`, `npm run db:seed`
+(base de démo : forums, sources, topics lus / non lus, notes ; compte `demo@veille.local` / `demo-veille-2026`,
+refusé si la base n'est pas vide) et `npm run dev`. Pour repartir de zéro : arrêter `db:dev` et supprimer `.pglite/`.
+
 | Script | Rôle |
 |---|---|
 | `npm test` | Tests (normalisation d'URL, parsing RSS/Atom, récupération sur un Postgres PGlite en mémoire) |

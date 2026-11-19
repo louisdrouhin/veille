@@ -20,6 +20,9 @@ docker-compose.override.yml
 compose.override.yml
 .claude/settings.local.json
 
+# Local dev database (npm run db:dev)
+.pglite/
+
 # Local noise
 *.log
 .DS_Store
