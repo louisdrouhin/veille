@@ -1,16 +1,14 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Breadcrumb } from "@/components/breadcrumb";
-import { Flash } from "@/components/flash";
-import { FolderIcon } from "@/components/folder-icon";
-import { Pagination } from "@/components/pagination";
-import { SubmitButton } from "@/components/submit-button";
-import { markForumRead } from "@/lib/actions/topics";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { FolderIcon, FolderLegend } from "@/components/topic/folder-icon";
+import { TopicList } from "@/components/topic/topic-list";
+import { TopicListActions } from "@/components/topic/topic-list-actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getDb } from "@/lib/db";
 import { forums, sources, topics } from "@/lib/db/schema";
-import { formatCompact } from "@/lib/format";
+import { plural } from "@/lib/format-date";
 import { requireSession } from "@/lib/session";
 
 const PAGE_SIZE = 25;
@@ -39,7 +37,13 @@ export default async function ForumPage({ params, searchParams }: Props) {
   if (!forum) notFound();
 
   const db = getDb();
-  const [{ total } = { total: 0 }] = await db.select({ total: count() }).from(topics).where(eq(topics.forumId, forum.id));
+  const [{ total, unread } = { total: 0, unread: 0 }] = await db
+    .select({
+      total: count(),
+      unread: sql<number>`count(*) filter (where ${topics.readAt} is null)`.mapWith(Number),
+    })
+    .from(topics)
+    .where(eq(topics.forumId, forum.id));
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Number.parseInt(typeof query.page === "string" ? query.page : "1", 10);
   if (!Number.isFinite(page) || page < 1 || page > pageCount) redirect(`/f/${slug}`);
@@ -52,6 +56,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
       lastActivityAt: topics.lastActivityAt,
       readAt: topics.readAt,
       sourceName: sources.name,
+      siteUrl: topics.url,
     })
     .from(topics)
     .leftJoin(sources, eq(sources.id, topics.sourceId))
@@ -61,64 +66,46 @@ export default async function ForumPage({ params, searchParams }: Props) {
     .offset((page - 1) * PAGE_SIZE);
 
   const href = (p: number) => (p === 1 ? `/f/${slug}` : `/f/${slug}?page=${p}`);
-  const toolbar = (
-    <div className="my-2 flex flex-wrap items-center justify-between gap-2">
-      <Pagination page={page} pageCount={pageCount} href={href} />
-      <form action={markForumRead} className="ml-auto">
-        <input type="hidden" name="forumId" value={forum.id} />
-        <SubmitButton pendingLabel="…">Tout marquer comme lu</SubmitButton>
-      </form>
-    </div>
-  );
+  const actions = { forumId: forum.id, page, pageCount, href, hasUnread: unread > 0 };
 
   return (
     <>
       <Breadcrumb items={[{ label: forum.name }]} />
-      <Flash ok={query.ok} error={query.error} />
-      <h1 className="mb-1 text-xl font-bold text-bar">{forum.name}</h1>
-      {toolbar}
-      <div className="overflow-x-auto">
-        <table className="forum-table">
-          <thead>
-            <tr>
-              <th className="w-8" aria-label="État" />
-              <th>Sujet</th>
-              <th className="w-40">Auteur</th>
-              <th className="w-12 text-right">Nb</th>
-              <th className="w-36">Dernier msg</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="py-4 text-center text-read">
-                  Aucun topic dans ce forum pour l&apos;instant.
-                </td>
-              </tr>
-            )}
-            {rows.map((t) => {
-              const read = t.readAt !== null;
-              return (
-                <tr key={t.id}>
-                  <td className="text-center">
-                    <FolderIcon state={read ? "read" : "unread"} />
-                  </td>
-                  <td>
-                    {/* prefetch disabled: opening a topic marks it as read */}
-                    <Link href={`/t/${t.id}`} prefetch={false} className={read ? "text-read" : "font-bold"}>
-                      {t.title}
-                    </Link>
-                  </td>
-                  <td className={`truncate ${t.sourceName ? "" : "italic text-read"}`}>{t.sourceName ?? "Source supprimée"}</td>
-                  <td className="text-right">{t.replyCount}</td>
-                  <td className="whitespace-nowrap text-[0.85rem]">{formatCompact(t.lastActivityAt)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {toolbar}
+      <header className="mb-3">
+        <h1 className="font-cond text-xl font-bold">{forum.name}</h1>
+        {forum.description && <p className="text-sm text-fg-muted">{forum.description}</p>}
+        <p className="mt-0.5 text-sm text-fg-muted">
+          {plural(total, "topic")} ·{" "}
+          {unread > 0 ? (
+            <strong className="font-bold text-accent">
+              {unread} non lu{unread > 1 ? "s" : ""}
+            </strong>
+          ) : (
+            "tout est lu"
+          )}
+        </p>
+      </header>
+
+      {rows.length === 0 ? (
+        <EmptyState icon={<FolderIcon state="read" size={40} />} title="Aucun topic dans ce forum" />
+      ) : (
+        <>
+          <TopicListActions {...actions} position="top" />
+          <TopicList
+            topics={rows.map((r) => ({
+              id: r.id,
+              title: r.title,
+              replyCount: r.replyCount,
+              lastActivityAt: r.lastActivityAt,
+              read: r.readAt !== null,
+              sourceName: r.sourceName,
+              siteUrl: r.siteUrl,
+            }))}
+          />
+          <TopicListActions {...actions} position="bottom" />
+          <FolderLegend />
+        </>
+      )}
     </>
   );
 }
