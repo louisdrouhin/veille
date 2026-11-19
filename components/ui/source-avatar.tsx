@@ -2,41 +2,34 @@
 
 import { useEffect, useRef, useState } from "react";
 
-function hostOf(url: string | null | undefined): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).host;
-  } catch {
-    return null;
-  }
-}
-
 const SHAPES = {
   square: "rounded-sm",
   round: "rounded-full",
 } as const;
 
 /**
- * Favicon of a site (`https://host/favicon.ico`), falling back to the initial
- * of `name` when it is missing or fails to load.
+ * Source favicon served by /api/favicon/[sourceId] (downloaded by the worker,
+ * never fetched from third-party sites by the browser). Falls back to the
+ * initial of `name` when there is no icon or it fails to load.
  */
 export function SourceAvatar({
   name,
-  url,
+  src,
   size = 16,
   shape = "square",
   className = "",
 }: {
   name: string;
-  url?: string | null;
+  /** Result of faviconUrl(); null → initial. */
+  src?: string | null;
   size?: number;
   shape?: keyof typeof SHAPES;
   className?: string;
 }) {
-  const host = hostOf(url);
-  const [failed, setFailed] = useState(!host);
+  const [failed, setFailed] = useState(!src);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  useEffect(() => setFailed(!src), [src]);
   // The error event can fire before hydration: check the image state on mount.
   useEffect(() => {
     const img = imgRef.current;
@@ -47,7 +40,7 @@ export function SourceAvatar({
   const box = `inline-flex shrink-0 items-center justify-center overflow-hidden ${SHAPES[shape]} ${className}`;
   const style = { width: size, height: size };
 
-  if (failed || !host) {
+  if (failed || !src) {
     return (
       <span
         aria-hidden="true"
@@ -66,12 +59,11 @@ export function SourceAvatar({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
-        src={`https://${host}/favicon.ico`}
+        src={src}
         alt=""
         width={size - pad * 2}
         height={size - pad * 2}
         loading="lazy"
-        referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
       />
     </span>

@@ -1,4 +1,4 @@
-import { count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
@@ -7,7 +7,8 @@ import { TopicList } from "@/components/topic/topic-list";
 import { TopicListActions } from "@/components/topic/topic-list-actions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getDb } from "@/lib/db";
-import { forums, sources, topics } from "@/lib/db/schema";
+import { forums, sourceFavicons, sources, topics } from "@/lib/db/schema";
+import { faviconUrl } from "@/lib/feeds/favicon";
 import { plural } from "@/lib/format-date";
 import { requireSession } from "@/lib/session";
 
@@ -56,10 +57,12 @@ export default async function ForumPage({ params, searchParams }: Props) {
       lastActivityAt: topics.lastActivityAt,
       readAt: topics.readAt,
       sourceName: sources.name,
-      siteUrl: topics.url,
+      sourceId: topics.sourceId,
+      faviconAt: sourceFavicons.fetchedAt,
     })
     .from(topics)
     .leftJoin(sources, eq(sources.id, topics.sourceId))
+    .leftJoin(sourceFavicons, and(eq(sourceFavicons.sourceId, topics.sourceId), isNotNull(sourceFavicons.data)))
     .where(eq(topics.forumId, forum.id))
     .orderBy(desc(topics.lastActivityAt), desc(topics.id))
     .limit(PAGE_SIZE)
@@ -99,7 +102,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
               lastActivityAt: r.lastActivityAt,
               read: r.readAt !== null,
               sourceName: r.sourceName,
-              siteUrl: r.siteUrl,
+              faviconSrc: faviconUrl(r.sourceId, r.faviconAt),
             }))}
           />
           <TopicListActions {...actions} position="bottom" />

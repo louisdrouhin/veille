@@ -4,7 +4,8 @@ import { asc, count, eq, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
-import { FORUM_ICONS, forums, sources, topics, type ForumIconName } from "@/lib/db/schema";
+import { FORUM_ICONS, forums, sourceFavicons, sources, topics, type ForumIconName } from "@/lib/db/schema";
+import { refreshFavicon } from "@/lib/feeds/favicon";
 import { fetchSource } from "@/lib/feeds/fetch-source";
 import { plural } from "@/lib/format-date";
 import { requireSession } from "@/lib/session";
@@ -163,6 +164,8 @@ export async function updateSource(formData: FormData) {
           : {}),
       })
       .where(eq(sources.id, sourceId));
+    // New site: the worker will download its favicon again.
+    if (urlChanged) await db.delete(sourceFavicons).where(eq(sourceFavicons.sourceId, sourceId));
     return { title: "Source mise à jour :", msg: values.name };
   });
 }
@@ -199,6 +202,8 @@ export async function fetchSourceNow(formData: FormData) {
     const [source] = await db.select().from(sources).where(eq(sources.id, sourceId));
     if (!source) throw new ActionError("Source introuvable.");
     const res = await fetchSource(db, source);
+    // Missing or stale favicon (> 7 days): fetch it now rather than at the next worker pass.
+    await refreshFavicon(db, source);
     switch (res.status) {
       case "ok":
         return {

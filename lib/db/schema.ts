@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   pgTable,
@@ -52,6 +53,22 @@ export const sources = pgTable(
   },
   (t) => [index("sources_forum_idx").on(t.forumId)],
 );
+
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataType: () => "bytea" });
+
+/**
+ * Favicon of each source, downloaded by the worker (never by the browser) and
+ * served by /api/favicon/[sourceId]. A row with `data = null` means « looked,
+ * nothing usable »; it is retried after FAVICON_TTL like a real icon.
+ */
+export const sourceFavicons = pgTable("source_favicons", {
+  sourceId: integer("source_id")
+    .primaryKey()
+    .references(() => sources.id, { onDelete: "cascade" }),
+  contentType: text("content_type"),
+  data: bytea("data"),
+  fetchedAt: tsz("fetched_at").notNull(),
+});
 
 export const topics = pgTable(
   "topics",
@@ -179,3 +196,4 @@ export type Forum = typeof forums.$inferSelect;
 export type Source = typeof sources.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
 export type Reply = typeof replies.$inferSelect;
+export type SourceFavicon = typeof sourceFavicons.$inferSelect;

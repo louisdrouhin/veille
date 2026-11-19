@@ -15,6 +15,13 @@
       "when": 1795079191701,
       "tag": "0001_forum_description_icon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795080266951,
+      "tag": "0002_source_favicons",
+      "breakpoints": true
     }
   ]
 }

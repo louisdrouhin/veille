@@ -6,8 +6,8 @@ export type PostAuthorData = {
   name: string;
   role: string;
   muted?: boolean;
-  /** URL whose host gives the favicon (topic / source posts). */
-  siteUrl?: string | null;
+  /** Stored favicon (faviconUrl()), null → initial. */
+  faviconSrc?: string | null;
   platform?: string; // v2 comments: « Hacker News », « Reddit »
 };
 
@@ -23,12 +23,12 @@ function PostAuthor({ type, author }: { type: PostType; author: PostAuthorData }
     ) : (
       <>
         <span className="md:hidden">
-          <SourceAvatar name={author.name} url={author.siteUrl} size={32} shape={type === "comment" ? "round" : "square"} />
+          <SourceAvatar name={author.name} src={author.faviconSrc} size={32} shape={type === "comment" ? "round" : "square"} />
         </span>
         <span className="hidden md:inline-flex">
           <SourceAvatar
             name={author.name}
-            url={author.siteUrl}
+            src={author.faviconSrc}
             size={type === "topic" ? 52 : 40}
             shape={type === "comment" ? "round" : "square"}
           />

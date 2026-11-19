@@ -14,8 +14,8 @@ export type TopicRowData = {
   read: boolean;
   hot?: boolean; // v2
   sourceName: string | null;
-  /** Article URL: its host gives the favicon. */
-  siteUrl: string;
+  /** Stored favicon (faviconUrl()), null → initial. */
+  faviconSrc: string | null;
 };
 
 export const TOPIC_GRID = "md:grid-cols-[28px_minmax(0,1fr)_190px_56px_124px]";
@@ -78,7 +78,7 @@ function TopicRow({ topic: t }: { topic: TopicRowData }) {
         </p>
       </div>
       <span className={`hidden min-w-0 items-center gap-1.75 text-sm text-fg-muted md:flex ${t.sourceName ? "" : "italic"}`}>
-        <SourceAvatar name={source} url={t.siteUrl} size={16} />
+        <SourceAvatar name={source} src={t.faviconSrc} size={16} />
         <span className="truncate">{source}</span>
       </span>
       <span className="hidden text-right font-mono text-sm font-medium md:block">

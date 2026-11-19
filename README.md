@@ -60,6 +60,11 @@ fichiers `OFL-*.txt`) et chargées par `next/font/local` : le build ne fait aucu
 - **Worker** (`worker/index.ts`) : toutes les `FETCH_INTERVAL_MINUTES`, récupère les sources actives et non en pause.
   ETag / If-Modified-Since, timeout 10 s, User-Agent explicite. 3 échecs consécutifs → pause 1 h (`paused_until`),
   erreur visible dans l'admin.
+- **Favicons** : téléchargés par le worker (jamais par le navigateur) après chaque récupération si absents ou vieux
+  de plus de 7 jours, depuis le site du dernier article (`<link rel="icon">` de la page d'accueil, sinon `/favicon.ico`).
+  Seuls PNG, ICO, GIF, JPEG et WebP ≤ 100 Ko sont acceptés (identifiés par leurs octets, SVG refusé). Stockés dans la
+  table `source_favicons`, servis par `/api/favicon/[sourceId]` (session requise). Repli sur l'initiale de la source.
+- **Worker `--once`** : `node dist/worker.js --once` (ou `npm run worker -- --once`) fait un seul cycle puis s'arrête.
 - **Dédoublonnage** : `normalized_url` unique (sans `utm_*`, `fbclid`, `gclid`, fragment ; hôte en minuscules ;
   sans `/` final), insertion en `ON CONFLICT DO NOTHING` — le worker et « Récupérer maintenant » peuvent tourner en même temps.
 - **Premier import** d'une source (ou après changement d'URL) : les articles arrivent marqués comme lus.
