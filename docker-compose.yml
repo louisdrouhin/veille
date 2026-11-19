@@ -1,0 +1,67 @@
+name: veille
+
+x-app-env: &app-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-veille}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@db:5432/${POSTGRES_DB:-veille}
+  TZ: Europe/Paris
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-veille}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      POSTGRES_DB: ${POSTGRES_DB:-veille}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: veille:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL manquant}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET manquant}
+      FETCH_USER_AGENT: ${FETCH_USER_AGENT:-}
+    ports:
+      # Exposed to the existing reverse proxy (HTTPS is terminated upstream).
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    image: veille:latest
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    depends_on:
+      # The app runs the migrations at startup: wait until it is healthy.
+      app:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      FETCH_INTERVAL_MINUTES: ${FETCH_INTERVAL_MINUTES:-15}
+      FETCH_CONCURRENCY: ${FETCH_CONCURRENCY:-4}
+      FETCH_USER_AGENT: ${FETCH_USER_AGENT:-}
+    stop_grace_period: 15s
+
+volumes:
+  db-data:

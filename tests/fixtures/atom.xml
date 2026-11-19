@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Releases Proxmox (test)</title>
+  <link href="https://pve.example.net/"/>
+  <updated>2025-04-10T12:00:00Z</updated>
+  <id>urn:uuid:feed</id>
+  <entry>
+    <title type="html">Proxmox VE 9.0 &amp;mdash; notes</title>
+    <link rel="alternate" href="https://pve.example.net/news/pve-9-0/"/>
+    <id>urn:uuid:1</id>
+    <updated>2025-04-10T12:00:00Z</updated>
+    <published>2025-04-09T08:30:00+02:00</published>
+    <summary type="html">&lt;p&gt;Nouvelle version majeure avec &lt;em&gt;Debian 13&lt;/em&gt;.&lt;/p&gt;</summary>
+  </entry>
+  <entry>
+    <title>Contenu long</title>
+    <link href="https://pve.example.net/news/long"/>
+    <id>urn:uuid:2</id>
+    <updated>2025-04-08T12:00:00Z</updated>
+    <content type="html">LONG_CONTENT_PLACEHOLDER</content>
+  </entry>
+</feed>

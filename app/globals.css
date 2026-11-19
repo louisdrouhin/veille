@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* Retro forum look — original palette (paper / slate-teal / amber). */
+@theme {
+  --font-sans: Verdana, Tahoma, "DejaVu Sans", Geneva, sans-serif;
+  --color-paper: #e9e5d9;
+  --color-panel: #ffffff;
+  --color-row: #f6f3ea;
+  --color-line: #c9c2ad;
+  --color-bar: #24535f;
+  --color-bar-2: #3a7180;
+  --color-bar-text: #f3efe2;
+  --color-link: #1c4f8a;
+  --color-read: #8b8b8b;
+  --color-amber: #d4862a;
+  --color-danger: #b03a2e;
+  --color-ok: #2f7d3a;
+}
+
+/* Layered so that Tailwind utilities (e.g. text-bar-text on header links) win. */
+@layer base {
+  html {
+    font-size: 13px;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: #222;
+  }
+
+  a {
+    color: var(--color-link);
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+@layer components {
+  .forum-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
+  }
+  .forum-table th {
+    background: linear-gradient(var(--color-bar-2), var(--color-bar));
+    color: var(--color-bar-text);
+    font-weight: bold;
+    font-size: 0.85rem;
+    text-align: left;
+    padding: 4px 6px;
+    border-right: 1px solid #1b3f49;
+    white-space: nowrap;
+  }
+  .forum-table td {
+    padding: 4px 6px;
+    border-top: 1px solid var(--color-line);
+    vertical-align: middle;
+  }
+  .forum-table tbody tr:nth-child(even) td {
+    background: var(--color-row);
+  }
+  .forum-table tbody tr:hover td {
+    background: #fdf6df;
+  }
+
+  .btn {
+    display: inline-block;
+    border: 1px solid #8a7f62;
+    background: linear-gradient(#fffdf6, #e4dcc4);
+    color: #222;
+    padding: 2px 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    background: linear-gradient(#fff, #efe7cf);
+    text-decoration: none;
+  }
+  .btn-primary {
+    border-color: #9b5d14;
+    background: linear-gradient(#f0a54a, var(--color-amber));
+    color: #fff;
+    font-weight: bold;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(#f6b465, #dc9038);
+  }
+  .btn-danger {
+    border-color: #7d2219;
+    background: linear-gradient(#cf5345, var(--color-danger));
+    color: #fff;
+  }
+
+  .input {
+    border: 1px solid #a69c80;
+    background: #fff;
+    padding: 2px 4px;
+    font-size: 0.9rem;
+    max-width: 100%;
+  }
+  .input:focus {
+    outline: 2px solid var(--color-amber);
+    outline-offset: -1px;
+  }
+
+  .panel {
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
+  }
+  .panel-title {
+    background: linear-gradient(var(--color-bar-2), var(--color-bar));
+    color: var(--color-bar-text);
+    font-weight: bold;
+    padding: 4px 8px;
+  }
+}
