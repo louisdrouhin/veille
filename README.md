@@ -44,6 +44,13 @@ npm run worker              # dans un autre terminal
 | `npm run db:generate` | Génère une migration après modification de `lib/db/schema.ts` |
 | `npm run build` | Build Next standalone + bundles `dist/{worker,migrate,create-user}.js` |
 
+## Design
+
+Direction artistique dans [`DA/`](DA/) : `veille-tokens.css` (copié tel quel dans `app/globals.css`) et `HANDOFF.md`
+(composants, responsive, accessibilité). Règle : **aucune couleur en dur** dans les composants, uniquement les classes
+de tokens (`bg-surface`, `text-fg-muted`, `border-line`…) — le thème sombre (v3) n'aura qu'à poser `class="dark"` sur `<html>`.
+Polices IBM Plex (Sans, Sans Condensed, Mono) via `next/font` : le build a besoin d'un accès à Google Fonts.
+
 ## Fonctionnement
 
 - **Sécurité** : `proxy.ts` ne fait qu'une redirection de confort vers `/login`. Chaque layout/page protégé,
