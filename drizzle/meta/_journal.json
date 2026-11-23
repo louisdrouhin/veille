@@ -29,6 +29,13 @@
       "when": 1795100576364,
       "tag": "0003_article_contents",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795426820754,
+      "tag": "0004_ops_worker_status_two_factor",
+      "breakpoints": true
     }
   ]
 }

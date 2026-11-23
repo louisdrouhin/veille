@@ -134,7 +134,7 @@ describe("setup wizard over HTTP (built app, real PostgreSQL)", () => {
     app.stderr?.on("data", (d) => (logs += d));
     for (let i = 0; i < 120; i++) {
       try {
-        if ((await fetch(`${base}/api/health`)).ok) return;
+        if ((await fetch(`${base}/api/health/app`)).ok) return;
       } catch {
         // not up yet
       }
