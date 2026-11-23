@@ -228,7 +228,8 @@ Il faut du HTTPS (ou `localhost`). Dans l'app installée :
 Icônes : `public/icons/` (192, 512, maskable 512) et `public/apple-touch-icon.png` (180, opaque), dessinées
 depuis `public/icon.svg`. Les balises `<link>` sont dans `lib/pwa/icons.ts` (apple-touch-icon d'abord). iOS
 récupère l'icône sans cookie, et essaie aussi `/apple-touch-icon[-180x180][-precomposed].png` à la racine : ces
-fichiers sont des copies de `apple-touch-icon.png`, publics dans `proxy.ts`.
+fichiers sont des copies de `apple-touch-icon.png`, publics dans `proxy.ts`. `public/favicon.ico` (16, 32, 48)
+est rendu depuis le même logo, sans balise : les navigateurs et iOS le demandent par son nom.
 
 ### Sauvegardes et restauration
 
