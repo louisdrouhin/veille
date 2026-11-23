@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { PageNav } from "@/components/layout/page-nav";
 import { AddNoteForm } from "@/components/thread/add-note-form";
 import { Post } from "@/components/thread/post";
+import { MarkTopicRead } from "@/components/topic/mark-topic-read";
 import { ReaderArticle, ReaderArticleSkeleton } from "@/components/thread/reader-article";
 import { getDb } from "@/lib/db";
 import { forums, replies, sourceFavicons, sources, topics, type ReplyType } from "@/lib/db/schema";
@@ -57,6 +58,7 @@ export default async function TopicPage({ params }: Props) {
 
   return (
     <>
+      <MarkTopicRead topicId={topic.id} />
       <PageNav
         items={[{ label: forum.name, href: `/f/${forum.slug}` }, { label: topic.title }]}
         back={{ href: `/f/${forum.slug}`, mode: "parent" }}

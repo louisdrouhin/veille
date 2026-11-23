@@ -4,12 +4,15 @@
  * and the "is a dump due?" rule.
  */
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 
 const SCRIPT = path.join(import.meta.dirname, "..", "scripts", "backup.sh");
+// The script runs under a POSIX sh (dash in CI, busybox in the container; Git Bash on Windows).
+const HAS_SH = spawnSync("sh", ["-c", "exit 0"]).status === 0;
+if (!HAS_SH) console.warn("backup-script.test.ts skipped: no `sh` on the PATH");
 
 let dir: string;
 let bin: string;
@@ -59,12 +62,12 @@ beforeEach(() => {
   dir = mkdtempSync(path.join(tmpdir(), "veille-backup-"));
   bin = path.join(dir, "bin");
   backups = path.join(dir, "backups");
-  for (const d of [bin, backups]) spawnSync("mkdir", ["-p", d]);
+  for (const d of [bin, backups]) mkdirSync(d, { recursive: true });
   setClock("03");
   setPgDump(true);
 });
 
-describe("backup.sh once", () => {
+describe.skipIf(!HAS_SH)("backup.sh once", () => {
   it("writes a dated custom-format dump, readable by its owner only", () => {
     const res = run("once");
     expect(res.code).toBe(0);
@@ -109,7 +112,7 @@ describe("backup.sh once", () => {
   });
 });
 
-describe("backup.sh due", () => {
+describe.skipIf(!HAS_SH)("backup.sh due", () => {
   it("is due when there is no dump at all, whatever the hour", () => {
     setClock("01");
     expect(run("due").out.trim()).toBe("yes");
