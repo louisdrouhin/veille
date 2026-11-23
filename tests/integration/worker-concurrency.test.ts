@@ -184,11 +184,11 @@ describe("worker on a real PostgreSQL (FETCH_CONCURRENCY=4)", () => {
     expect(iconHits).toBe(0);
 
     // Heartbeat for /api/health: one row, written at the end of the cycle.
-    const status = await sql<{ finished: Date; interval: number }[]>`
+    const status = await sql<{ finished: Date | string; interval: number }[]>`
       select last_cycle_finished_at finished, interval_minutes interval from worker_status`;
     expect(status).toHaveLength(1);
     expect(status[0]!.interval).toBe(15);
-    expect(Date.now() - status[0]!.finished.getTime()).toBeLessThan(60_000);
+    expect(Date.now() - new Date(status[0]!.finished).getTime()).toBeLessThan(60_000);
   });
 
   it("two workers at the same time on updated feeds: still no error nor duplicate", async () => {
