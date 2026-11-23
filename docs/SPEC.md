@@ -1,4 +1,4 @@
-# Veille — page de veille façon forum (usage perso)
+# Folders — page de veille façon forum (usage perso)
 
 ## Objectif
 Une application web perso, auto-hébergée sur mon homelab Proxmox, qui agrège mes sources de veille (flux RSS d'abord) et les affiche **comme un forum à l'ancienne, façon JVC 18-25** : chaque article est un **topic** dans un **forum** thématique (ex. Sécu/CVE, DevOps, Proxmox/homelab, Actu tech).

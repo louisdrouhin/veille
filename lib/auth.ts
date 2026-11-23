@@ -21,7 +21,7 @@ export function parseTrustedProxies(value: string | undefined): string[] {
 export function createAuth(db: Db, env: AuthEnv) {
   const trustedProxies = parseTrustedProxies(env.trustedProxies);
   return betterAuth({
-    appName: "Veille",
+    appName: "Folders",
     baseURL: env.baseURL,
     secret: env.secret,
     database: drizzleAdapter(db, {
@@ -61,7 +61,7 @@ export function createAuth(db: Db, env: AuthEnv) {
     },
     plugins: [
       twoFactor({
-        issuer: "Veille",
+        issuer: "Folders",
         // Login with 2FA: the second step must happen within 10 minutes.
         twoFactorCookieMaxAge: 10 * 60,
       }),

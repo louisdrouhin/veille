@@ -83,7 +83,7 @@ describe("service worker — pages (network-first)", () => {
 
   it("offline with nothing cached: a « Hors ligne » page listing the topics saved for offline reading", async () => {
     sw.network.routes.set("/t/7", () => html("Faille &lt;critique&gt; &amp; correctif · Veille"));
-    sw.network.routes.set("/t/8", () => html("Kubernetes 2.0 · Veille"));
+    sw.network.routes.set("/t/8", () => html("Kubernetes 2.0 · Folders"));
     await sw.navigate("/t/7");
     await sw.navigate("/t/8");
     sw.network.online = false;
@@ -93,9 +93,11 @@ describe("service worker — pages (network-first)", () => {
     const page = await res!.text();
     expect(page).toContain("<h1>Hors ligne</h1>");
     expect(page).toContain('<a class="btn" href="">Réessayer</a>');
-    // Most recent first, titles escaped again, no " · Veille" suffix.
+    // Most recent first, titles escaped again, no " · Folders" suffix (nor " · Veille", saved before the rename).
     expect(page).toMatch(/href="\/t\/8">Kubernetes 2\.0<\/a>.*href="\/t\/7">Faille &lt;critique&gt; &amp; correctif<\/a>/s);
     expect(page).not.toContain("<script");
+    expect(page).toContain("<title>Hors ligne · Folders</title>");
+    expect(page).toContain("<span>Folders</span>");
   });
 
   it("never caches a redirect (expired session → /login), an error or a non-HTML response", async () => {

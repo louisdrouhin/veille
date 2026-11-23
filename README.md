@@ -1,4 +1,4 @@
-# Veille
+# Folders
 
 [![CI](https://github.com/louisdrouhin/veille/actions/workflows/ci.yml/badge.svg)](https://github.com/louisdrouhin/veille/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/louisdrouhin/veille/actions/workflows/codeql.yml/badge.svg)](https://github.com/louisdrouhin/veille/actions/workflows/codeql.yml)
@@ -9,6 +9,10 @@ alimente un forum thématique, chaque article devient un topic, et on le lit dir
 Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose derrière un reverse proxy.
 
 ![Accueil : la liste des forums avec les compteurs de non-lus](docs/screenshots/home.png)
+
+> **Nom** : l'app s'affiche « Folders ». Le dépôt, le dossier de déploiement, le projet Docker Compose (`name: veille`,
+> figé dans `docker-compose.yml`), les volumes (`veille_db-data`), la base et les identifiants internes gardent
+> `veille` : renommer le projet Compose créerait un nouveau volume, donc une base vide.
 
 | Liste des topics | Mode lecture |
 |---|---|

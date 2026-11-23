@@ -16,8 +16,8 @@ function pngSize(file: string): [number, number] {
 describe("web app manifest", () => {
   const m = manifest();
 
-  it("makes an installable standalone app named Veille, starting at /", () => {
-    expect(m).toMatchObject({ name: "Veille", short_name: "Veille", display: "standalone", start_url: "/", scope: "/", id: "/" });
+  it("makes an installable standalone app named Folders, starting at /", () => {
+    expect(m).toMatchObject({ name: "Folders", short_name: "Folders", display: "standalone", start_url: "/", scope: "/", id: "/" });
   });
 
   it("takes its colors from the design tokens", () => {

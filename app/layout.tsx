@@ -6,13 +6,13 @@ import { plexCondensed, plexMono, plexSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Veille", template: "%s · Veille" },
+  title: { default: "Folders", template: "%s · Folders" },
   robots: { index: false, follow: false },
-  applicationName: "Veille",
+  applicationName: "Folders",
   // Installed on iOS: the page starts below an opaque status bar ("default"). With
   // "black-translucent" the page went under it, and iOS blurs a band at the top of
   // the screen taller than safe-area-inset-top: the whole header looked washed out.
-  appleWebApp: { capable: true, title: "Veille", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Folders", statusBarStyle: "default" },
   // apple-touch-icon, then PNG, then SVG: see lib/pwa/icons.ts.
   icons: ICONS,
   // Next.js emits the standard mobile-web-app-capable; older iOS versions only read this one.

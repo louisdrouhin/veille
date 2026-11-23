@@ -4,7 +4,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { fetchSource, listDueSources } from "@/lib/feeds/fetch-source";
@@ -88,7 +88,7 @@ describe("fetchSource", () => {
     expect(res).toEqual({ status: "not-modified" });
     expect(sent?.get("if-none-match")).toBe('"v1"');
     expect(sent?.get("if-modified-since")).toBe("Mon, 24 Mar 2025 10:00:00 GMT");
-    expect(sent?.get("user-agent")).toMatch(/VeilleBot/);
+    expect(sent?.get("user-agent")).toMatch(/^FoldersRSS\/1\.0 /);
     expect((await reload(source.id)).etag).toBe('"v1"');
   });
 
@@ -139,5 +139,21 @@ describe("fetchSource", () => {
     const rows = await db.select().from(topics);
     expect(rows).toHaveLength(4);
     expect(rows.every((t) => t.sourceId === null)).toBe(true);
+  });
+});
+
+describe("feed User-Agent", () => {
+  it("defaults to FoldersRSS/1.0 when FETCH_USER_AGENT is unset or empty (docker-compose.yml passes \"\")", async () => {
+    for (const value of [undefined, ""]) {
+      vi.resetModules();
+      vi.stubEnv("FETCH_USER_AGENT", value);
+      const mod = await import("@/lib/feeds/fetch-source");
+      expect(mod.USER_AGENT).toBe(mod.DEFAULT_USER_AGENT);
+      expect(mod.USER_AGENT).toMatch(/^FoldersRSS\/1\.0 /);
+    }
+    vi.resetModules();
+    vi.stubEnv("FETCH_USER_AGENT", "Custom/2");
+    expect((await import("@/lib/feeds/fetch-source")).USER_AGENT).toBe("Custom/2");
+    vi.unstubAllEnvs();
   });
 });

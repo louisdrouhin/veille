@@ -1,4 +1,4 @@
-# Veille — note de handoff pour Claude Code
+# Folders — note de handoff pour Claude Code
 
 Stack : **Next.js 16 (App Router) + Tailwind CSS v4 (config CSS-first)**.
 Maquettes de référence : canvas « Veille — maquettes » (9 planches : 7 écrans, tokens, composants).
@@ -117,7 +117,7 @@ lib/
 ```
 <header class="bg-bar text-bar-fg border-b border-black/30">
   <div class="mx-auto flex min-h-13 max-w-[1200px] items-center gap-7 px-5">
-    logo : SVG 26 px + « Veille » en font-cond font-bold text-[21px] leading-none
+    logo : SVG 26 px + « Folders » en font-cond font-bold text-[21px] leading-none
     nav (md+) : <a> text-sm font-medium px-3 py-[7px] rounded-sm text-bar-muted hover:bg-white/8
        actif : aria-current="page" text-bar-fg font-semibold bg-white/12 shadow-[inset_0_-2px_0_var(--bar-accent)]
     Déconnexion : h-8 px-3 rounded-sm border border-white/28 text-sm font-medium
@@ -288,7 +288,7 @@ Même grille que TopicRow, 8 à 10 lignes de 38 px ; blocs `bg-off-soft rounded-
 ### LoginForm
 
 Fond `bg-bg` avec trame de points (`bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[18px_18px]`), colonne centrée `max-w-[380px]`.
-Logo 44 px (`bg-bar rounded-lg`) + « Veille » en `font-cond text-[32px] font-bold`.
+Logo 44 px (`bg-bar rounded-lg`) + « Folders » en `font-cond text-[32px] font-bold`.
 Carte `rounded-lg border bg-surface shadow-md`, en-tête `bg-bar-2` « Connexion » (h1 en capitales `font-cond`).
 Champs `h-10 rounded-sm border-line-strong px-3 text-[15px]`, `autocomplete="username"` / `"current-password"`.
 Erreur : bloc `role="alert"` `rounded border border-err bg-err-soft text-err p-2.5 text-base` avec icône : « **Connexion impossible.** Email ou mot de passe incorrect. » + `aria-invalid="true"` et `border-err` sur le champ mot de passe. Bouton primaire pleine largeur `h-10.5` « Se connecter ».
