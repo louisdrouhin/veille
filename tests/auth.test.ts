@@ -117,11 +117,11 @@ describe("two-factor authentication (TOTP)", () => {
   async function enableTwoFactor(auth: Auth) {
     const c = client(auth, { "x-forwarded-for": nextIp() });
     expect((await signIn(c)).status).toBe(200);
-    const enabled = await c.post("/two-factor/enable", { password: PASSWORD, issuer: "Veille" });
+    const enabled = await c.post("/two-factor/enable", { password: PASSWORD, issuer: "Folders" });
     expect(enabled.status).toBe(200);
     const totpURI = enabled.data!.totpURI as string;
     const backupCodes = enabled.data!.backupCodes as string[];
-    expect(totpURI).toMatch(/^otpauth:\/\/totp\/Veille:/);
+    expect(totpURI).toMatch(/^otpauth:\/\/totp\/Folders:/);
     expect(backupCodes.length).toBeGreaterThanOrEqual(10);
     // Not active until a first code is verified.
     let [u] = await db.select().from(schema.user).where(eq(schema.user.email, EMAIL));

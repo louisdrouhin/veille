@@ -54,7 +54,7 @@ export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
     setError(null);
     startTransition(async () => {
       if (action === "enable") {
-        const { data, error } = await authClient.twoFactor.enable({ password, issuer: "Veille" });
+        const { data, error } = await authClient.twoFactor.enable({ password, issuer: "Folders" });
         if (error || !data || !("totpURI" in data)) return setError(errorText(error ?? { status: 500 }));
         setMode({ kind: "scan", totpURI: data.totpURI, backupCodes: data.backupCodes });
       } else if (action === "disable") {

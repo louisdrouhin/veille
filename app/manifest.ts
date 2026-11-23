@@ -4,8 +4,8 @@ import { THEME } from "@/lib/theme";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Veille",
-    short_name: "Veille",
+    name: "Folders",
+    short_name: "Folders",
     description: "Veille techno façon forum : les flux RSS rangés par thème.",
     lang: "fr",
     dir: "ltr",

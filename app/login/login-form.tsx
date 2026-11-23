@@ -84,7 +84,7 @@ export function LoginForm() {
         <span className="inline-flex size-11 items-center justify-center rounded-lg bg-bar">
           <Logo size={30} />
         </span>
-        <span className="font-cond text-[32px] leading-none font-bold">Veille</span>
+        <span className="font-cond text-[32px] leading-none font-bold">Folders</span>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-md">

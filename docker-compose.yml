@@ -1,3 +1,6 @@
+# Fixed project name: the volumes (veille_db-data…) and containers keep it whatever the
+# folder is called. The app is shown as « Folders »; do not change this or the database
+# volume would be a new, empty one.
 name: veille
 
 # Log rotation for every service (docker logs keeps at most 3 × 10 MB per container).

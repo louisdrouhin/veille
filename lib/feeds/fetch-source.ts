@@ -14,8 +14,9 @@ export const MAX_FEED_BYTES = 10 * 1024 * 1024;
  * reading mode then extracts the page itself instead.
  */
 export const MIN_FEED_ARTICLE_TEXT = 500;
-export const USER_AGENT =
-  process.env.FETCH_USER_AGENT ?? "VeilleBot/1.0 (+self-hosted personal feed reader)";
+// `||`, not `??`: docker-compose.yml passes FETCH_USER_AGENT="" when it is not set.
+export const DEFAULT_USER_AGENT = "FoldersRSS/1.0 (+self-hosted personal feed reader)";
+export const USER_AGENT = process.env.FETCH_USER_AGENT || DEFAULT_USER_AGENT;
 
 export type FetchResult =
   | { status: "ok"; inserted: number; firstImport: boolean }

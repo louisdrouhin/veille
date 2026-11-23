@@ -93,7 +93,7 @@ export function AppHeader({ userName }: { userName: string }) {
       <div className="mx-auto flex min-h-13 max-w-[1200px] items-center gap-7 px-3.5 md:px-5">
         <Link href="/" className="flex items-center gap-2 text-bar-fg no-underline hover:text-bar-fg">
           <Logo />
-          <span className="font-cond text-[21px] leading-none font-bold">Veille</span>
+          <span className="font-cond text-[21px] leading-none font-bold">Folders</span>
         </Link>
 
         <nav aria-label="Navigation principale" className="hidden flex-1 items-center gap-1 md:flex">

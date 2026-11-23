@@ -58,7 +58,7 @@ export function InstallBanner() {
       </span>
       {mode === "prompt" ? (
         <>
-          <p className="min-w-0 flex-1">Installe Veille pour l&apos;ouvrir comme une app, en plein écran.</p>
+          <p className="min-w-0 flex-1">Installe Folders pour l&apos;ouvrir comme une app, en plein écran.</p>
           <button type="button" className={buttonClass("primary", "sm")} onClick={() => void promptInstall()}>
             Installer l&apos;app
           </button>
