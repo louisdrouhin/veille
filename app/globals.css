@@ -197,7 +197,8 @@
 }
 
 /* ---------- Safe areas (encoche, barre du bas) : viewport-fit=cover dans app/layout.tsx ---------- */
-/* Status bar « black-translucent » : le contenu passe dessous, d'où la marge haute. */
+/* safe-top : 0 dans l'app iOS (barre d'état « default », la page commence dessous) ;
+   utile si le contenu passe sous une encoche (paysage, autres navigateurs). */
 @utility safe-top { padding-top: env(safe-area-inset-top); }
 @utility safe-x {
   padding-left: env(safe-area-inset-left);
