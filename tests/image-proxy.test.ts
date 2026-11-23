@@ -86,7 +86,7 @@ describe("fetchProxiedImage", () => {
       "http://127.0.0.1/a.png",
       "http://localhost.:3000/a.png",
       "http://10.0.0.1/a.png",
-      "http://192.168.1.20:3020/api/health",
+      "http://192.168.1.50:8080/api/health",
       "http://169.254.169.254/latest/meta-data/",
       "http://[::1]/a.png",
       "http://[::ffff:127.0.0.1]/a.png",
