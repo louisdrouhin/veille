@@ -75,7 +75,8 @@ Un tableau dense, style forum classique :
 ## Déploiement
 - `Dockerfile` (build Next `standalone`), `docker-compose.yml` (app, worker, db avec volume persistant), `.env.example` documenté.
 - L'app tourne derrière mon reverse proxy existant (HTTPS géré en amont). Prévoir `BETTER_AUTH_URL` et `BETTER_AUTH_SECRET` en variables d'environnement.
-- Endpoint `/api/health` pour le healthcheck.
+- Endpoint `/api/health` pour la supervision (base + fraîcheur du worker, 503 au-delà de 3 intervalles sans cycle) ;
+  `/api/health/app` (base seule) pour le healthcheck Docker.
 
 ## Consignes de travail
 1. Commence par me proposer un plan et l'arborescence avant de coder.

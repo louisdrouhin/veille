@@ -1,12 +1,20 @@
 name: veille
 
+# Log rotation for every service (docker logs keeps at most 3 × 10 MB per container).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 x-app-env: &app-env
   DATABASE_URL: postgres://${POSTGRES_USER:-veille}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@db:5432/${POSTGRES_DB:-veille}
   TZ: Europe/Paris
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-veille}
@@ -22,6 +30,7 @@ services:
 
   app:
     build: .
+    logging: *logging
     image: veille:latest
     restart: unless-stopped
     depends_on:
@@ -31,6 +40,7 @@ services:
       <<: *app-env
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL manquant}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET manquant}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       FETCH_USER_AGENT: ${FETCH_USER_AGENT:-}
     ports:
       # Exposed to the existing reverse proxy (HTTPS is terminated upstream).
@@ -41,7 +51,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000/api/health/app').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 15s
       timeout: 5s
@@ -50,6 +60,7 @@ services:
 
   worker:
     image: veille:latest
+    logging: *logging
     restart: unless-stopped
     command: ["node", "dist/worker.js"]
     depends_on:

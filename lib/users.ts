@@ -8,7 +8,7 @@ import { randomBytes } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db";
-import { account, session, user } from "@/lib/db/schema";
+import { account, session, twoFactor, user } from "@/lib/db/schema";
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const MAX_PASSWORD_LENGTH = 128;
@@ -114,8 +114,11 @@ export async function createUser(db: Db, input: { email: string; password: strin
   });
 }
 
-/** `npm run reset-password`: sets a new password and revokes every session of the account. */
-export async function resetPassword(db: Db, input: { email: string; password: string }) {
+/**
+ * `npm run reset-password`: sets a new password and revokes every session of the account.
+ * With `disableTwoFactor` (authenticator and backup codes lost), also removes the TOTP secret.
+ */
+export async function resetPassword(db: Db, input: { email: string; password: string; disableTwoFactor?: boolean }) {
   const email = normalizeEmail(input.email);
   const invalid = validateCredentials(email, input.password);
   if (invalid) throw new Error(invalid);
@@ -140,7 +143,11 @@ export async function resetPassword(db: Db, input: { email: string; password: st
         updatedAt: now,
       });
     }
+    if (input.disableTwoFactor) {
+      await tx.delete(twoFactor).where(eq(twoFactor.userId, found.id));
+      await tx.update(user).set({ twoFactorEnabled: false, updatedAt: now }).where(eq(user.id, found.id));
+    }
     const revoked = await tx.delete(session).where(eq(session.userId, found.id)).returning({ id: session.id });
-    return { email, revokedSessions: revoked.length };
+    return { email, revokedSessions: revoked.length, twoFactorDisabled: Boolean(input.disableTwoFactor) };
   });
 }

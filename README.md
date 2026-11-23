@@ -27,10 +27,12 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Mode lecture** : l'article complet dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
   avec Readability, HTML assaini, images servies par un proxy interne. Cache et ré-extraction à la demande.
 - **Notes perso** sur chaque topic.
+- **Double authentification (TOTP)** optionnelle, depuis « Mon compte » : QR code, codes de secours, appareil de confiance 30 jours.
 - **Administration** : forums réordonnables par glisser-déposer, sources avec statut et dernière erreur,
   « Récupérer maintenant ».
 - **Favicons des sources** téléchargés côté serveur, avec repli sur l'initiale.
 - **Premier lancement guidé** (`/setup`) et scripts de création de compte et de récupération de mot de passe.
+- **Supervision** : `/api/health` signale une base injoignable ou un worker arrêté (pour Uptime Kuma & co).
 
 ## Stack
 
@@ -66,11 +68,15 @@ conception.
 - **CSP** (`lib/csp.ts`, posée par `proxy.ts` sur chaque page) : scripts `'nonce-…' 'strict-dynamic'` avec un nonce
   par requête, `img-src 'self'`, `object-src`, `frame-src` et `media-src` à `'none'`, `frame-ancestors 'none'`,
   `form-action 'self'`.
-- **Authentification** : Better Auth, inscription désactivée, mots de passe ≥ 12 caractères, rate limiting, cookies
-  `Secure` en HTTPS. `proxy.ts` ne sert qu'à une redirection de confort : chaque layout protégé, route API et server
+- **Authentification** : Better Auth, inscription désactivée, mots de passe ≥ 12 caractères, cookies `Secure` en
+  HTTPS, double authentification TOTP optionnelle (secret chiffré en base, codes de secours à usage unique, verrouillage
+  après 10 échecs). Rate limiting : 3 tentatives / 10 s par client sur la connexion et sur le second facteur.
+  Le client est identifié par `X-Forwarded-For` uniquement (pas `X-Real-IP`, qu'un proxy qui ne le pose pas laisse
+  passer tel quel) ; avec `TRUSTED_PROXIES`, par l'IP que le proxy a lui-même ajoutée en fin d'en-tête. `proxy.ts` ne sert qu'à une redirection de confort : chaque layout protégé, route API et server
   action revérifie la session côté serveur (cf. CVE-2025-29927). Le setup de premier lancement est protégé par
   `pg_advisory_xact_lock` (un seul compte peut être créé, testé avec des setups concurrents) puis renvoie 404.
-- **Exploitation** : conteneur non-root, healthcheck sans donnée, secrets uniquement par variables d'environnement.
+- **Exploitation** : conteneur non-root, images de base épinglées par digest (mises à jour par Dependabot), healthcheck
+  sans donnée utilisateur, secrets uniquement par variables d'environnement, rotation des logs Docker.
 
 Une faille ? Voir [SECURITY.md](SECURITY.md).
 
@@ -89,15 +95,19 @@ Dans `.env`, renseigner au minimum :
 - `POSTGRES_PASSWORD` : par exemple `openssl rand -base64 24` ;
 - `BETTER_AUTH_SECRET` : au moins 32 caractères aléatoires, par exemple `openssl rand -base64 32` ;
 - `BETTER_AUTH_URL` : l'URL publique exacte de l'app, telle que la voit le navigateur ;
-- `APP_PORT` / `APP_BIND` : le port publié pour le reverse proxy (`APP_BIND=127.0.0.1` si le proxy est sur la même machine).
+- `APP_PORT` / `APP_BIND` : le port publié pour le reverse proxy (`APP_BIND=127.0.0.1` si le proxy est sur la même machine) ;
+- `TRUSTED_PROXIES` (optionnel) : l'IP du reverse proxy, pour un rate limiting par client exact.
+
+> Le port de l'app ne doit être joignable que par le reverse proxy (`APP_BIND`, pare-feu) : en accès direct, un client
+> peut forger `X-Forwarded-For` et contourner le rate limiting de la connexion.
 
 ```sh
 docker compose up -d --build
-curl http://localhost:3000/api/health     # {"status":"ok"}
+curl http://localhost:3000/api/health     # {"status":"ok",…} une fois le premier cycle du worker terminé
 ```
 
 - `app` applique les migrations au démarrage puis sert Next ; `worker` démarre une fois `app` healthy ;
-  `db` stocke ses données dans le volume `db-data`.
+  `db` stocke ses données dans le volume `db-data`. Logs Docker limités à 3 × 10 Mo par service.
 - Le reverse proxy doit transmettre l'en-tête `Host` d'origine (ou `X-Forwarded-Host`), sinon Next refuse les
   server actions (protection CSRF).
 
@@ -111,12 +121,34 @@ et confirmation. Une fois le compte créé, `/setup` renvoie 404 définitivement
 
 ```sh
 docker compose exec app node dist/create-user.js --email moi@example.com --password 'un long mot de passe' --name Moi
-# Mot de passe oublié : change le mot de passe et ferme toutes les sessions
+# Mot de passe oublié : change le mot de passe et ferme toutes les sessions (--disable-2fa : coupe aussi la 2FA)
 docker compose exec app node dist/reset-password.js --email moi@example.com --password 'un nouveau mot de passe'
 ```
 
 Ensuite : créer des forums et des sources dans **Admin**, puis « Récupérer maintenant » ou attendre le worker
 (toutes les `FETCH_INTERVAL_MINUTES`, 15 par défaut).
+
+### Supervision
+
+`GET /api/health` (non authentifié, sans donnée utilisateur) :
+
+```json
+{"status":"ok","db":"ok","worker":{"status":"ok","lastCycleAt":"2026-11-23T09:13:44.171Z","intervalMinutes":15,"staleAfterMinutes":45}}
+```
+
+Réponse **503** si la base est injoignable, ou si le worker n'a terminé aucun cycle depuis plus de 3 × son intervalle
+(`worker.status` : `stale`, ou `never` s'il n'a jamais tourné) : une sonde HTTP Uptime Kuma sur cette URL détecte un
+worker planté. Le healthcheck Docker de `app` utilise `/api/health/app` (base seule), puisque le worker attend que
+l'app soit healthy pour démarrer.
+
+### Double authentification
+
+À activer dans **Mon compte** (clic sur ton nom dans l'en-tête) : mot de passe, QR code à scanner, code de
+confirmation ; note les codes de secours. Téléphone et codes de secours perdus :
+
+```sh
+docker compose exec app node dist/reset-password.js --email moi@example.com --password '…' --disable-2fa
+```
 
 Sauvegarde : `docker compose exec db pg_dump -U veille veille > veille.sql`.
 

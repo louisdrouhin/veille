@@ -6,6 +6,7 @@
  *   node dist/worker.js --once   run a single cycle and exit (exit code 1 if the cycle crashed)
  */
 import { closeDb, getDb } from "@/lib/db";
+import { recordCycle } from "@/lib/worker/heartbeat";
 import { runCycle } from "@/lib/worker/run-cycle";
 
 const once = process.argv.includes("--once") || process.env.WORKER_ONCE === "1";
@@ -32,9 +33,12 @@ function sleep(ms: number) {
 }
 
 async function cycle(): Promise<boolean> {
+  const startedAt = new Date();
   try {
     const stats = await runCycle(getDb(), { concurrency, log, shouldStop: () => stopping });
     log(`Cycle terminé : ${stats.inserted} topic(s), ${stats.notModified} inchangée(s), ${stats.failed} en erreur`);
+    // Heartbeat read by /api/health (503 after 3 intervals without a completed cycle).
+    await recordCycle(getDb(), { startedAt, finishedAt: new Date(), intervalMinutes });
     return true;
   } catch (err) {
     log("Cycle en échec :", err);

@@ -153,8 +153,24 @@ export const replies = pgTable(
   ],
 );
 
+/**
+ * Worker heartbeat: a single row (id = 1) updated at the end of every completed
+ * cycle. Read by /api/health to detect a crashed or stuck worker.
+ */
+export const workerStatus = pgTable(
+  "worker_status",
+  {
+    id: integer("id").primaryKey().default(1),
+    lastCycleStartedAt: tsz("last_cycle_started_at").notNull(),
+    lastCycleFinishedAt: tsz("last_cycle_finished_at").notNull(),
+    // The worker's own FETCH_INTERVAL_MINUTES: the app does not need to share its config.
+    intervalMinutes: integer("interval_minutes").notNull(),
+  },
+  (t) => [check("worker_status_singleton", sql`${t.id} = 1`)],
+);
+
 // ---------------------------------------------------------------------------
-// Better Auth tables (core schema for email + password)
+// Better Auth tables (core schema for email + password, two-factor plugin)
 // ---------------------------------------------------------------------------
 
 export const user = pgTable("user", {
@@ -163,9 +179,27 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   createdAt: tsz("created_at").notNull().defaultNow(),
   updatedAt: tsz("updated_at").notNull().defaultNow(),
 });
+
+/** Better Auth two-factor plugin: TOTP secret and backup codes (both encrypted with BETTER_AUTH_SECRET). */
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean("verified").notNull().default(true),
+    failedVerificationCount: integer("failed_verification_count").notNull().default(0),
+    lockedUntil: tsz("locked_until"),
+  },
+  (t) => [index("two_factor_user_idx").on(t.userId), index("two_factor_secret_idx").on(t.secret)],
+);
 
 export const session = pgTable(
   "session",

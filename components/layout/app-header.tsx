@@ -67,7 +67,14 @@ export function AppHeader({ userName }: { userName: string }) {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
-          <span className="text-sm text-bar-muted">{userName}</span>
+          <Link
+            href="/compte"
+            className="text-sm text-bar-muted no-underline hover:text-bar-fg hover:underline aria-[current=page]:text-bar-fg"
+            aria-current={pathname === "/compte" ? "page" : undefined}
+            title="Mon compte"
+          >
+            {userName}
+          </Link>
           <LogoutButton className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border border-white/28 px-3 text-sm font-medium text-bar-fg hover:bg-white/8 disabled:opacity-70" />
         </div>
 
@@ -97,7 +104,9 @@ export function AppHeader({ userName }: { userName: string }) {
           ))}
         </nav>
         <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
-          <span className="text-sm text-bar-muted">Connecté : {userName}</span>
+          <Link href="/compte" className="text-sm text-bar-muted underline">
+            Mon compte ({userName})
+          </Link>
           <LogoutButton className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-sm border border-white/28 px-3 text-sm font-medium text-bar-fg disabled:opacity-70" />
         </div>
       </div>
