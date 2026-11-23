@@ -71,7 +71,7 @@ describe("proxy — public PWA files", () => {
   const matches = (url: string) => unstable_doesMiddlewareMatch({ config, url });
 
   it("leaves the manifest, icons and service worker alone (no login redirect, no page CSP)", () => {
-    for (const url of ["/sw.js", "/manifest.webmanifest", "/icons/icon-192.png", "/apple-icon.png"]) {
+    for (const url of ["/sw.js", "/manifest.webmanifest", "/icons/icon-192.png", "/apple-touch-icon.png"]) {
       expect(matches(url), url).toBe(false);
     }
   });

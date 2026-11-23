@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PwaStart } from "@/components/pwa/pwa-start";
+import { ICONS } from "@/lib/pwa/icons";
 import { THEME } from "@/lib/theme";
 import { plexCondensed, plexMono, plexSans } from "./fonts";
 import "./globals.css";
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
   // "black-translucent" the page went under it, and iOS blurs a band at the top of
   // the screen taller than safe-area-inset-top: the whole header looked washed out.
   appleWebApp: { capable: true, title: "Veille", statusBarStyle: "default" },
+  // apple-touch-icon, then PNG, then SVG: see lib/pwa/icons.ts.
+  icons: ICONS,
   // Next.js emits the standard mobile-web-app-capable; older iOS versions only read this one.
   other: { "apple-mobile-web-app-capable": "yes" },
 };
