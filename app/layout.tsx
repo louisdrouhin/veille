@@ -8,8 +8,10 @@ export const metadata: Metadata = {
   title: { default: "Veille", template: "%s · Veille" },
   robots: { index: false, follow: false },
   applicationName: "Veille",
-  // Installed on iOS: full screen, the status bar over the header (hence the safe-area padding).
-  appleWebApp: { capable: true, title: "Veille", statusBarStyle: "black-translucent" },
+  // Installed on iOS: the page starts below an opaque status bar ("default"). With
+  // "black-translucent" the page went under it, and iOS blurs a band at the top of
+  // the screen taller than safe-area-inset-top: the whole header looked washed out.
+  appleWebApp: { capable: true, title: "Veille", statusBarStyle: "default" },
   // Next.js emits the standard mobile-web-app-capable; older iOS versions only read this one.
   other: { "apple-mobile-web-app-capable": "yes" },
 };

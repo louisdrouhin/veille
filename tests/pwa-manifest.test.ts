@@ -38,6 +38,15 @@ describe("web app manifest", () => {
     }
   });
 
+  it("iOS: opaque status bar, and the same theme color in the <meta> as in the manifest", () => {
+    // app/layout.tsx imports next/font (not loadable here): checked on its source.
+    const layout = readFileSync(path.join(ROOT, "app", "layout.tsx"), "utf8");
+    // "black-translucent" puts the page under the status bar, where iOS blurs the header.
+    expect(layout).toMatch(/statusBarStyle: "default"/);
+    expect(layout).toMatch(/themeColor: THEME\.bar\b/);
+    expect(m.theme_color).toBe(THEME.bar);
+  });
+
   it("has a 180×180 apple-touch-icon (app/apple-icon.png)", () => {
     expect(pngSize(path.join(ROOT, "app", "apple-icon.png"))).toEqual([180, 180]);
   });
