@@ -1,6 +1,7 @@
 "use server";
 
 import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { forums, replies, topics } from "@/lib/db/schema";
@@ -9,6 +10,18 @@ import { reloadArticle as reloadArticleContent } from "@/lib/reader/article";
 import { requireSession } from "@/lib/session";
 import { toastUrl } from "@/lib/toast";
 import { id, NOTE_MAX_LENGTH, str } from "@/lib/validation";
+
+/**
+ * Pages showing read / unread state: the forum list and the home page (unread counters).
+ * Revalidating them from a Server Function also drops them from the client router cache,
+ * so a later visit (link or back button) gets the fresh state. Only used after a redirect:
+ * on a page the user may come back to, it would cost the back button its scroll position
+ * (see components/topic/mark-topic-read.tsx).
+ */
+function revalidateReadState(forumSlug: string) {
+  revalidatePath(`/f/${forumSlug}`);
+  revalidatePath("/");
+}
 
 /** « Tout marquer comme lu » — applies to the whole forum, not just the current page. */
 export async function markForumRead(formData: FormData) {
@@ -22,6 +35,7 @@ export async function markForumRead(formData: FormData) {
     .set({ readAt: new Date() })
     .where(and(eq(topics.forumId, forumId), isNull(topics.readAt)))
     .returning({ id: topics.id });
+  revalidateReadState(forum.slug);
   redirect(
     toastUrl(`/f/${forum.slug}`, {
       kind: "ok",
