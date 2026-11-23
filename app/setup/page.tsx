@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function SetupPage() {
   if (await hasAnyUser(getDb())) notFound();
   return (
-    <main className="min-h-dvh bg-bg bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[18px_18px] px-4 py-[10vh]">
+    <main className="safe-top safe-x min-h-dvh bg-bg bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[18px_18px] px-4 py-[10vh]">
       <SetupForm />
     </main>
   );

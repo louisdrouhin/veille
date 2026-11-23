@@ -14,8 +14,11 @@ function readToast(params: URLSearchParams): ToastData | null {
   return { kind, title, msg: params.get("msg") ?? undefined, ctx: params.get("ctx") ?? undefined };
 }
 
-/** Reads toast params left by a server action redirect, shows them, then strips them from the URL. */
-export function Toaster() {
+/**
+ * Reads toast params left by a server action redirect, shows them, then strips them from the URL.
+ * `children`: other toasts sharing the stack (e.g. the « Nouvelle version disponible » one).
+ */
+export function Toaster({ children }: { children?: React.ReactNode }) {
   const searchParams = useSearchParams();
   const [items, setItems] = useState<Item[]>([]);
   const [seenQuery, setSeenQuery] = useState<string | null>(null);
@@ -39,7 +42,8 @@ export function Toaster() {
   const dismiss = useCallback((id: number) => setItems((prev) => prev.filter((t) => t.id !== id)), []);
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-50 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-[340px]">
+    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-[340px]">
+      {children}
       {items.map((t) => (
         <Toast key={t.id} toast={t} onDismiss={dismiss} />
       ))}

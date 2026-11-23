@@ -1,7 +1,8 @@
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 import { pageCsp } from "@/lib/csp";
-import { proxy } from "@/proxy";
+import { config, proxy } from "@/proxy";
 
 const withSession = (path: string) =>
   new NextRequest(`https://veille.example${path}`, { headers: { cookie: "better-auth.session_token=abc.def" } });
@@ -22,6 +23,15 @@ describe("pageCsp", () => {
     expect(d["form-action"]).toBe("'self'");
     expect(d["base-uri"]).toBe("'self'");
     expect(pageCsp("abc", false)).not.toMatch(/unsafe-eval|\*|https?:|data:/);
+  });
+
+  it("allows our own service worker and manifest, nothing else", () => {
+    const d = directives(pageCsp("abc", false));
+    expect(d["worker-src"]).toBe("'self'");
+    expect(d["manifest-src"]).toBe("'self'");
+    // The rest is unchanged by the PWA: scripts still need the nonce.
+    expect(d["script-src"]).toBe("'self' 'nonce-abc' 'strict-dynamic'");
+    expect(d["connect-src"]).toBe("'self'");
   });
 
   it("only allows 'unsafe-eval' in dev", () => {
@@ -54,5 +64,19 @@ describe("proxy — CSP on pages", () => {
     const res = proxy(new NextRequest("https://veille.example/t/42"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("https://veille.example/login");
+  });
+});
+
+describe("proxy — public PWA files", () => {
+  const matches = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+
+  it("leaves the manifest, icons and service worker alone (no login redirect, no page CSP)", () => {
+    for (const url of ["/sw.js", "/manifest.webmanifest", "/icons/icon-192.png", "/apple-icon.png"]) {
+      expect(matches(url), url).toBe(false);
+    }
+  });
+
+  it("still runs on the pages", () => {
+    for (const url of ["/", "/t/42", "/f/ops", "/login", "/icons", "/sw.json"]) expect(matches(url), url).toBe(true);
   });
 });

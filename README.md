@@ -36,6 +36,8 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Premier lancement guidé** (`/setup`) et scripts de création de compte et de récupération de mot de passe.
 - **Supervision** : `/api/health` signale une base injoignable ou un worker arrêté (pour Uptime Kuma & co).
 - **Sauvegardes** : `pg_dump` quotidien avec rétention de 7 jours, procédure de restauration testée.
+- **App installable (PWA)** sur iPhone, Android et ordinateur : plein écran, lecture hors ligne des topics déjà
+  ouverts (article et images compris), bouton « Actualiser » dans l'app installée, avis de nouvelle version.
 
 ## Stack
 
@@ -80,6 +82,10 @@ conception.
   `proxy.ts` ne sert qu'à une redirection de confort : chaque layout protégé, route API et server
   action revérifie la session côté serveur (cf. CVE-2025-29927). Le setup de premier lancement est protégé par
   `pg_advisory_xact_lock` (un seul compte peut être créé, testé avec des setups concurrents) puis renvoie 404.
+- **Service worker** (`lib/pwa/service-worker.js`) : ne met en cache que des `GET` de notre origine ; jamais
+  `/api/auth`, `/setup`, `/admin`, `/compte`, `/login`, ni les server actions (POST) ni les données du routeur (RSC) ;
+  jamais une redirection (session expirée) ni une erreur. Tous ses caches sont vidés à la déconnexion et à chaque
+  affichage de la page de connexion. La CSP ne gagne que `worker-src 'self'` et `manifest-src 'self'`.
 - **Exploitation** : conteneur non-root, images de base épinglées par digest (mises à jour par Dependabot), healthcheck
   sans donnée utilisateur, secrets uniquement par variables d'environnement, rotation des logs Docker.
 
@@ -202,6 +208,24 @@ confirmation ; note les codes de secours. Téléphone et codes de secours perdus
 ```sh
 docker compose exec app node dist/reset-password.js --email moi@example.com --password '…' --disable-2fa
 ```
+
+### Installer l'app (PWA)
+
+- **iPhone / iPad** (Safari) : bouton **Partager**, puis **Sur l'écran d'accueil**. L'accueil le rappelle dans un
+  petit encart, masquable pour de bon.
+- **Android / ordinateur** (Chrome, Edge) : bouton **Installer l'app** de l'encart, ou menu du navigateur.
+
+Il faut du HTTPS (ou `localhost`). Dans l'app installée :
+
+- **Hors ligne** : les pages déjà affichées et les topics déjà ouverts (article et images du proxy) restent lisibles ;
+  ailleurs, une page « Hors ligne » liste ce qui est disponible. Rien n'est envoyé hors ligne : les actions
+  (marquer comme lu, notes) demandent le réseau.
+- **Mises à jour** : après un déploiement, un message « Nouvelle version disponible » propose **Recharger** (jamais
+  de rechargement forcé).
+- **Actualiser** : pas de barre du navigateur ni de « tirer pour actualiser » sur iOS, d'où le bouton dans l'en-tête.
+- Les liens externes s'ouvrent hors de l'app (Safari / Chrome).
+
+Icônes : `public/icons/` (192, 512, maskable 512) et `app/apple-icon.png` (180), dessinées depuis `app/icon.svg`.
 
 ### Sauvegardes et restauration
 

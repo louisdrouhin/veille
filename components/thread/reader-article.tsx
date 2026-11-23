@@ -1,3 +1,4 @@
+import { SaveTopicForOffline } from "@/components/pwa/offline-page-cache";
 import { buttonClass } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { reloadArticle } from "@/lib/actions/topics";
@@ -88,6 +89,7 @@ export async function ReaderArticle({ topic }: { topic: TopicRef }) {
           <p className="text-md text-fg-muted italic">Pas de résumé dans le flux.</p>
         )}
         <Actions topic={topic} />
+        <SaveTopicForOffline />
       </>
     );
   }
@@ -101,6 +103,7 @@ export async function ReaderArticle({ topic }: { topic: TopicRef }) {
       {/* Sanitized server-side with a strict allow-list before storage (see lib/reader/sanitize.ts). */}
       <div id="article" className="reader" dangerouslySetInnerHTML={{ __html: article.html }} />
       <Actions topic={topic} />
+      <SaveTopicForOffline />
     </>
   );
 }

@@ -29,5 +29,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|icon.svg).*)"],
+  // Public files: the PWA manifest, its icons and the service worker must load
+  // without a session (the worker is registered on the login page too).
+  matcher: ["/((?!api/|_next/static/|_next/image|icons/|(?:favicon\.ico|icon\.svg|apple-icon\.png|manifest\.webmanifest|sw\.js)$).*)"],
 };
