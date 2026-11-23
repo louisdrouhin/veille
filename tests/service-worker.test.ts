@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { TOAST_PARAMS } from "@/lib/toast";
 import { basic, html, loadServiceWorker, SW_SOURCE } from "./helpers/service-worker-env";
 
 const TOPIC_BODY =
@@ -102,10 +101,20 @@ describe("service worker — never cached", () => {
     expect(sw.network.calls).toEqual([]);
   });
 
-  it("does not shadow the excluded paths' look-alikes", async () => {
-    sw.network.routes.set("/administratif", () => html("ok"));
-    await sw.navigate("/administratif");
-    expect(sw.caches.paths("veille-pages")).toEqual(["/administratif"]);
+  it("only keeps home, forum lists and topics, under a path rebuilt from validated parts", async () => {
+    for (const p of ["/", "/f/admin", "/f/dev-web", "/t/42"]) sw.network.routes.set(p, () => html(p));
+    sw.network.routes.set("/f/dev-web?page=3", () => html("p3"));
+    for (const p of ["/", "/f/admin", "/f/dev-web?page=3&toast=ok&title=x", "/f/dev-web?page=../../admin", "/t/42?x=1"]) await sw.navigate(p);
+    expect(sw.caches.paths("veille-pages")).toEqual(["/", "/f/admin", "/f/dev-web?page=3", "/f/dev-web", "/t/42"]);
+  });
+
+  it("anything else is network only: /t/abc, /f/Upper, /f/a/b, /administratif, /_not-found…", async () => {
+    for (const p of ["/t/abc", "/t/0", "/f/Upper", "/f/a/b", "/administratif", "/_not-found", "/t/1/edit"]) {
+      sw.network.routes.set(p, () => html(p));
+      expect((await sw.navigate(p))!.status, p).toBe(200);
+      await sw.message({ type: "cache-page", url: p });
+    }
+    expect(sw.caches.paths("veille-pages")).toEqual([]);
   });
 });
 
@@ -146,9 +155,14 @@ describe("service worker — offline reading of opened topics", () => {
     expect(sw.caches.paths("veille-pages")).toEqual(["/t/42"]);
   });
 
-  it("refuses URLs of another origin", async () => {
+  it("refuses URLs of another origin, and messages from another origin", async () => {
     await sw.message({ type: "cache-page", url: "https://evil.example/t/1" });
+    await sw.message({ type: "cache-page", url: "//evil.example/t/1" });
+    await sw.message({ type: "cache-page", url: "/t/42" }, "https://evil.example");
+    await sw.message({ type: "clear" }, "https://evil.example");
+    await sw.message({ type: "skip-waiting" }, "https://evil.example");
     expect(sw.network.calls).toEqual([]);
+    expect(sw.self.skipWaitingCalls).toBe(0);
   });
 });
 
@@ -195,10 +209,6 @@ describe("service worker — logout and lifecycle", () => {
 });
 
 describe("service worker — kept in sync with the app", () => {
-  it("strips the same toast parameters as lib/toast.ts", () => {
-    expect(/const TOAST_PARAMS = (\[[^\]]*\])/.exec(SW_SOURCE)?.[1]).toBe(JSON.stringify(TOAST_PARAMS).replace(/,/g, ", "));
-  });
-
   it("uses the colors of the design tokens on its offline page", () => {
     const css = readFileSync(path.join(import.meta.dirname, "..", "app", "globals.css"), "utf8");
     const root = /:root \{([\s\S]*?)\n\}/.exec(css)![1]!;

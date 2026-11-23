@@ -119,7 +119,7 @@ export function loadServiceWorker() {
     /** Undefined: the worker left the request to the network. */
     fetchEvent: (path: string, init?: Parameters<typeof request>[1]) => dispatch("fetch", { request: request(path, init) }),
     navigate: (path: string) => dispatch("fetch", { request: request(path, { mode: "navigate" }) }),
-    message: (data: unknown) => dispatch("message", { data }),
+    message: (data: unknown, origin = ORIGIN) => dispatch("message", { data, origin }),
     activate: () => dispatch("activate", {}),
   };
 }
