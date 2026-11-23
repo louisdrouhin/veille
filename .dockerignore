@@ -9,3 +9,4 @@ dist
 tests
 Dockerfile
 docker-compose*.yml
+backups

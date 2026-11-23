@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { TwoFactorPanel } from "@/components/account/two-factor-panel";
-import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { PageNav } from "@/components/layout/page-nav";
 import { Panel } from "@/components/ui/panel";
 import { getDb } from "@/lib/db";
 import { user } from "@/lib/db/schema";
@@ -20,7 +20,7 @@ export default async function AccountPage() {
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Mon compte" }]} />
+      <PageNav items={[{ label: "Mon compte" }]} back={{ href: "/", mode: "any" }} />
       <h1 className="mb-3 font-cond text-xl font-bold">Mon compte</h1>
       <div className="grid max-w-[720px] gap-4">
         <Panel title="Profil">

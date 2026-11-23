@@ -1,7 +1,7 @@
 import { and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { PageNav } from "@/components/layout/page-nav";
 import { FolderIcon, FolderLegend } from "@/components/topic/folder-icon";
 import { TopicList } from "@/components/topic/topic-list";
 import { TopicListActions } from "@/components/topic/topic-list-actions";
@@ -73,7 +73,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
 
   return (
     <>
-      <Breadcrumb items={[{ label: forum.name }]} />
+      <PageNav items={[{ label: forum.name }]} back={{ href: "/", mode: "parent" }} />
       <header className="mb-3">
         <h1 className="font-cond text-xl font-bold">{forum.name}</h1>
         {forum.description && <p className="text-sm text-fg-muted">{forum.description}</p>}
