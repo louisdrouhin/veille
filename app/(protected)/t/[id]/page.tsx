@@ -2,7 +2,7 @@ import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { PageNav } from "@/components/layout/page-nav";
 import { AddNoteForm } from "@/components/thread/add-note-form";
 import { Post } from "@/components/thread/post";
 import { ReaderArticle, ReaderArticleSkeleton } from "@/components/thread/reader-article";
@@ -57,7 +57,10 @@ export default async function TopicPage({ params }: Props) {
 
   return (
     <>
-      <Breadcrumb items={[{ label: forum.name, href: `/f/${forum.slug}` }, { label: topic.title }]} />
+      <PageNav
+        items={[{ label: forum.name, href: `/f/${forum.slug}` }, { label: topic.title }]}
+        back={{ href: `/f/${forum.slug}`, mode: "parent" }}
+      />
 
       <div className="flex flex-col gap-3">
         <Post

@@ -2,7 +2,7 @@ import { asc, count, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { ForumsPanel, type AdminForum } from "@/components/admin/forums-panel";
 import { SourcesPanel } from "@/components/admin/sources-panel";
-import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { PageNav } from "@/components/layout/page-nav";
 import { getDb } from "@/lib/db";
 import { forums, sources, topics } from "@/lib/db/schema";
 import { requireSession } from "@/lib/session";
@@ -46,7 +46,8 @@ export default async function AdminPage({ searchParams }: Props) {
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Administration" }]} />
+      {/* Editing a source (?edit=…) is a form: back goes to the previous page, else to the admin itself. */}
+      <PageNav items={[{ label: "Administration" }]} back={{ href: editing ? "/admin" : "/", mode: "any" }} />
       <h1 className="mb-3 font-cond text-xl font-bold">Administration</h1>
       <div className="flex flex-wrap items-start gap-5">
         <ForumsPanel forums={adminForums} />

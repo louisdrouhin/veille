@@ -74,5 +74,34 @@ services:
       FETCH_USER_AGENT: ${FETCH_USER_AGENT:-}
     stop_grace_period: 15s
 
+  # Daily pg_dump (custom format) into ./backups, the 7 most recent kept: scripts/backup.sh.
+  backup:
+    image: postgres:17-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
+    logging: *logging
+    restart: unless-stopped
+    # Dumps owned by the host user (they hold password hashes: mode 600).
+    user: "${BACKUP_UID:-1000}:${BACKUP_GID:-1000}"
+    entrypoint: ["sh", "/usr/local/bin/veille-backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-veille}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      PGDATABASE: ${POSTGRES_DB:-veille}
+      TZ: Europe/Paris
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/veille-backup.sh:ro
+      - ./backups:/backups
+    healthcheck:
+      # Unhealthy when the newest dump is more than 26 h old.
+      test: ["CMD-SHELL", "find /backups -name 'veille-*.dump' -mmin -1560 | grep -q ."]
+      interval: 5m
+      timeout: 10s
+      start_period: 2m
+
 volumes:
   db-data:

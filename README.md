@@ -27,12 +27,15 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Mode lecture** : l'article complet dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
   avec Readability, HTML assaini, images servies par un proxy interne. Cache et ré-extraction à la demande.
 - **Notes perso** sur chaque topic.
+- **Navigation** : bouton « ← Retour » et fil d'Ariane sur chaque page ; retour à la même page et au même défilement
+  de la liste quand on vient d'un topic ; raccourcis **Échap** ou **U** pour remonter d'un niveau.
 - **Double authentification (TOTP)** optionnelle, depuis « Mon compte » : QR code, codes de secours, appareil de confiance 30 jours.
 - **Administration** : forums réordonnables par glisser-déposer, sources avec statut et dernière erreur,
   « Récupérer maintenant ».
 - **Favicons des sources** téléchargés côté serveur, avec repli sur l'initiale.
 - **Premier lancement guidé** (`/setup`) et scripts de création de compte et de récupération de mot de passe.
 - **Supervision** : `/api/health` signale une base injoignable ou un worker arrêté (pour Uptime Kuma & co).
+- **Sauvegardes** : `pg_dump` quotidien avec rétention de 7 jours, procédure de restauration testée.
 
 ## Stack
 
@@ -150,7 +153,42 @@ confirmation ; note les codes de secours. Téléphone et codes de secours perdus
 docker compose exec app node dist/reset-password.js --email moi@example.com --password '…' --disable-2fa
 ```
 
-Sauvegarde : `docker compose exec db pg_dump -U veille veille > veille.sql`.
+### Sauvegardes et restauration
+
+Le service `backup` fait chaque jour, à partir de 3 h (heure de Paris, `BACKUP_HOUR`), un `pg_dump` au format
+custom (compressé) dans `./backups/veille-AAAA-MM-JJ_HHMM.dump`, et garde les 7 plus récents (`BACKUP_KEEP`).
+Il vérifie toutes les 10 minutes si la sauvegarde du jour est due : un redémarrage ou une journée manquée est rattrapé,
+et un premier dump est fait dès le démarrage. Écriture dans un fichier temporaire puis renommage : un dump raté ne
+remplace jamais un bon, et la rétention ne compte que les dumps réussis. Les fichiers (mode 600) appartiennent à
+`BACKUP_UID`:`BACKUP_GID` (1000 par défaut). Le conteneur devient `unhealthy` si le dernier dump a plus de 26 h.
+
+```sh
+ls -lh backups/                                              # sauvegardes disponibles
+docker compose logs backup                                   # dernières exécutions
+docker compose exec backup sh /usr/local/bin/veille-backup.sh once   # sauvegarde immédiate
+```
+
+> Les dumps restent sur la même machine que la base : copie-les régulièrement ailleurs (NAS, autre machine…).
+
+**Restauration** (remplace tout le contenu de la base par celui du dump) :
+
+```sh
+F=backups/veille-2026-11-23_0300.dump
+docker compose stop app worker
+docker compose exec -T db pg_restore -U veille -d veille --clean --if-exists --no-owner --single-transaction --exit-on-error < "$F"
+docker compose start app worker
+curl -s http://localhost:3000/api/health
+```
+
+`--single-transaction` : en cas d'erreur, rien n'est modifié. Pour vérifier un dump sans toucher à la base, le
+restaurer dans une base jetable :
+
+```sh
+docker compose exec db createdb -U veille veille_verif
+docker compose exec -T db pg_restore -U veille -d veille_verif --no-owner --exit-on-error < "$F"
+docker compose exec db psql -U veille -d veille_verif -c 'select count(*) from topics'
+docker compose exec db dropdb -U veille veille_verif
+```
 
 ## Développement
 

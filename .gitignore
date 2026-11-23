@@ -20,6 +20,10 @@ docker-compose.override.yml
 compose.override.yml
 .claude/settings.local.json
 
+# Database dumps of the backup service (only backups/README.md is tracked)
+backups/*
+!backups/README.md
+
 # Local dev database (npm run db:dev)
 .pglite/
 
