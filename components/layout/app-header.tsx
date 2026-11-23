@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useId, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 import { IconClose, IconLogout, IconMenu, IconRefresh, Logo } from "@/components/ui/icons";
 import { clearOfflineData, useStandalone } from "@/lib/pwa/client";
@@ -78,9 +78,18 @@ export function AppHeader({ userName }: { userName: string }) {
     setMenuPath(pathname);
     setOpen(false);
   }
+  // Same for an in-page anchor: the open menu (sticky with the header) would cover the target.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("hashchange", close);
+    return () => window.removeEventListener("hashchange", close);
+  }, [open]);
 
   return (
-    <header className="safe-top safe-x border-b border-black/30 bg-bar text-bar-fg">
+    // Sticky and opaque: iOS 26 then paints the status bar with --bar and skips the blur it
+    // draws over the top of an installed app (it looks for a pinned, full-width, opaque box).
+    <header className="safe-top safe-x sticky top-0 z-40 border-b border-black/30 bg-bar text-bar-fg">
       <div className="mx-auto flex min-h-13 max-w-[1200px] items-center gap-7 px-3.5 md:px-5">
         <Link href="/" className="flex items-center gap-2 text-bar-fg no-underline hover:text-bar-fg">
           <Logo />

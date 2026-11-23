@@ -182,7 +182,12 @@
 
 /* ---------- Base ---------- */
 @layer base {
-  html { background: var(--bg); }
+  /* Anchors (#p3, #note-form…) and focus stop below the sticky header (components/layout/app-header.tsx):
+     min-h-13 + 1px border + top inset. The mobile menu is closed after navigating, so it is not counted. */
+  html {
+    background: var(--bg);
+    scroll-padding-top: calc(3.25rem + 1px + env(safe-area-inset-top));
+  }
   body {
     @apply bg-bg text-fg font-sans text-base antialiased;
     font-variant-numeric: tabular-nums;
