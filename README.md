@@ -75,7 +75,9 @@ conception.
   HTTPS, double authentification TOTP optionnelle (secret chiffré en base, codes de secours à usage unique, verrouillage
   après 10 échecs). Rate limiting : 3 tentatives / 10 s par client sur la connexion et sur le second facteur.
   Le client est identifié par `X-Forwarded-For` uniquement (pas `X-Real-IP`, qu'un proxy qui ne le pose pas laisse
-  passer tel quel) ; avec `TRUSTED_PROXIES`, par l'IP que le proxy a lui-même ajoutée en fin d'en-tête. `proxy.ts` ne sert qu'à une redirection de confort : chaque layout protégé, route API et server
+  passer tel quel) ; avec `TRUSTED_PROXIES`, par l'IP que le proxy a lui-même ajoutée en fin d'en-tête. Le proxy ne
+  doit pas non plus croire un `X-Real-IP` envoyé par le client (voir [Nginx Proxy Manager](#derrière-nginx-proxy-manager)).
+  `proxy.ts` ne sert qu'à une redirection de confort : chaque layout protégé, route API et server
   action revérifie la session côté serveur (cf. CVE-2025-29927). Le setup de premier lancement est protégé par
   `pg_advisory_xact_lock` (un seul compte peut être créé, testé avec des setups concurrents) puis renvoie 404.
 - **Exploitation** : conteneur non-root, images de base épinglées par digest (mises à jour par Dependabot), healthcheck
@@ -98,7 +100,8 @@ Dans `.env`, renseigner au minimum :
 - `POSTGRES_PASSWORD` : par exemple `openssl rand -base64 24` ;
 - `BETTER_AUTH_SECRET` : au moins 32 caractères aléatoires, par exemple `openssl rand -base64 32` ;
 - `BETTER_AUTH_URL` : l'URL publique exacte de l'app, telle que la voit le navigateur ;
-- `APP_PORT` / `APP_BIND` : le port publié pour le reverse proxy (`APP_BIND=127.0.0.1` si le proxy est sur la même machine) ;
+- `APP_PORT` / `APP_BIND` : le port publié pour le reverse proxy (`APP_BIND=127.0.0.1` si le proxy est sur la même machine ;
+  inutile si le proxy rejoint l'app par un réseau Docker, voir [Nginx Proxy Manager](#derrière-nginx-proxy-manager)) ;
 - `TRUSTED_PROXIES` (optionnel) : l'IP du reverse proxy, pour un rate limiting par client exact.
 
 > Le port de l'app ne doit être joignable que par le reverse proxy (`APP_BIND`, pare-feu) : en accès direct, un client
@@ -113,6 +116,53 @@ curl http://localhost:3000/api/health     # {"status":"ok",…} une fois le prem
   `db` stocke ses données dans le volume `db-data`. Logs Docker limités à 3 × 10 Mo par service.
 - Le reverse proxy doit transmettre l'en-tête `Host` d'origine (ou `X-Forwarded-Host`), sinon Next refuse les
   server actions (protection CSRF).
+
+### Derrière Nginx Proxy Manager
+
+Montage recommandé quand NPM tourne en Docker sur la même machine : l'app rejoint le réseau Docker de NPM et ne
+publie **aucun port**, NPM est le seul point d'entrée.
+
+1. **Réseau** : copier [`docker-compose.npm.example.yml`](docker-compose.npm.example.yml) en
+   `docker-compose.override.yml` (non versionné), y mettre le nom du réseau de NPM (`docker network ls`), puis
+   `docker compose up -d`. L'app y est joignable sous l'alias `veille-app` ; choisir un alias qu'aucun autre conteneur
+   n'utilise sur ce réseau (Compose y enregistre aussi le nom de service `app`, que NPM ne doit donc pas utiliser).
+2. **`TRUSTED_PROXIES`** dans `.env` : l'IP de NPM sur ce réseau
+   (`docker inspect <conteneur npm> -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}'`), en `/32`.
+   Pas tout le sous-réseau : la passerelle Docker (`.1`) est l'adresse vue par NPM pour certaines connexions relayées
+   par Docker, et la croire ferait lire au rate limiting la valeur forgée à sa gauche. L'IP de NPM n'apparaît jamais
+   dans `X-Forwarded-For` : la liste sert seulement à activer la lecture par la droite (première IP non fiable).
+3. **Dans NPM**, Proxy Hosts → l'hôte de l'app → Edit :
+   - *Details* : scheme `http`, Forward Hostname `veille-app`, Forward Port `3000` ;
+   - *Advanced*, « Custom Nginx Configuration » :
+
+     ```nginx
+     set_real_ip_from 127.0.0.1/32;
+     real_ip_recursive off;
+     ```
+
+   La configuration globale de NPM fait confiance à l'en-tête `X-Real-IP` envoyé par le client dès que la connexion
+   vient d'une adresse privée (10/8, 172.16/12, 192.168/16 : tout le LAN, et Internet via le NAT du routeur) ou d'une
+   plage Cloudflare / CloudFront : NPM remplace alors l'IP du client par la valeur forgée et l'ajoute à
+   `X-Forwarded-For`, ce qui contourne le rate limiting de la connexion. Ces deux lignes remplacent, pour cet hôte
+   seulement, la liste des sources de confiance : NPM garde l'IP réelle de la connexion. À retirer si un CDN est
+   placé devant NPM (il faudrait alors y lister ses plages).
+   - Enregistrer *Details* et *Advanced* **ensemble** : chaque enregistrement réécrit tout l'hôte, et une config
+     Advanced vide l'efface. Vérification : `grep -E 'server  |port  |real_ip' <données NPM>/nginx/proxy_host/<id>.conf`.
+
+Contrôle (6 tentatives : les 3 premières en 401, puis 429 ; sans le correctif, la variante `X-Real-IP` n'est jamais
+bloquée) :
+
+```sh
+U=https://veille.example.org
+for i in 1 2 3 4 5 6; do
+  curl -s -o /dev/null -w '%{http_code} ' -X POST "$U/api/auth/sign-in/email" \
+    -H 'content-type: application/json' -H "origin: $U" \
+    -H "X-Real-IP: 198.51.100.$i" -H "X-Forwarded-For: 203.0.113.$i" \
+    -d '{"email":"sonde@example.com","password":"mauvais-mot-de-passe"}'
+done
+```
+
+La sonde de supervision (Uptime Kuma…) passe alors par l'URL publique : `https://…/api/health`.
 
 ### Premier lancement : `/setup`
 

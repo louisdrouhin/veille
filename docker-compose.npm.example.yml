@@ -1,0 +1,19 @@
+# Example override for running behind Nginx Proxy Manager (NPM) on the same Docker host.
+# Copy it to docker-compose.override.yml (not versioned) and set the name of NPM's network:
+#   docker network ls          # e.g. npm_default, or <npm compose project>_default
+#
+# The app joins NPM's network under the alias veille-app (pick a name no other container
+# uses there) and publishes no port at all: NPM is the only way in. See README, section
+# « Derrière Nginx Proxy Manager », for the NPM side and TRUSTED_PROXIES.
+services:
+  app:
+    ports: !reset []
+    networks:
+      default: {}
+      npm:
+        aliases: [veille-app]
+
+networks:
+  npm:
+    name: npm_default # ← NPM's network
+    external: true
