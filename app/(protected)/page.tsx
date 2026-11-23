@@ -1,5 +1,6 @@
 import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { ForumTable, type ForumRowData } from "@/components/forum/forum-table";
+import { InstallBanner } from "@/components/pwa/install-banner";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconPlus, IconRss } from "@/components/ui/icons";
@@ -50,6 +51,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <InstallBanner />
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="font-cond text-xl font-bold">Forums</h1>
         {rows.length > 0 && (

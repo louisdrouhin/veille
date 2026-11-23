@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { authClient } from "@/lib/auth-client";
-import { IconClose, IconLogout, IconMenu, Logo } from "@/components/ui/icons";
+import { IconClose, IconLogout, IconMenu, IconRefresh, Logo } from "@/components/ui/icons";
+import { clearOfflineData, useStandalone } from "@/lib/pwa/client";
 
 const NAV = [
   { href: "/", label: "Forums", match: (p: string) => p === "/" || p.startsWith("/f/") || p.startsWith("/t/") },
@@ -26,6 +27,8 @@ function LogoutButton({ className }: { className: string }) {
       className={className}
       onClick={() =>
         startTransition(async () => {
+          // Pages saved for offline reading must not outlive the session.
+          await clearOfflineData();
           await authClient.signOut();
           router.replace("/login");
           router.refresh();
@@ -37,6 +40,32 @@ function LogoutButton({ className }: { className: string }) {
     </button>
   );
 }
+
+/**
+ * Installed app only (no browser toolbar, and no pull-to-refresh on iOS):
+ * re-renders the page with fresh data, keeping scroll and client state.
+ */
+function RefreshButton({ className }: { className: string }) {
+  const router = useRouter();
+  const standalone = useStandalone();
+  const [pending, startTransition] = useTransition();
+  if (!standalone) return null;
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label="Actualiser"
+      title="Actualiser"
+      aria-busy={pending}
+      onClick={() => startTransition(() => router.refresh())}
+    >
+      <IconRefresh size={18} className={pending ? "animate-spin" : undefined} />
+    </button>
+  );
+}
+
+const REFRESH_CLASS =
+  "inline-flex cursor-pointer items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 disabled:opacity-70";
 
 export function AppHeader({ userName }: { userName: string }) {
   const pathname = usePathname();
@@ -51,7 +80,7 @@ export function AppHeader({ userName }: { userName: string }) {
   }
 
   return (
-    <header className="border-b border-black/30 bg-bar text-bar-fg">
+    <header className="safe-top safe-x border-b border-black/30 bg-bar text-bar-fg">
       <div className="mx-auto flex min-h-13 max-w-[1200px] items-center gap-7 px-3.5 md:px-5">
         <Link href="/" className="flex items-center gap-2 text-bar-fg no-underline hover:text-bar-fg">
           <Logo />
@@ -67,6 +96,7 @@ export function AppHeader({ userName }: { userName: string }) {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
+          <RefreshButton className={`${REFRESH_CLASS} size-8`} />
           <Link
             href="/compte"
             className="text-sm text-bar-muted no-underline hover:text-bar-fg hover:underline aria-[current=page]:text-bar-fg"
@@ -78,9 +108,11 @@ export function AppHeader({ userName }: { userName: string }) {
           <LogoutButton className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border border-white/28 px-3 text-sm font-medium text-bar-fg hover:bg-white/8 disabled:opacity-70" />
         </div>
 
+        <div className="ml-auto flex items-center md:hidden">
+          <RefreshButton className={`${REFRESH_CLASS} size-11`} />
         <button
           type="button"
-          className="ml-auto inline-flex size-11 cursor-pointer items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 md:hidden"
+          className="inline-flex size-11 cursor-pointer items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 md:hidden"
           aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
           aria-expanded={open}
           aria-controls={menuId}
@@ -88,6 +120,7 @@ export function AppHeader({ userName }: { userName: string }) {
         >
           {open ? <IconClose size={20} /> : <IconMenu size={20} />}
         </button>
+        </div>
       </div>
 
       <div id={menuId} hidden={!open} className="border-t border-white/10 px-3.5 pb-3 md:hidden">

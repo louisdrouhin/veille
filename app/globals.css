@@ -186,12 +186,22 @@
   body {
     @apply bg-bg text-fg font-sans text-base antialiased;
     font-variant-numeric: tabular-nums;
+    /* Installed app (viewport-fit=cover): keep clear of the iPhone home indicator. */
+    padding-bottom: env(safe-area-inset-bottom);
   }
   a { @apply text-accent hover:text-accent-hover; }
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {
     @apply outline-2 outline-offset-2 outline-focus;
   }
   ::placeholder { color: var(--text-read); }
+}
+
+/* ---------- Safe areas (encoche, barre du bas) : viewport-fit=cover dans app/layout.tsx ---------- */
+/* Status bar « black-translucent » : le contenu passe dessous, d'où la marge haute. */
+@utility safe-top { padding-top: env(safe-area-inset-top); }
+@utility safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* ---------- Mode lecture (HTML assaini : p, h2-h4, listes, a, strong, em, blockquote, pre/code, img, figure) ---------- */

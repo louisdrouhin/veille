@@ -148,6 +148,18 @@ export const IconLogout = (p: IconProps) => (
   </Svg>
 );
 
+/** iOS « Partager » glyph: a box with an arrow going up. */
+export const IconShare = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 2v8M5.5 4.5L8 2l2.5 2.5M5.5 7H4v7h8V7h-1.5" />
+  </Svg>
+);
+export const IconDownload = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 2.5v7.5M5 7l3 3 3-3M3 12.5v1h10v-1" />
+  </Svg>
+);
+
 /** App logo: a folder with a signal wave — 26 px in the header, 44 px tile on the login page. */
 export function Logo({ size = 26, className }: { size?: number; className?: string }) {
   return (

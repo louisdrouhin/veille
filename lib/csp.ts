@@ -5,6 +5,8 @@
  * by proxy.ts and puts on its own scripts; images only from our origin
  * (article images go through /api/image-proxy). Inline style attributes stay allowed: the sanitized HTML
  * never carries any, and React components use a few.
+ * worker-src: the service worker (/sw.js). Without it, workers fall back to
+ * script-src, whose 'strict-dynamic' ignores 'self' and would block it.
  */
 export function pageCsp(nonce: string, dev = process.env.NODE_ENV === "development"): string {
   return [
@@ -15,6 +17,8 @@ export function pageCsp(nonce: string, dev = process.env.NODE_ENV === "developme
     "img-src 'self'",
     "font-src 'self'",
     "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
     "media-src 'none'",
     "object-src 'none'",
     "frame-src 'none'",

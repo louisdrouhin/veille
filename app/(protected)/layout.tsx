@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { BackForwardRefresh } from "@/components/layout/back-forward-refresh";
 import { NavigationTracker } from "@/components/layout/navigation-tracker";
+import { OfflinePageCache } from "@/components/pwa/offline-page-cache";
+import { UpdateToast } from "@/components/pwa/update-toast";
 import { ReadTopicsProvider } from "@/components/topic/read-topics";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
@@ -21,10 +23,15 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <ReadTopicsProvider>
       <AppHeader userName={session.user.name} />
-      <main className="mx-auto w-full max-w-[1200px] px-2.5 py-4 sm:px-3.5 md:px-5">{children}</main>
+      <div className="safe-x">
+        <main className="mx-auto w-full max-w-[1200px] px-2.5 py-4 sm:px-3.5 md:px-5">{children}</main>
+      </div>
       <Suspense>
-        <Toaster />
+        <Toaster>
+          <UpdateToast />
+        </Toaster>
         <NavigationTracker />
+        <OfflinePageCache />
         <BackForwardRefresh />
       </Suspense>
     </ReadTopicsProvider>
