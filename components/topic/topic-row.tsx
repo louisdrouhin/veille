@@ -28,7 +28,8 @@ export function TopicRow({ topic }: { topic: TopicRowData }) {
     >
       <FolderIcon state={stateOf(t)} className="pt-px md:pt-0" />
       <div className="flex min-w-0 flex-col gap-1 md:flex-row md:items-center md:gap-2">
-        {/* Stretched link: the whole row is clickable, one tab stop. Prefetch off: opening marks as read. */}
+        {/* Stretched link: the whole row is clickable, one tab stop. prefetch={false} is required: rendering the
+            topic page marks it read, and prefetching it would mark every visible row (tests/topic-links-prefetch.test.ts). */}
         <Link
           href={`/t/${t.id}`}
           prefetch={false}
