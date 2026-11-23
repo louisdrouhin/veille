@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { basic, html, loadServiceWorker, SW_SOURCE } from "./helpers/service-worker-env";
+import { basic, html, loadServiceWorker, png, SW_SOURCE } from "./helpers/service-worker-env";
 
 const TOPIC_BODY =
   '<img src="/api/favicon/3?v=1"><div id="article"><img src="/api/image-proxy?url=https%3A%2F%2Fex.com%2Fa.png&amp;w=1" loading="lazy">' +
@@ -15,7 +15,7 @@ beforeEach(() => {
 describe("service worker — static assets (cache-first)", () => {
   it("serves /_next/static and icons from the cache after the first download", async () => {
     sw.network.routes.set("/_next/static/chunks/app-1a2b.js", () => basic("console.log(1)"));
-    sw.network.routes.set("/icons/icon-192.png", () => basic("png"));
+    sw.network.routes.set("/icons/icon-192.png", () => png("png"));
     await sw.fetchEvent("/_next/static/chunks/app-1a2b.js");
     await sw.fetchEvent("/icons/icon-192.png");
     sw.network.online = false;
@@ -28,6 +28,39 @@ describe("service worker — static assets (cache-first)", () => {
   it("does not cache a failed download", async () => {
     await sw.fetchEvent("/_next/static/chunks/missing.js");
     expect(sw.caches.paths("veille-static")).toEqual([]);
+  });
+
+  it("refuses a redirect (e.g. to /login) and a non-image for an icon: network error, nothing cached", async () => {
+    sw.network.routes.set("/icons/icon-192.png", () => png("<html>login</html>", { redirected: true }));
+    sw.network.routes.set("/icons/icon-512.png", () => basic("<html>login</html>", { headers: { "content-type": "text/html" } }));
+    sw.network.routes.set("/_next/static/chunks/moved.js", () => basic("x", { redirected: true }));
+    sw.network.routes.set("/api/image-proxy?url=x", () => basic("<html></html>", { headers: { "content-type": "text/html" } }));
+    for (const url of ["/icons/icon-192.png", "/icons/icon-512.png", "/_next/static/chunks/moved.js", "/api/image-proxy?url=x"]) {
+      expect((await sw.fetchEvent(url))!.type, url).toBe("error");
+    }
+    expect([...sw.caches.paths("veille-static"), ...sw.caches.paths("veille-images")]).toEqual([]);
+  });
+
+  it("drops a non-image left under an icon's URL by an older version, and downloads it again", async () => {
+    const cache = await sw.caches.open("veille-static");
+    await cache.put("/icons/icon-192.png", new Response("<html>login</html>", { headers: { "content-type": "text/html" } }));
+    sw.network.routes.set("/icons/icon-192.png", () => png("png"));
+    const res = (await sw.fetchEvent("/icons/icon-192.png"))!;
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(sw.network.calls).toEqual(["/icons/icon-192.png"]);
+    expect(await (await cache.match("/icons/icon-192.png"))!.text()).toBe("png");
+  });
+
+  it("scripts and styles are not held to the image check", async () => {
+    sw.network.routes.set("/_next/static/chunks/a.css", () => basic("a{}", { headers: { "content-type": "text/css" } }));
+    await sw.fetchEvent("/_next/static/chunks/a.css");
+    expect(sw.caches.paths("veille-static")).toEqual(["/_next/static/chunks/a.css"]);
+  });
+
+  it("leaves the root touch icons to the network (iOS fetches them itself)", async () => {
+    for (const url of ["/apple-touch-icon.png", "/apple-touch-icon-180x180-precomposed.png"]) {
+      expect(await sw.fetchEvent(url), url).toBeUndefined();
+    }
   });
 });
 
@@ -121,9 +154,9 @@ describe("service worker — never cached", () => {
 describe("service worker — offline reading of opened topics", () => {
   beforeEach(() => {
     sw.network.routes.set("/t/42", () => html("Un article · Veille", TOPIC_BODY));
-    sw.network.routes.set("/api/favicon/3?v=1", () => basic("ico"));
-    sw.network.routes.set("/api/image-proxy?url=https%3A%2F%2Fex.com%2Fa.png&w=1", () => basic("a"));
-    sw.network.routes.set("/api/image-proxy?url=https%3A%2F%2Fex.com%2Fb.png", () => basic("b"));
+    sw.network.routes.set("/api/favicon/3?v=1", () => png("ico"));
+    sw.network.routes.set("/api/image-proxy?url=https%3A%2F%2Fex.com%2Fa.png&w=1", () => png("a"));
+    sw.network.routes.set("/api/image-proxy?url=https%3A%2F%2Fex.com%2Fb.png", () => png("b"));
   });
 
   it("a topic opened in the app (cache-page message) is saved with its proxied images", async () => {
@@ -170,7 +203,7 @@ describe("service worker — offline reading of opened topics", () => {
 describe("service worker — logout and lifecycle", () => {
   it("« clear » deletes every cache, and drops writes that were in flight", async () => {
     sw.network.routes.set("/", () => html("Forums · Veille"));
-    sw.network.routes.set("/_next/static/a.js", () => basic("a"));
+    sw.network.routes.set("/_next/static/a.js", () => png("a"));
     await sw.navigate("/");
     await sw.fetchEvent("/_next/static/a.js");
     expect(await sw.caches.keys()).toEqual(["veille-pages", "veille-static"]);

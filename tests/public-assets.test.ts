@@ -1,44 +1,58 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { describe, expect, it } from "vitest";
 import manifest from "@/app/manifest";
+import { APPLE_TOUCH_ICON, ICONS } from "@/lib/pwa/icons";
 import { config } from "@/proxy";
 
 const ROOT = path.join(import.meta.dirname, "..");
+const goesThroughProxy = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+const linkUrls = ICONS.icon.map((i) => i.url);
 
-/** True when proxy.ts runs on this path, i.e. it is redirected to /login without a session. */
-function goesThroughProxy(pathname: string): boolean {
-  return config.matcher.some((m) => new RegExp(`^${m}$`).test(pathname));
-}
+// What iOS asks for at the root when adding to the home screen (seen in the proxy logs).
+const ROOT_TOUCH_ICONS = [
+  "/apple-touch-icon.png",
+  "/apple-touch-icon-precomposed.png",
+  "/apple-touch-icon-180x180.png",
+  "/apple-touch-icon-180x180-precomposed.png",
+];
 
 // Fetched without cookies: by iOS when adding to the home screen, by browsers for the
 // manifest and by the service worker registration on the login page.
-const PUBLIC = [
-  "/apple-icon.png", // <link rel="apple-touch-icon"> (app/apple-icon.png)
-  "/apple-touch-icon.png", // what iOS also tries at the root
-  "/apple-touch-icon-precomposed.png",
-  "/icon.svg",
-  "/manifest.webmanifest",
-  "/sw.js",
-  ...(manifest().icons ?? []).map((i) => i.src),
-];
+const PUBLIC = [...ROOT_TOUCH_ICONS, ...linkUrls, "/manifest.webmanifest", "/sw.js", ...(manifest().icons ?? []).map((i) => i.src)];
 
 describe("public files (no session)", () => {
-  it.each(PUBLIC)("%s is not redirected to /login", (p) => {
-    expect(goesThroughProxy(p)).toBe(false);
+  it.each([...new Set(PUBLIC)])("%s is not redirected to /login", (url) => {
+    expect(goesThroughProxy(url)).toBe(false);
   });
 
-  it.each(["/", "/login", "/f/securite", "/t/1", "/admin", "/apple-touch-icon.png.txt", "/sw.json", "/xicons/a.png"])(
+  it.each(["/", "/login", "/f/securite", "/t/1", "/admin", "/apple-touch-icon.png.txt", "/apple-touch-icon-x.png", "/sw.json", "/xicons/a.png"])(
     "%s still goes through the proxy",
-    (p) => expect(goesThroughProxy(p)).toBe(true),
+    (url) => expect(goesThroughProxy(url)).toBe(true),
   );
 
-  it("the root apple-touch-icons are the 180×180 PNG of app/apple-icon.png", () => {
-    const icon = readFileSync(path.join(ROOT, "app", "apple-icon.png"));
-    for (const f of ["apple-touch-icon.png", "apple-touch-icon-precomposed.png"]) {
-      expect(readFileSync(path.join(ROOT, "public", f)).equals(icon)).toBe(true);
-    }
+  it("the root touch icons are one opaque 180×180 PNG", () => {
+    const icon = readFileSync(path.join(ROOT, "public", "apple-touch-icon.png"));
     expect(icon.subarray(1, 4).toString()).toBe("PNG");
     expect([icon.readUInt32BE(16), icon.readUInt32BE(20)]).toEqual([180, 180]);
+    expect(icon[25]).toBe(2); // color type 2: RGB, no alpha channel
+    for (const f of ROOT_TOUCH_ICONS) expect(readFileSync(path.join(ROOT, "public", f)).equals(icon), f).toBe(true);
+  });
+});
+
+describe("<link> icons", () => {
+  it("apple-touch-icon first, then the PNG icon, then the SVG; plain URLs without a query", () => {
+    expect(ICONS.icon.map((i) => `${"rel" in i ? i.rel : "icon"} ${i.url} ${i.type}`)).toEqual([
+      `apple-touch-icon ${APPLE_TOUCH_ICON} image/png`,
+      `icon ${APPLE_TOUCH_ICON} image/png`,
+      "icon /icon.svg image/svg+xml",
+    ]);
+    expect(Object.keys(ICONS)).toEqual(["icon"]); // an `apple` list would be rendered after the SVG
+    for (const url of linkUrls) expect(url).not.toContain("?");
+  });
+
+  it("no file-based icon (app/icon.*, app/apple-icon.*) adds a hashed <link> before them", () => {
+    expect(readdirSync(path.join(ROOT, "app")).filter((f) => /^(?:icon|apple-icon)\d*\./.test(f))).toEqual([]);
   });
 });

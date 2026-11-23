@@ -47,7 +47,7 @@ describe("web app manifest", () => {
     expect(m.theme_color).toBe(THEME.bar);
   });
 
-  it("has a 180×180 apple-touch-icon (app/apple-icon.png)", () => {
-    expect(pngSize(path.join(ROOT, "app", "apple-icon.png"))).toEqual([180, 180]);
+  it("has a 180×180 apple-touch-icon (public/apple-touch-icon.png)", () => {
+    expect(pngSize(path.join(ROOT, "public", "apple-touch-icon.png"))).toEqual([180, 180]);
   });
 });

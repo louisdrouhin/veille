@@ -59,6 +59,9 @@ export function basic(body: string, init: ResponseInit & { redirected?: boolean 
   return res;
 }
 
+export const png = (body: string, init: ResponseInit & { redirected?: boolean } = {}) =>
+  basic(body, { ...init, headers: { "content-type": "image/png", ...init.headers } });
+
 export const html = (title: string, body = "") =>
   basic(`<!DOCTYPE html><html><head><title>${title}</title></head><body>${body}</body></html>`, {
     headers: { "content-type": "text/html; charset=utf-8" },

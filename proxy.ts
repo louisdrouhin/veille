@@ -31,7 +31,9 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Public files: the PWA manifest, its icons and the service worker must load
   // without a session (the worker is registered on the login page too). iOS fetches
-  // the home-screen icon without cookies, and also tries /apple-touch-icon(-precomposed).png
-  // at the root: a redirect to /login there gives the « V » placeholder icon.
-  matcher: ["/((?!api/|_next/static/|_next/image|icons/|(?:favicon\.ico|icon\.svg|apple-icon\.png|apple-touch-icon(?:-precomposed)?\.png|manifest\.webmanifest|sw\.js)$).*)"],
+  // the home-screen icon without cookies, and also tries /apple-touch-icon[-180x180]
+  // [-precomposed].png at the root: a redirect to /login there gives a letter icon.
+  matcher: [
+    "/((?!api/|_next/static/|_next/image|icons/|(?:favicon\.ico|icon\.svg|apple-touch-icon(?:-[0-9]{2,4}x[0-9]{2,4})?(?:-precomposed)?\.png|manifest\.webmanifest|sw\.js)$).*)",
+  ],
 };

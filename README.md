@@ -225,7 +225,10 @@ Il faut du HTTPS (ou `localhost`). Dans l'app installée :
 - **Actualiser** : pas de barre du navigateur ni de « tirer pour actualiser » sur iOS, d'où le bouton dans l'en-tête.
 - Les liens externes s'ouvrent hors de l'app (Safari / Chrome).
 
-Icônes : `public/icons/` (192, 512, maskable 512) et `app/apple-icon.png` (180), dessinées depuis `app/icon.svg`.
+Icônes : `public/icons/` (192, 512, maskable 512) et `public/apple-touch-icon.png` (180, opaque), dessinées
+depuis `public/icon.svg`. Les balises `<link>` sont dans `lib/pwa/icons.ts` (apple-touch-icon d'abord). iOS
+récupère l'icône sans cookie, et essaie aussi `/apple-touch-icon[-180x180][-precomposed].png` à la racine : ces
+fichiers sont des copies de `apple-touch-icon.png`, publics dans `proxy.ts`.
 
 ### Sauvegardes et restauration
 
