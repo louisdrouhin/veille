@@ -1,7 +1,7 @@
 import { TableHead } from "@/components/ui/table-head";
 import { IconCheckDouble } from "@/components/ui/icons";
 import { TOPIC_GRID_WITH_FORUM, type TopicRowData } from "@/components/topic/topic-grid";
-import { TopicRow } from "@/components/topic/topic-row";
+import { LatestUnreadList } from "./latest-unread-list";
 
 /** « Derniers non lus »: the newest unread topics of every forum, or « Tout est lu ». */
 export function LatestUnread({ topics }: { topics: TopicRowData[] }) {
@@ -26,11 +26,7 @@ export function LatestUnread({ topics }: { topics: TopicRowData[] }) {
               { label: "Dernier msg", align: "right" },
             ]}
           />
-          <ul>
-            {topics.map((t) => (
-              <TopicRow key={t.id} topic={t} showForum />
-            ))}
-          </ul>
+          <LatestUnreadList topics={topics} />
         </>
       ) : (
         <div className="flex items-center gap-3 px-3.5 py-4 md:px-4">
