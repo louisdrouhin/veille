@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+import { THEMES } from "@/lib/theme";
 
 const tsz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -173,16 +174,22 @@ export const workerStatus = pgTable(
 // Better Auth tables (core schema for email + password, two-factor plugin)
 // ---------------------------------------------------------------------------
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),
-  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
-  createdAt: tsz("created_at").notNull().defaultNow(),
-  updatedAt: tsz("updated_at").notNull().defaultNow(),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+    twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+    /** Mon compte › Apparence (lib/theme.ts). Declared to Better Auth as an additional field (lib/auth.ts). */
+    theme: text("theme", { enum: THEMES }).notNull().default("system"),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [check("user_theme_check", sql`${t.theme} in ('system', 'light', 'dark')`)],
+);
 
 /** Better Auth two-factor plugin: TOTP secret and backup codes (both encrypted with BETTER_AUTH_SECRET). */
 export const twoFactor = pgTable(

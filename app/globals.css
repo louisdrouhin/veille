@@ -1,107 +1,158 @@
 /* =========================================================================
-   Folders — design tokens (Tailwind CSS v4, Next.js 16)
-   Source : docs/design/veille-tokens.css (ne pas diverger).
-   Thème clair par défaut ; thème sombre avec la classe .dark sur <html>.
+   Folders — design tokens v2 (Tailwind CSS v4, Next.js 16)
+   Source : docs/design/v2/veille-tokens.css (ne pas diverger sur les couleurs).
+
+   Thème : attribut data-theme sur <html>, rendu côté serveur depuis le cookie
+   folders-theme (app/layout.tsx, lib/theme.ts) :
+     "system" (défaut) → suit prefers-color-scheme
+     "light"           → toujours clair
+     "dark"            → toujours sombre
+   Mêmes noms de variables dans les deux thèmes ; seules les valeurs changent.
+   Les deux blocs sombres (forcé et système) doivent rester identiques :
+   tests/theme-tokens.test.ts le vérifie.
    ========================================================================= */
 
 @import "tailwindcss";
 
-/* `dark:` suit la classe .dark (pas prefers-color-scheme) → bascule manuelle en v3 */
-@custom-variant dark (&:where(.dark, .dark *));
+/* `dark:` = thème sombre effectif (forcé OU système en sombre).
+   À utiliser rarement : les variables suffisent dans 99 % des cas. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where([data-theme="system"], [data-theme="system"] *) {
+      @slot;
+    }
+  }
+}
 
-/* ---------- Valeurs brutes, par thème ---------- */
-:root {
+/* ---------- Clair (défaut) ---------- */
+:root,
+:root[data-theme="light"] {
   --bg: #F3F2EE;
   --surface: #FFFFFF;
   --surface-alt: #F7F6F2;
   --surface-hover: #E8F1F5;
   --border: #DCD9D1;
-  --border-strong: #C4C0B6;
-
+  --border-strong: #8C887F;
   --text: #1B1A17;
   --text-muted: #5C5952;
-  --text-read: #6B6862;
-
+  --text-read: #66635D;
   --bar: #1E3640;
   --bar-2: #2A4A56;
   --bar-text: #F3F7F8;
   --bar-muted: #B9CAD0;
   --bar-accent: #7FC3DE;
-
   --accent: #1C5B77;
   --accent-hover: #164A61;
   --accent-fg: #FFFFFF;
   --accent-soft: #E1EDF2;
-
   --folder: #1C5B77;
   --folder-read: #8A867E;
   --hot: #B93A1F;
   --hot-soft: #FBE9E4;
   --hot-flame: #FFFFFF;
-
   --ok: #26704A;
   --ok-soft: #E3F1E8;
-  --warn: #8A5A00;
-  --warn-soft: #FBF0D9;
   --err: #B42318;
   --err-soft: #FCE8E6;
   --err-fg: #FFFFFF;
+  --warn: #8A5A00;
+  --warn-soft: #FBF0D9;
   --off: #5C5952;
   --off-soft: #ECEBE7;
-
   --focus: #1C5B77;
-
-  --elev-sm: 0 1px 2px rgba(20, 20, 15, .06);
-  --elev-md: 0 6px 20px rgba(20, 20, 15, .14);
+  --elev-sm: 0 1px 2px rgba(20,20,15,.06);
+  --elev-md: 0 6px 20px rgba(20,20,15,.14);
 
   color-scheme: light;
 }
 
-.dark {
+/* ---------- Sombre forcé ---------- */
+:root[data-theme="dark"] {
   --bg: #0F1214;
   --surface: #171B1E;
   --surface-alt: #1C2125;
-  --surface-hover: #1E2B31;
+  --surface-hover: #1F2C33;
   --border: #2A3035;
-  --border-strong: #3A4248;
-
+  --border-strong: #646D74;
   --text: #E7E5E0;
-  --text-muted: #A29F98;
-  --text-read: #8C8A84;
-
-  --bar: #13262D;
-  --bar-2: #1A323A;
-  --bar-text: #E7EEF0;
-  --bar-muted: #93AAB2;
-  --bar-accent: #6CB0CE;
-
+  --text-muted: #A8A59E;
+  --text-read: #999790;
+  --bar: #1C3039;
+  --bar-2: #24404B;
+  --bar-text: #EEF3F5;
+  --bar-muted: #A9BEC6;
+  --bar-accent: #7FC3DE;
   --accent: #6CB0CE;
   --accent-hover: #8CC3DB;
   --accent-fg: #0B1418;
-  --accent-soft: #1A3440;
-
-  --folder: #6CB0CE;
-  --folder-read: #77756F;
-  --hot: #F07A5E;
-  --hot-soft: #3A1E17;
+  --accent-soft: #17323D;
+  --folder: #4F97B8;
+  --folder-read: #7F7D77;
+  --hot: #FF8F70;
+  --hot-soft: #3A1D16;
   --hot-flame: #2A120C;
-
   --ok: #5CC08A;
-  --ok-soft: #14291E;
-  --warn: #E3B04B;
-  --warn-soft: #2E2412;
+  --ok-soft: #13291D;
   --err: #F2877B;
-  --err-soft: #341816;
+  --err-soft: #351816;
   --err-fg: #1A0B09;
-  --off: #A29F98;
-  --off-soft: #23272A;
-
+  --warn: #E3B04B;
+  --warn-soft: #2D2311;
+  --off: #A8A59E;
+  --off-soft: #24282B;
   --focus: #8CC3DB;
-
-  --elev-sm: 0 1px 2px rgba(0, 0, 0, .4);
-  --elev-md: 0 8px 24px rgba(0, 0, 0, .5);
+  --elev-sm: 0 1px 2px rgba(0,0,0,.45);
+  --elev-md: 0 8px 24px rgba(0,0,0,.55);
 
   color-scheme: dark;
+}
+
+/* ---------- Système en sombre ----------
+   Copie exacte du bloc précédent : garder les deux synchronisés
+   (ou générer ce fichier depuis une seule source). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0F1214;
+    --surface: #171B1E;
+    --surface-alt: #1C2125;
+    --surface-hover: #1F2C33;
+    --border: #2A3035;
+    --border-strong: #646D74;
+    --text: #E7E5E0;
+    --text-muted: #A8A59E;
+    --text-read: #999790;
+    --bar: #1C3039;
+    --bar-2: #24404B;
+    --bar-text: #EEF3F5;
+    --bar-muted: #A9BEC6;
+    --bar-accent: #7FC3DE;
+    --accent: #6CB0CE;
+    --accent-hover: #8CC3DB;
+    --accent-fg: #0B1418;
+    --accent-soft: #17323D;
+    --folder: #4F97B8;
+    --folder-read: #7F7D77;
+    --hot: #FF8F70;
+    --hot-soft: #3A1D16;
+    --hot-flame: #2A120C;
+    --ok: #5CC08A;
+    --ok-soft: #13291D;
+    --err: #F2877B;
+    --err-soft: #351816;
+    --err-fg: #1A0B09;
+    --warn: #E3B04B;
+    --warn-soft: #2D2311;
+    --off: #A8A59E;
+    --off-soft: #24282B;
+    --focus: #8CC3DB;
+    --elev-sm: 0 1px 2px rgba(0,0,0,.45);
+    --elev-md: 0 8px 24px rgba(0,0,0,.55);
+
+    color-scheme: dark;
+  }
 }
 
 /* ---------- Exposition à Tailwind (classes bg-surface, text-fg-muted…) ---------- */
@@ -180,12 +231,35 @@
   }
 }
 
+/* ---------- Aperçus du choix de thème (Mon compte) ----------
+   Valeurs FIXES des deux thèmes, volontairement hors des variables thémées : l'aperçu
+   « Clair » doit rester clair en mode sombre, et inversement. Utilisées par
+   components/account/theme-picker.tsx (bg-preview-light-bg…). */
+@theme {
+  --color-preview-light-bg: #F3F2EE;
+  --color-preview-light-surface: #FFFFFF;
+  --color-preview-light-line: #DCD9D1;
+  --color-preview-light-text: #8A867E;
+  --color-preview-light-bar: #1E3640;
+  --color-preview-light-accent: #1C5B77;
+  --color-preview-dark-bg: #0F1214;
+  --color-preview-dark-surface: #171B1E;
+  --color-preview-dark-line: #2A3035;
+  --color-preview-dark-text: #7F7D77;
+  --color-preview-dark-bar: #1C3039;
+  --color-preview-dark-accent: #4F97B8;
+}
+
 /* ---------- Base ---------- */
 @layer base {
   /* Anchors (#p3, #note-form…) and focus stop below the sticky header (components/layout/app-header.tsx):
      min-h-13 + 1px border + top inset. The mobile menu is closed after navigating, so it is not counted. */
   html {
-    background: var(--bg);
+    /* Overscroll (iOS rubber band) shows the root background beyond the page. It is a tile
+       the size of the page, repeated vertically and entirely covered by <body>: above the
+       page we see its bottom half (--bar, continuing the sticky header), below the page its
+       top half (--bg). A plain var(--bar) would also tint the bounce at the bottom. */
+    background: linear-gradient(var(--bg) 50%, var(--bar) 50%) repeat-y;
     scroll-padding-top: calc(3.25rem + 1px + env(safe-area-inset-top));
   }
   body {
@@ -193,6 +267,7 @@
     font-variant-numeric: tabular-nums;
     /* Installed app (viewport-fit=cover): keep clear of the iPhone home indicator. */
     padding-bottom: env(safe-area-inset-bottom);
+    min-height: 100dvh;
   }
   a { @apply text-accent hover:text-accent-hover; }
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {

@@ -12,7 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: THEME.bg,
+    // Launch screen: the header's blue-gray, neutral in both themes (no white flash in dark mode).
+    background_color: THEME.bar,
     theme_color: THEME.bar,
     categories: ["news", "productivity"],
     icons: [
