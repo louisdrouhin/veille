@@ -8,7 +8,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { TopicRowData } from "@/components/topic/topic-grid";
 
 vi.mock("next/link", () => ({
-  default: ({ href, prefetch: _p, ...rest }: { href: string; prefetch?: boolean }) => createElement("a", { href, ...rest }),
+  // Plain <a>; the prefetch prop is dropped (not an HTML attribute).
+  default: (props: { href: string; prefetch?: boolean }) => {
+    const rest: Record<string, unknown> = { ...props };
+    delete rest.prefetch;
+    return createElement("a", rest);
+  },
 }));
 const { LatestUnreadList, MOBILE_VISIBLE } = await import("@/components/home/latest-unread-list");
 
