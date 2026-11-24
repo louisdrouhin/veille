@@ -41,6 +41,6 @@ describe("ScrollTopButton markup", () => {
   });
   it("sits first in the toast stack, which clears the iPhone safe area, so toasts never go under it", () => {
     expect(read("app", "(protected)", "layout.tsx")).toMatch(/<Toaster>\s*<ScrollTopButton \/>/);
-    expect(read("components", "ui", "toaster.tsx")).toMatch(/fixed inset-x-3 bottom-\[calc\(0\.75rem\+env\(safe-area-inset-bottom\)\)\]/);
+    expect(read("components", "ui", "toaster.tsx")).toMatch(/fixed inset-x-\[5px\] bottom-\[calc\(env\(safe-area-inset-bottom\)\+8px\)\]/);
   });
 });

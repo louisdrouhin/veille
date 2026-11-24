@@ -276,6 +276,10 @@
   ::placeholder { color: var(--text-read); }
 }
 
+/* ---------- App installée : pas de rebond natif en haut, c'est « tirer pour rafraîchir »
+   (components/layout/pull-to-refresh.tsx) qui prend le geste. data-standalone est posé par ce composant. ---------- */
+html[data-standalone] { overscroll-behavior-y: none; }
+
 /* ---------- Safe areas (encoche, barre du bas) : viewport-fit=cover dans app/layout.tsx ---------- */
 /* safe-top : 0 dans l'app iOS (barre d'état « default », la page commence dessous) ;
    utile si le contenu passe sous une encoche (paysage, autres navigateurs). */

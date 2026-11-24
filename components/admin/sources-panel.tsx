@@ -6,10 +6,11 @@ import { BAR_BUTTON, Panel } from "@/components/ui/panel";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { TableHead } from "@/components/ui/table-head";
+import { FORUM_BADGE } from "@/components/topic/topic-grid";
 import { createSource, fetchSourceNow, setSourceEnabled, updateSource } from "@/lib/actions/admin";
 import type { Forum, Source } from "@/lib/db/schema";
 import { SourceDeleteButton } from "./source-delete-button";
-import { SourceStatusBadge } from "./source-status-badge";
+import { SourceStatusBadge, sourceStatus } from "./source-status-badge";
 
 const GRID = "grid-cols-[minmax(0,1fr)_128px_168px_104px_136px]";
 const FIELD = "h-9 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-base font-normal text-fg max-md:h-11 max-md:text-[16px]";
@@ -50,21 +51,29 @@ export function SourcesPanel({ sources, forums, editing, now }: { sources: Admin
               </EmptyState>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[720px]">
-                <TableHead
-                  grid={GRID}
-                  alwaysVisible
-                  className="!bg-surface-alt !text-fg-muted border-b border-line"
-                  columns={[{ label: "Nom" }, { label: "Forum" }, { label: "Statut" }, { label: "Dernière récup." }, { label: "Actions", align: "right" }]}
-                />
-                <ul>
-                  {sources.map((s) => (
-                    <SourceRow key={s.id} source={s} now={now} />
-                  ))}
-                </ul>
+            <>
+              {/* Mobile: one card per source (docs/design/v2 § 5). Desktop: the table. */}
+              <ul className="flex flex-col gap-2.5 p-2.5 md:hidden">
+                {sources.map((s) => (
+                  <SourceCard key={s.id} source={s} now={now} />
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
+                <div className="min-w-[720px]">
+                  <TableHead
+                    grid={GRID}
+                    alwaysVisible
+                    className="!bg-surface-alt !text-fg-muted border-b border-line"
+                    columns={[{ label: "Nom" }, { label: "Forum" }, { label: "Statut" }, { label: "Dernière récup." }, { label: "Actions", align: "right" }]}
+                  />
+                  <ul>
+                    {sources.map((s) => (
+                      <SourceRow key={s.id} source={s} now={now} />
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
+            </>
           )}
           <SourceForm forums={forums} editing={editing} />
         </>
@@ -92,29 +101,70 @@ function SourceRow({ source: s, now }: { source: AdminSource; now: Date }) {
             <IconRefresh size={15} />
           </SubmitButton>
         </form>
-        <form action={setSourceEnabled}>
-          <input type="hidden" name="id" value={s.id} />
-          <input type="hidden" name="enabled" value={s.enabled ? "false" : "true"} />
-          <SubmitButton
-            variant="ghost-icon"
-            className={s.enabled ? "" : "text-ok"}
-            aria-label={`${s.enabled ? "Désactiver" : "Activer"} « ${s.name} »`}
-            title={s.enabled ? "Désactiver" : "Activer"}
-          >
-            <IconPower size={15} />
-          </SubmitButton>
-        </form>
-        <Link
-          href={`/admin?edit=${s.id}#source-form`}
-          className={buttonClass("ghost-icon")}
-          aria-label={`Modifier « ${s.name} »`}
-          title="Modifier"
-        >
-          <IconPencil size={15} />
-        </Link>
-        <SourceDeleteButton id={s.id} name={s.name} enabled={s.enabled} />
+        <SourceActions source={s} />
       </div>
     </li>
+  );
+}
+
+function SourceCard({ source: s, now }: { source: AdminSource; now: Date }) {
+  const failing = sourceStatus(s, now) === "error";
+  return (
+    <li className={`flex flex-col gap-2.5 rounded-md border bg-surface p-3 shadow-sm ${failing ? "border-err" : "border-line"}`}>
+      <div className="min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className={`min-w-0 text-md font-semibold break-words ${s.enabled ? "" : "text-fg-read"}`}>{s.name}</p>
+          <span className={`${FORUM_BADGE} mt-1 shrink-0`}>{s.forumName}</span>
+        </div>
+        <p className="truncate font-mono text-xs text-fg-muted" title={s.url}>
+          {s.url}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+        <SourceStatusBadge source={s} now={now} />
+        <span className="text-sm text-fg-muted">
+          Dernière récup. : {s.lastFetchedAt ? <RelativeTime date={s.lastFetchedAt} /> : "jamais"}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 border-t border-line pt-2.5">
+        <form action={fetchSourceNow} className="flex-1">
+          <input type="hidden" name="id" value={s.id} />
+          <SubmitButton variant="secondary" size="md" className="w-full" aria-label={`Récupérer « ${s.name} » maintenant`}>
+            <IconRefresh size={15} /> Récupérer
+          </SubmitButton>
+        </form>
+        <SourceActions source={s} />
+      </div>
+    </li>
+  );
+}
+
+/** Activate / deactivate, edit, delete: 44 px icon buttons on mobile, 32 px in the table. */
+function SourceActions({ source: s }: { source: AdminSource }) {
+  return (
+    <>
+      <form action={setSourceEnabled}>
+        <input type="hidden" name="id" value={s.id} />
+        <input type="hidden" name="enabled" value={s.enabled ? "false" : "true"} />
+        <SubmitButton
+          variant="ghost-icon"
+          className={s.enabled ? "" : "text-ok"}
+          aria-label={`${s.enabled ? "Désactiver" : "Activer"} « ${s.name} »`}
+          title={s.enabled ? "Désactiver" : "Activer"}
+        >
+          <IconPower size={15} />
+        </SubmitButton>
+      </form>
+      <Link
+        href={`/admin?edit=${s.id}#source-form`}
+        className={buttonClass("ghost-icon")}
+        aria-label={`Modifier « ${s.name} »`}
+        title="Modifier"
+      >
+        <IconPencil size={15} />
+      </Link>
+      <SourceDeleteButton id={s.id} name={s.name} enabled={s.enabled} />
+    </>
   );
 }
 

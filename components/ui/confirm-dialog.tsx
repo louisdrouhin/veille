@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useImperativeHandle, useRef, type Ref } from "react";
 import { Button } from "./button";
+
+export type ConfirmDialogHandle = { open: () => void };
 
 /**
  * Native <dialog> confirmation, opened by an icon button (`trigger`); the dialog
  * body (`children`) usually contains forms bound to server actions.
  * The « Annuler » button gets the focus by default.
+ * `handle`: opens the same dialog from elsewhere (e.g. the mobile « … » menu of a forum).
  */
 export function ConfirmDialog({
   title,
   description,
   trigger,
   children,
+  handle,
 }: {
+  handle?: Ref<ConfirmDialogHandle>;
   title: string;
   description: React.ReactNode;
   /** Opening icon button: accessible label (also used as tooltip), extra classes, icon. */
@@ -23,6 +28,7 @@ export function ConfirmDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descId = useId();
+  useImperativeHandle(handle, () => ({ open: () => ref.current?.showModal() }), []);
 
   useEffect(() => {
     const dialog = ref.current;
