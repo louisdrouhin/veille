@@ -7,10 +7,12 @@ import { NavigationTracker } from "@/components/layout/navigation-tracker";
 import { ScrollTopButton } from "@/components/layout/scroll-top-button";
 import { OfflinePageCache } from "@/components/pwa/offline-page-cache";
 import { UpdateToast } from "@/components/pwa/update-toast";
+import { AccountThemeSync } from "@/components/theme/theme-sync";
 import { ReadTopicsProvider } from "@/components/topic/read-topics";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { parseTheme } from "@/lib/theme";
 import { hasAnyUser } from "@/lib/users";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +38,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <OfflinePageCache />
         <BackForwardRefresh />
       </Suspense>
+      <AccountThemeSync theme={parseTheme((session.user as { theme?: unknown }).theme)} />
     </ReadTopicsProvider>
   );
 }

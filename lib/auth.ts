@@ -1,8 +1,10 @@
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
 import { getDb, schema, type Db } from "@/lib/db";
+import { parseTheme, THEME_COOKIE, themeCookieOptions } from "@/lib/theme";
 
 export type AuthEnv = { baseURL?: string; secret?: string; trustedProxies?: string };
 
@@ -20,6 +22,7 @@ export function parseTrustedProxies(value: string | undefined): string[] {
  */
 export function createAuth(db: Db, env: AuthEnv) {
   const trustedProxies = parseTrustedProxies(env.trustedProxies);
+  const secureCookies = env.baseURL?.startsWith("https://") ?? false;
   return betterAuth({
     appName: "Folders",
     baseURL: env.baseURL,
@@ -34,6 +37,20 @@ export function createAuth(db: Db, env: AuthEnv) {
         twoFactor: schema.twoFactor,
       },
     }),
+    user: {
+      // Mon compte › Apparence. input: false — only the setTheme action (lib/actions/account.ts) writes it.
+      additionalFields: { theme: { type: "string", required: false, defaultValue: "system", input: false } },
+    },
+    hooks: {
+      // Every new session (password step, then the 2FA step) mirrors the account's theme in the
+      // folders-theme cookie, so the next page is rendered in the right theme on this device.
+      after: createAuthMiddleware(async (ctx) => {
+        const created = ctx.context.newSession;
+        if (!created) return;
+        const theme = parseTheme((created.user as { theme?: unknown }).theme);
+        ctx.setCookie(THEME_COOKIE, theme, themeCookieOptions(secureCookies));
+      }),
+    },
     emailAndPassword: {
       enabled: true,
       // Single-user app: the account is created by /setup or `npm run create-user`.
@@ -49,7 +66,7 @@ export function createAuth(db: Db, env: AuthEnv) {
     rateLimit: { enabled: true, window: 60, max: 30 },
     advanced: {
       // Behind a reverse proxy that terminates HTTPS.
-      useSecureCookies: env.baseURL?.startsWith("https://") ?? false,
+      useSecureCookies: secureCookies,
       ipAddress: {
         // Only X-Forwarded-For: X-Real-IP is passed through untouched by proxies that do
         // not set it, so a client could pick a new value per request and dodge the limit.

@@ -33,6 +33,8 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Notes perso** sur chaque topic.
 - **Navigation** : bouton « ← Retour » et fil d'Ariane sur chaque page ; retour à la même page et au même défilement
   de la liste quand on vient d'un topic ; raccourcis **Échap** ou **U** pour remonter d'un niveau.
+- **Mode sombre** qui suit l'appareil, ou forcé clair / sombre depuis « Mon compte › Apparence » (réglage du
+  compte, rendu côté serveur sans flash ni script).
 - **Double authentification (TOTP)** optionnelle, depuis « Mon compte » : QR code, codes de secours, appareil de confiance 30 jours.
 - **Administration** : forums réordonnables par glisser-déposer, sources avec statut et dernière erreur,
   « Récupérer maintenant ».
@@ -319,8 +321,9 @@ On peut aussi utiliser un vrai PostgreSQL :
 
 - [`docs/SPEC.md`](docs/SPEC.md) : spécification et feuille de route (v2 : fusion multi-sources, Reddit, HN,
   GitHub ; v3 : recherche plein texte, raccourcis, mode sombre).
-- [`docs/design/`](docs/design/) : brief de direction artistique (`HANDOFF.md`) et design tokens
-  (`veille-tokens.css`, repris tel quel dans `app/globals.css`).
+- [`docs/design/`](docs/design/) : briefs de direction artistique et design tokens. `v1/` : la base (`HANDOFF.md`,
+  `veille-tokens.css`) ; `v2/` : mode sombre, nouvel accueil, mode lecture (`HANDOFF-v2.md`, tokens clair + sombre
+  fusionnés dans `app/globals.css`).
 
 ## Licence
 

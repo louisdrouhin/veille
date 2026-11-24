@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition } from "react";
-import { authClient } from "@/lib/auth-client";
-import { IconClose, IconLogout, IconMenu, IconRefresh, Logo } from "@/components/ui/icons";
-import { clearOfflineData, useStandalone } from "@/lib/pwa/client";
+import { LogoutButton } from "@/components/account/logout-button";
+import { Avatar } from "@/components/account/avatar";
+import { IconClose, IconMenu, IconRefresh, Logo } from "@/components/ui/icons";
+import { useStandalone } from "@/lib/pwa/client";
 
 const NAV = [
   { href: "/", label: "Forums", match: (p: string) => p === "/" || p.startsWith("/f/") || p.startsWith("/t/") },
@@ -16,30 +17,6 @@ const NAV_LINK =
   "rounded-sm px-3 py-[7px] text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg " +
   "aria-[current=page]:bg-white/12 aria-[current=page]:font-semibold aria-[current=page]:text-bar-fg " +
   "aria-[current=page]:shadow-[inset_0_-2px_0_var(--bar-accent)] focus-visible:outline-bar-accent";
-
-function LogoutButton({ className }: { className: string }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  return (
-    <button
-      type="button"
-      disabled={pending}
-      className={className}
-      onClick={() =>
-        startTransition(async () => {
-          // Pages saved for offline reading must not outlive the session.
-          await clearOfflineData();
-          await authClient.signOut();
-          router.replace("/login");
-          router.refresh();
-        })
-      }
-    >
-      <IconLogout size={14} />
-      {pending ? "Déconnexion…" : "Déconnexion"}
-    </button>
-  );
-}
 
 /**
  * Installed app only (no browser toolbar, and no pull-to-refresh on iOS):
@@ -108,13 +85,12 @@ export function AppHeader({ userName }: { userName: string }) {
           <RefreshButton className={`${REFRESH_CLASS} size-8`} />
           <Link
             href="/compte"
-            className="text-sm text-bar-muted no-underline hover:text-bar-fg hover:underline aria-[current=page]:text-bar-fg"
+            className="inline-flex h-8 items-center gap-2 rounded-sm px-1.5 text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg aria-[current=page]:text-bar-fg focus-visible:outline-bar-accent"
             aria-current={pathname === "/compte" ? "page" : undefined}
-            title="Mon compte"
           >
-            {userName}
+            <Avatar name={userName} size="sm" />
+            Mon compte
           </Link>
-          <LogoutButton className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border border-white/28 px-3 text-sm font-medium text-bar-fg hover:bg-white/8 disabled:opacity-70" />
         </div>
 
         <div className="ml-auto flex items-center md:hidden">
@@ -145,11 +121,16 @@ export function AppHeader({ userName }: { userName: string }) {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
-          <Link href="/compte" className="text-sm text-bar-muted underline">
-            Mon compte ({userName})
+        <div className="flex flex-col border-t border-white/10 pt-2">
+          <Link
+            href="/compte"
+            className={`${NAV_LINK} flex h-11 items-center gap-2.5 text-base`}
+            aria-current={pathname === "/compte" ? "page" : undefined}
+          >
+            <Avatar name={userName} size="sm" />
+            Mon compte
           </Link>
-          <LogoutButton className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-sm border border-white/28 px-3 text-sm font-medium text-bar-fg disabled:opacity-70" />
+          <LogoutButton className={`${NAV_LINK} flex h-11 w-full cursor-pointer items-center gap-2.5 text-left text-base disabled:opacity-70`} />
         </div>
       </div>
     </header>

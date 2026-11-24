@@ -156,6 +156,7 @@ describe("two-factor authentication (TOTP)", () => {
 
     expect((await c.post("/two-factor/verify-totp", { code: await totpFor(totpURI) })).status).toBe(200);
     expect(c.hasSession()).toBe(true);
+    expect(c.jar.get("folders-theme")).toBe("system");
   });
 
   it("rejects a code from another time window", async () => {
@@ -240,5 +241,28 @@ describe("two-factor authentication (TOTP)", () => {
     const plain = new TextDecoder().decode(base32.decode(new URL(totpURI).searchParams.get("secret")!));
     const [row] = await db.select().from(schema.twoFactor);
     expect(row!.secret).not.toContain(plain);
+  });
+});
+
+describe("theme cookie (Mon compte › Apparence)", () => {
+  it("each sign-in mirrors the account's theme in the folders-theme cookie", async () => {
+    const auth = await setup();
+    const first = client(auth, { "x-forwarded-for": nextIp() });
+    expect((await signIn(first)).status).toBe(200);
+    expect(first.jar.get("folders-theme")).toBe("system");
+
+    await db.update(schema.user).set({ theme: "dark" }).where(eq(schema.user.email, EMAIL));
+    const second = client(auth, { "x-forwarded-for": nextIp() });
+    expect((await signIn(second)).status).toBe(200);
+    expect(second.jar.get("folders-theme")).toBe("dark");
+  });
+
+  it("the theme cannot be set through Better Auth's update-user endpoint", async () => {
+    const auth = await setup();
+    const c = client(auth, { "x-forwarded-for": nextIp() });
+    expect((await signIn(c)).status).toBe(200);
+    await c.post("/update-user", { theme: "dark" });
+    const [me] = await db.select({ theme: schema.user.theme }).from(schema.user).where(eq(schema.user.email, EMAIL));
+    expect(me!.theme).toBe("system");
   });
 });

@@ -18,7 +18,7 @@ forum thématique, mode lecture, notes perso. Mono-utilisateur, auto-hébergée,
 - Docker Compose : `app`, `worker`, `db`, `backup`.
 - Code et identifiants en anglais, interface en français, dates en Europe/Paris.
 
-Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (HANDOFF + tokens), `git log --oneline -40`.
+Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`v1/` puis `v2/` : HANDOFF + tokens), `git log --oneline -40`.
 
 ## Commandes
 
@@ -45,4 +45,5 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (HANDOF
   tourne : le relancer seul avant de conclure.
 - **Rien de privé dans le dépôt** (IP, domaine, chemins ou comptes du serveur, secrets) : en cas de doute, lancer
   `gitleaks`.
-- Design : tokens uniquement (`docs/design/veille-tokens.css`), aucune couleur en dur.
+- Design : tokens uniquement (`docs/design/v2/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
+  en dur. Mode sombre par `data-theme` sur `<html>` (cookie `folders-theme`), jamais de script inline (CSP).

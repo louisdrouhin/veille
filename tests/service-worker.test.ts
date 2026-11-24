@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { basic, html, loadServiceWorker, png, SW_SOURCE } from "./helpers/service-worker-env";
+import { color, DARK, LIGHT } from "./helpers/tokens";
 
 const TOPIC_BODY =
   '<img src="/api/favicon/3?v=1"><div id="article"><img src="/api/image-proxy?url=https%3A%2F%2Fex.com%2Fa.png&amp;w=1" loading="lazy">' +
@@ -244,21 +243,22 @@ describe("service worker — logout and lifecycle", () => {
 });
 
 describe("service worker — kept in sync with the app", () => {
-  it("uses the colors of the design tokens on its offline page", () => {
-    const css = readFileSync(path.join(import.meta.dirname, "..", "app", "globals.css"), "utf8");
-    const root = /:root \{([\s\S]*?)\n\}/.exec(css)![1]!;
-    const token = (name: string) => new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`).exec(root)![1]!.toUpperCase();
-    const colors = JSON.parse(/const COLORS = (\{[^}]*\})/.exec(SW_SOURCE)![1]!.replace(/(\w+):/g, '"$1":')) as Record<string, string>;
-    expect(colors).toEqual({
-      bar: token("bar"),
-      barText: token("bar-text"),
-      barAccent: token("bar-accent"),
-      bg: token("bg"),
-      surface: token("surface"),
-      border: token("border"),
-      text: token("text"),
-      muted: token("text-muted"),
-      accent: token("accent"),
+  it("uses the colors of the design tokens on its offline page, light and dark", () => {
+    const tokens = (t: Record<string, string>) => ({
+      bar: color(t, "bar"),
+      barText: color(t, "bar-text"),
+      barAccent: color(t, "bar-accent"),
+      bg: color(t, "bg"),
+      surface: color(t, "surface"),
+      border: color(t, "border"),
+      text: color(t, "text"),
+      muted: color(t, "text-muted"),
+      accent: color(t, "accent"),
+      accentFg: color(t, "accent-fg"),
     });
+    const object = (name: string) =>
+      JSON.parse(new RegExp(String.raw`const ${name} = (\{[^}]*\})`).exec(SW_SOURCE)![1]!.replace(/(\w+):/g, '"$1":')) as Record<string, string>;
+    expect(object("COLORS")).toEqual(tokens(LIGHT));
+    expect(object("COLORS_DARK")).toEqual(tokens(DARK));
   });
 });
