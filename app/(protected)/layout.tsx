@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { BackForwardRefresh } from "@/components/layout/back-forward-refresh";
 import { NavigationTracker } from "@/components/layout/navigation-tracker";
+import { ScrollTopButton } from "@/components/layout/scroll-top-button";
 import { OfflinePageCache } from "@/components/pwa/offline-page-cache";
 import { UpdateToast } from "@/components/pwa/update-toast";
 import { ReadTopicsProvider } from "@/components/topic/read-topics";
@@ -28,6 +29,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       </div>
       <Suspense>
         <Toaster>
+          <ScrollTopButton />
           <UpdateToast />
         </Toaster>
         <NavigationTracker />
