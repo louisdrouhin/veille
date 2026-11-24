@@ -41,6 +41,31 @@ export function formatShort(date: Date): string {
   return `${dayMonthFmt.format(date)} · ${timeFmt.format(date)}`;
 }
 
+const partsFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TZ,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** Paris wall-clock time of `date`, read as if it were UTC (ms). Its difference with `date` is the offset. */
+function parisWallClock(date: Date): number {
+  const p = Object.fromEntries(partsFmt.formatToParts(date).map((x) => [x.type, Number(x.value)]));
+  return Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!, p.second!);
+}
+
+/** Start of the current day in Paris (« reçus aujourd'hui »). DST changes happen at night, never at midnight. */
+export function startOfParisDay(now: Date = new Date()): Date {
+  const wall = new Date(parisWallClock(now));
+  const midnightWall = Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate());
+  const offset = parisWallClock(new Date(midnightWall)) - midnightWall;
+  return new Date(midnightWall - offset);
+}
+
 export function formatTime(date: Date): string {
   return timeFmt.format(date);
 }

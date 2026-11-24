@@ -28,6 +28,17 @@ export const IconCheck = (p: IconProps) => (
     <path d="M3.5 8.5l3 3 6-7" />
   </Svg>
 );
+export const IconCheckDouble = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M1.5 8.5l3 3 6-7" />
+    <path d="M8.5 10.5l1 1 5.5-7" />
+  </Svg>
+);
+export const IconChevronRight = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 3.5L10.5 8 6 12.5" />
+  </Svg>
+);
 export const IconAlert = (p: IconProps) => (
   <Svg {...p}>
     <path d="M8 4.5v4.5" />

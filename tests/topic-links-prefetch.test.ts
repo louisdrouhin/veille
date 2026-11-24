@@ -61,6 +61,7 @@ const links = ["app", "components"].flatMap((d) => tsxFiles(path.join(ROOT, d)))
 describe("links to a topic page never prefetch it (prefetching would mark it read)", () => {
   it("finds the topic list's links (the scan works on the real code)", () => {
     expect(links.map((l) => l.where)).toContainEqual(expect.stringMatching(/^components[\\/]topic[\\/]topic-row\.tsx:\d+$/));
+    expect(links.map((l) => l.where)).toContainEqual(expect.stringMatching(/^components[\\/]home[\\/]featured\.tsx:\d+$/));
   });
 
   it("every <Link> to /t/… has prefetch={false}", () => {
