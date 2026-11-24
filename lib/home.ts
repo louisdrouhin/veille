@@ -5,6 +5,7 @@ import type { ForumRowData } from "@/components/forum/forum-table";
 import type { Db } from "@/lib/db";
 import { forums, replies, sourceFavicons, sources, topics } from "@/lib/db/schema";
 import { faviconUrl } from "@/lib/feeds/favicon";
+import { savedCountOf } from "@/lib/lists/queries";
 import { startOfParisDay } from "@/lib/format-date";
 
 /** Home page data (docs/design/v2 § 2.2): one query per block, run in parallel by the page. */
@@ -63,6 +64,7 @@ export async function getLatestUnread(db: Db, { limit }: { limit: number }): Pro
       faviconAt: sourceFavicons.fetchedAt,
       forumName: forums.name,
       forumSlug: forums.slug,
+      savedCount: savedCountOf(),
     })
     .from(topics)
     .innerJoin(forums, eq(forums.id, topics.forumId))
@@ -80,6 +82,7 @@ export async function getLatestUnread(db: Db, { limit }: { limit: number }): Pro
     sourceName: r.sourceName,
     faviconSrc: faviconUrl(r.sourceId, r.faviconAt),
     forum: { name: r.forumName, slug: r.forumSlug },
+    savedCount: r.savedCount,
   }));
 }
 
@@ -126,6 +129,7 @@ export type FeaturedTopic = {
   forum: { name: string; slug: string };
   /** The topic's own source, then the sources that picked it up (replies of type `source`). */
   sourceNames: string[];
+  savedCount: number;
 };
 
 /**
@@ -143,6 +147,7 @@ export async function getFeatured(db: Db, { limit, since }: { limit: number; sin
       sourceName: sources.name,
       authors: sql<string[]>`array_agg(${replies.author} order by ${replies.createdAt})`,
       reposts,
+      savedCount: savedCountOf(),
     })
     .from(topics)
     .innerJoin(forums, eq(forums.id, topics.forumId))
@@ -157,5 +162,6 @@ export async function getFeatured(db: Db, { limit, since }: { limit: number; sin
     title: r.title,
     forum: { name: r.forumName, slug: r.forumSlug },
     sourceNames: [...new Set([r.sourceName ?? "Source supprimée", ...r.authors])],
+    savedCount: r.savedCount,
   }));
 }

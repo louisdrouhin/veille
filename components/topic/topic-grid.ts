@@ -9,6 +9,8 @@ export type TopicRowData = {
   sourceName: string | null;
   /** Stored favicon (faviconUrl()), null → initial. */
   faviconSrc: string | null;
+  /** Number of favorite lists holding the topic (★ mark). */
+  savedCount?: number;
   /** Lists mixing forums (home « Derniers non lus »): shown with `showForum`. */
   forum?: { name: string; slug: string };
 };

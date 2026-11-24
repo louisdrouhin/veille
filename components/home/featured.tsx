@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SavedMark } from "@/components/lists/saved-mark";
 import { FolderIcon } from "@/components/topic/folder-icon";
 import { SourceAvatar } from "@/components/ui/source-avatar";
 import type { FeaturedTopic } from "@/lib/home";
@@ -32,6 +33,7 @@ export function FeaturedCard({ topic }: { topic: FeaturedTopic }) {
         >
           {topic.title}
         </Link>
+        <SavedMark count={topic.savedCount} className="self-start" />
         <div className="flex items-center gap-2 text-sm">
           <span className="flex" aria-hidden>
             {topic.sourceNames.slice(0, 4).map((name) => (

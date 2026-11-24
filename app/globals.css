@@ -1,6 +1,6 @@
 /* =========================================================================
    Folders — design tokens v2 (Tailwind CSS v4, Next.js 16)
-   Source : docs/design/v2/veille-tokens.css (ne pas diverger sur les couleurs).
+   Source : docs/design/v3/veille-tokens.css (v2 + listes de favoris ; ne pas diverger sur les couleurs).
 
    Thème : attribut data-theme sur <html>, rendu côté serveur depuis le cookie
    folders-theme (app/layout.tsx, lib/theme.ts) :
@@ -66,6 +66,19 @@
   --elev-sm: 0 1px 2px rgba(20,20,15,.06);
   --elev-md: 0 6px 20px rgba(20,20,15,.14);
 
+  /* v3 — listes de favoris */
+  --saved: #8F5B00;
+  --saved-soft: #FBF0D6;
+  --scrim: rgba(20, 24, 26, .48);
+  --list-slate: #55606B;
+  --list-blue: #2560A8;
+  --list-teal: #0E7068;
+  --list-green: #2A7436;
+  --list-mustard: #806400;
+  --list-orange: #A54A0A;
+  --list-rose: #AD2E68;
+  --list-violet: #6B47AE;
+
   color-scheme: light;
 }
 
@@ -106,6 +119,19 @@
   --focus: #8CC3DB;
   --elev-sm: 0 1px 2px rgba(0,0,0,.45);
   --elev-md: 0 8px 24px rgba(0,0,0,.55);
+
+  /* v3 — listes de favoris */
+  --saved: #F2C04E;
+  --saved-soft: #2E2410;
+  --scrim: rgba(0, 0, 0, .62);
+  --list-slate: #A9B4BE;
+  --list-blue: #80AFEA;
+  --list-teal: #4CC2B4;
+  --list-green: #7CC48A;
+  --list-mustard: #D8B84C;
+  --list-orange: #F2A465;
+  --list-rose: #F28CBB;
+  --list-violet: #BBA4F2;
 
   color-scheme: dark;
 }
@@ -150,6 +176,19 @@
     --focus: #8CC3DB;
     --elev-sm: 0 1px 2px rgba(0,0,0,.45);
     --elev-md: 0 8px 24px rgba(0,0,0,.55);
+
+    /* v3 — listes de favoris */
+    --saved: #F2C04E;
+    --saved-soft: #2E2410;
+    --scrim: rgba(0, 0, 0, .62);
+    --list-slate: #A9B4BE;
+    --list-blue: #80AFEA;
+    --list-teal: #4CC2B4;
+    --list-green: #7CC48A;
+    --list-mustard: #D8B84C;
+    --list-orange: #F2A465;
+    --list-rose: #F28CBB;
+    --list-violet: #BBA4F2;
 
     color-scheme: dark;
   }
@@ -196,6 +235,19 @@
   --color-off-soft: var(--off-soft);
 
   --color-focus: var(--focus);
+
+  /* v3 — listes de favoris */
+  --color-saved: var(--saved);
+  --color-saved-soft: var(--saved-soft);
+  --color-scrim: var(--scrim);
+  --color-list-slate: var(--list-slate);
+  --color-list-blue: var(--list-blue);
+  --color-list-teal: var(--list-teal);
+  --color-list-green: var(--list-green);
+  --color-list-mustard: var(--list-mustard);
+  --color-list-orange: var(--list-orange);
+  --color-list-rose: var(--list-rose);
+  --color-list-violet: var(--list-violet);
 
   --shadow-sm: var(--elev-sm);
   --shadow-md: var(--elev-md);

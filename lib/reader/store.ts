@@ -2,9 +2,9 @@
  * Writes to the reading-mode cache that need no download (used by the worker,
  * which therefore does not bundle Readability / linkedom).
  */
-import { lt } from "drizzle-orm";
+import { and, eq, lt, notExists } from "drizzle-orm";
 import type { Db } from "@/lib/db";
-import { articleContents } from "@/lib/db/schema";
+import { articleContents, listItems } from "@/lib/db/schema";
 
 export const ARTICLE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -17,11 +17,15 @@ export async function storeFeedArticles(db: Db, rows: { topicId: number; html: s
     .onConflictDoNothing({ target: articleContents.topicId });
 }
 
-/** Deletes cached articles older than 90 days (re-extracted on demand). Returns the number of rows deleted. */
+/**
+ * Deletes cached articles older than 90 days (re-extracted on demand). Returns the number of rows deleted.
+ * Never the article of a topic saved in a list (docs/design/v3): the page may be gone by the time it is reread.
+ */
 export async function purgeArticleContents(db: Db, now = new Date()): Promise<number> {
+  const saved = db.select({ one: listItems.topicId }).from(listItems).where(eq(listItems.topicId, articleContents.topicId));
   const deleted = await db
     .delete(articleContents)
-    .where(lt(articleContents.fetchedAt, new Date(now.getTime() - ARTICLE_RETENTION_MS)))
+    .where(and(lt(articleContents.fetchedAt, new Date(now.getTime() - ARTICLE_RETENTION_MS)), notExists(saved)))
     .returning({ topicId: articleContents.topicId });
   return deleted.length;
 }

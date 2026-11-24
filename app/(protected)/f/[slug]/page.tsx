@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getDb } from "@/lib/db";
 import { forums, sourceFavicons, sources, topics } from "@/lib/db/schema";
 import { faviconUrl } from "@/lib/feeds/favicon";
+import { savedCountOf } from "@/lib/lists/queries";
 import { plural } from "@/lib/format-date";
 import { requireSession } from "@/lib/session";
 
@@ -59,6 +60,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
       sourceName: sources.name,
       sourceId: topics.sourceId,
       faviconAt: sourceFavicons.fetchedAt,
+      savedCount: savedCountOf(),
     })
     .from(topics)
     .leftJoin(sources, eq(sources.id, topics.sourceId))
@@ -103,6 +105,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
               read: r.readAt !== null,
               sourceName: r.sourceName,
               faviconSrc: faviconUrl(r.sourceId, r.faviconAt),
+              savedCount: r.savedCount,
             }))}
           />
           <TopicListActions {...actions} position="bottom" />

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { SavedMark } from "@/components/lists/saved-mark";
+import { useSavedCount } from "@/components/lists/saved-state";
 import { HotBadge } from "@/components/ui/badge";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { SourceAvatar } from "@/components/ui/source-avatar";
@@ -25,6 +27,7 @@ export function TopicRow({ topic, showForum = false, className = "" }: { topic: 
   const t = isRead(topic.id) && !topic.read ? { ...topic, read: true } : topic;
   const source = t.sourceName ?? "Source supprimée";
   const forum = showForum ? t.forum : undefined;
+  const saved = useSavedCount(t.id, t.savedCount ?? 0);
   return (
     <li
       className={`${showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} ${className} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus`}
@@ -42,8 +45,10 @@ export function TopicRow({ topic, showForum = false, className = "" }: { topic: 
         >
           {t.title}
         </Link>
+        <SavedMark count={saved} className="max-md:hidden" />
         {t.hot && <HotBadge className={showForum ? "max-md:hidden" : ""} />}
         <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-4 text-fg-muted md:hidden">
+          <SavedMark count={saved} />
           {forum && <span className={FORUM_BADGE}>{forum.name}</span>}
           {forum && t.hot && <HotBadge />}
           {forum && <span aria-hidden="true">·</span>}

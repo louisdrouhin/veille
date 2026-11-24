@@ -12,8 +12,8 @@ const ROOT = path.join(import.meta.dirname, "..");
 const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
 
 describe("design tokens v2", () => {
-  it("match docs/design/v2/veille-tokens.css, light and dark", () => {
-    const doc = read("docs", "design", "v2", "veille-tokens.css");
+  it("match docs/design/v3/veille-tokens.css (v2 + favorite lists), light and dark, in both directions", () => {
+    const doc = read("docs", "design", "v3", "veille-tokens.css");
     for (const [selector, tokens] of [
       [':root,\n:root[data-theme="light"] {', LIGHT],
       [':root[data-theme="dark"] {', DARK],
@@ -21,6 +21,20 @@ describe("design tokens v2", () => {
       const start = doc.indexOf(selector);
       const body = doc.slice(start, doc.indexOf("\n}", start));
       for (const [name, value] of Object.entries(tokens)) expect(body, `--${name}`).toContain(`--${name}: ${value};`);
+      // Every token of the design file exists in the app (the 11 of v3 included).
+      const docNames = [...body.matchAll(/--([a-z0-9-]+):/g)].map((m) => m[1]!);
+      expect(docNames.filter((n) => !(n in tokens))).toEqual([]);
+    }
+  });
+
+  it("v3 favorite-list tokens: in the three blocks and exposed to Tailwind", () => {
+    const v3 = ["saved", "saved-soft", "scrim", ...["slate", "blue", "teal", "green", "mustard", "orange", "rose", "violet"].map((c) => `list-${c}`)];
+    expect(v3).toHaveLength(11);
+    for (const name of v3) {
+      expect(LIGHT[name], name).toBeDefined();
+      expect(DARK[name], name).toBeDefined();
+      expect(SYSTEM_DARK[name], name).toBe(DARK[name]);
+      expect(GLOBALS_CSS).toContain(`--color-${name}: var(--${name});`);
     }
   });
 
