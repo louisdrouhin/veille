@@ -24,6 +24,8 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 
 ## Fonctionnalités
 
+- **Accueil** : résumé chiffré (non lus, reçus aujourd'hui, dernière récupération), alerte des sources en erreur,
+  derniers non lus de tous les forums, puis la liste des forums.
 - **Forums et topics** : un tableau dense par forum (dossier plein = non lu), tri par dernière activité, pagination,
   « Tout marquer comme lu », compteurs de non-lus sur l'accueil.
 - **Récupération des flux** par un worker séparé : ETag / If-Modified-Since, timeout, mise en pause automatique d'une

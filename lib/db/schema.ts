@@ -91,6 +91,8 @@ export const topics = pgTable(
     replyCount: integer("reply_count").notNull().default(0),
     readAt: tsz("read_at"),
     score: integer("score").notNull().default(0),
+    /** Arrival in the database (« reçus aujourd'hui » on the home page). Topics from before migration 0006: publishedAt. */
+    createdAt: tsz("created_at").notNull().defaultNow(),
   },
   (t) => [
     index("topics_forum_activity_idx").on(t.forumId, t.lastActivityAt.desc()),

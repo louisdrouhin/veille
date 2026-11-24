@@ -4,9 +4,9 @@ import { IconChat, IconNote, IconRepost } from "./icons";
 const CAPS = "font-cond text-2xs font-bold uppercase tracking-caps";
 
 /** « Chaud » badge (v2). */
-export function HotBadge({ label = "Chaud" }: { label?: string }) {
+export function HotBadge({ label = "Chaud", className = "" }: { label?: string; className?: string }) {
   return (
-    <span className={`shrink-0 rounded-sm border border-hot bg-hot-soft px-1.25 text-hot ${CAPS}`}>{label}</span>
+    <span className={`shrink-0 rounded-sm border border-hot bg-hot-soft px-1.25 text-hot ${CAPS} ${className}`}>{label}</span>
   );
 }
 
