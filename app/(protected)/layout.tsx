@@ -13,6 +13,7 @@ import { ReadTopicsProvider } from "@/components/topic/read-topics";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { getNavCounts } from "@/lib/lists/queries";
 import { parseTheme } from "@/lib/theme";
 import { hasAnyUser } from "@/lib/users";
 
@@ -23,10 +24,13 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   // Real authorization check (proxy.ts is only a convenience redirect).
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   if (!session) redirect("/login");
+  // Mobile menu counters (unread, lists, sources in error). The layout is kept across navigations:
+  // refreshed with the page (BackForwardRefresh, « Actualiser », pull to refresh).
+  const counts = await getNavCounts(getDb());
 
   return (
     <ReadTopicsProvider>
-      <AppHeader userName={session.user.name} />
+      <AppHeader userName={session.user.name} counts={counts} />
       <div className="safe-x">
         <main className="mx-auto w-full max-w-[1200px] px-2.5 py-4 sm:px-3.5 md:px-5">{children}</main>
       </div>

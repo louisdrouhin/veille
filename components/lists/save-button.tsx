@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { createList, toggleTopicInList } from "@/lib/actions/lists";
 import type { PickerList } from "@/lib/lists/queries";
@@ -211,10 +212,14 @@ function ListChips({ lists }: { lists: PickerList[] }) {
     <p className="flex flex-wrap items-center justify-end gap-1.5 text-sm text-fg-muted">
       <span>Dans</span>
       {lists.map((l) => (
-        <span key={l.id} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 text-sm text-fg">
+        <Link
+          key={l.id}
+          href={`/listes/${l.id}`}
+          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 text-sm text-fg no-underline hover:bg-surface-hover hover:text-fg"
+        >
           <ListSwatch color={l.color} size={10} />
           {l.name}
-        </span>
+        </Link>
       ))}
     </p>
   );

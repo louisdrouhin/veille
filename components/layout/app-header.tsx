@@ -5,13 +5,38 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition } from "react";
 import { LogoutButton } from "@/components/account/logout-button";
 import { Avatar } from "@/components/account/avatar";
-import { IconClose, IconMenu, IconRefresh, Logo } from "@/components/ui/icons";
+import { Star } from "@/components/lists/star";
+import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, Logo } from "@/components/ui/icons";
 import { useStandalone } from "@/lib/pwa/client";
+
+export type NavCounts = { unread: number; lists: number; errors: number };
 
 const NAV = [
   { href: "/", label: "Forums", match: (p: string) => p === "/" || p.startsWith("/f/") || p.startsWith("/t/") },
+  { href: "/listes", label: "Listes", match: (p: string) => p === "/listes" || p.startsWith("/listes/") },
   { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin") },
-];
+] as const;
+
+/** Mobile menu rows (docs/design/v3 § 2): 52 px, 20 px icon, counter; active = light background + 3 px accent bar. */
+const MENU_ROW =
+  "relative flex h-13 items-center gap-3 rounded-sm px-3 text-base font-medium text-bar-fg no-underline hover:bg-white/8 hover:text-bar-fg " +
+  "aria-[current=page]:bg-white/10 aria-[current=page]:font-semibold aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-2 " +
+  "aria-[current=page]:before:left-0 aria-[current=page]:before:w-[3px] aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-bar-accent " +
+  "focus-visible:outline-bar-accent";
+
+function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
+  if (href === "/") return counts.unread > 0 ? <span className="ml-auto font-mono text-sm text-bar-muted">{counts.unread} non lus</span> : null;
+  if (href === "/listes") return <span className="ml-auto font-mono text-sm text-bar-muted">{counts.lists}</span>;
+  if (counts.errors > 0)
+    return (
+      <span className="ml-auto rounded-full bg-err px-2 text-xs leading-5 font-semibold text-err-fg">
+        {counts.errors} erreur{counts.errors > 1 ? "s" : ""}
+      </span>
+    );
+  return null;
+}
+
+const MENU_ICONS = { "/": IconFolder, "/admin": IconSettings } as const;
 
 const NAV_LINK =
   "rounded-sm px-3 py-[7px] text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg " +
@@ -44,7 +69,7 @@ function RefreshButton({ className }: { className: string }) {
 const REFRESH_CLASS =
   "inline-flex cursor-pointer items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 disabled:opacity-70";
 
-export function AppHeader({ userName }: { userName: string }) {
+export function AppHeader({ userName, counts }: { userName: string; counts: NavCounts }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -75,7 +100,13 @@ export function AppHeader({ userName }: { userName: string }) {
 
         <nav aria-label="Navigation principale" className="hidden flex-1 items-center gap-1 md:flex">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className={NAV_LINK} aria-current={item.match(pathname) ? "page" : undefined}>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${NAV_LINK} inline-flex items-center gap-1.5`}
+              aria-current={item.match(pathname) ? "page" : undefined}
+            >
+              {item.href === "/listes" && <Star size={14} />}
               {item.label}
             </Link>
           ))}
@@ -110,27 +141,23 @@ export function AppHeader({ userName }: { userName: string }) {
 
       <div id={menuId} hidden={!open} className="border-t border-white/10 px-3.5 pb-3 md:hidden">
         <nav aria-label="Navigation principale (mobile)" className="flex flex-col py-2">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${NAV_LINK} flex h-11 items-center text-base`}
-              aria-current={item.match(pathname) ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex flex-col border-t border-white/10 pt-2">
-          <Link
-            href="/compte"
-            className={`${NAV_LINK} flex h-11 items-center gap-2.5 text-base`}
-            aria-current={pathname === "/compte" ? "page" : undefined}
-          >
+          {NAV.map((item) => {
+            const Icon = item.href === "/listes" ? null : MENU_ICONS[item.href];
+            return (
+              <Link key={item.href} href={item.href} className={MENU_ROW} aria-current={item.match(pathname) ? "page" : undefined}>
+                {Icon ? <Icon size={20} className="text-bar-muted" /> : <Star size={20} className="text-bar-muted" />}
+                {item.label}
+                <MenuExtra href={item.href} counts={counts} />
+              </Link>
+            );
+          })}
+          <Link href="/compte" className={MENU_ROW} aria-current={pathname === "/compte" ? "page" : undefined}>
             <Avatar name={userName} size="sm" />
             Mon compte
           </Link>
-          <LogoutButton className={`${NAV_LINK} flex h-11 w-full cursor-pointer items-center gap-2.5 text-left text-base disabled:opacity-70`} />
+        </nav>
+        <div className="flex flex-col border-t border-white/10 pt-2">
+          <LogoutButton className={`${MENU_ROW} w-full cursor-pointer text-left disabled:opacity-70`} />
         </div>
       </div>
     </header>

@@ -9,7 +9,7 @@ import { SourceAvatar } from "@/components/ui/source-avatar";
 import { plural } from "@/lib/format-date";
 import { FolderIcon, type FolderState } from "./folder-icon";
 import { useReadTopics } from "./read-topics";
-import { FORUM_BADGE, TOPIC_ROW, TOPIC_ROW_WITH_FORUM, type TopicRowData } from "./topic-grid";
+import { FORUM_BADGE, TOPIC_ROW, TOPIC_ROW_IN_LIST, TOPIC_ROW_WITH_FORUM, type TopicRowData } from "./topic-grid";
 
 function stateOf(t: TopicRowData): FolderState {
   if (t.hot) return t.read ? "hot-read" : "hot";
@@ -22,7 +22,18 @@ function stateOf(t: TopicRowData): FolderState {
  * `showForum` (home « Derniers non lus »): forum badge first in the mobile metadata,
  * and an extra desktop column whose badge links to the forum.
  */
-export function TopicRow({ topic, showForum = false, className = "" }: { topic: TopicRowData; showForum?: boolean; className?: string }) {
+export function TopicRow({
+  topic,
+  showForum = false,
+  className = "",
+  trailing,
+}: {
+  topic: TopicRowData;
+  showForum?: boolean;
+  className?: string;
+  /** Last column, outside the row's link (favorite lists: « retirer »). */
+  trailing?: React.ReactNode;
+}) {
   const { isRead } = useReadTopics();
   const t = isRead(topic.id) && !topic.read ? { ...topic, read: true } : topic;
   const source = t.sourceName ?? "Source supprimée";
@@ -30,7 +41,7 @@ export function TopicRow({ topic, showForum = false, className = "" }: { topic: 
   const saved = useSavedCount(t.id, t.savedCount ?? 0);
   return (
     <li
-      className={`${showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} ${className} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus`}
+      className={`${trailing ? TOPIC_ROW_IN_LIST : showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} ${className} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus`}
     >
       <FolderIcon state={stateOf(t)} className="pt-px md:pt-0" />
       <div className="flex min-w-0 flex-col gap-1 md:flex-row md:items-center md:gap-2">
@@ -56,7 +67,7 @@ export function TopicRow({ topic, showForum = false, className = "" }: { topic: 
           <span aria-hidden="true">·</span>
           <span>{plural(t.replyCount, "réponse")}</span>
           <span aria-hidden="true">·</span>
-          <RelativeTime date={t.lastActivityAt} />
+          <RowDate topic={t} />
         </p>
       </div>
       {forum && (
@@ -75,7 +86,18 @@ export function TopicRow({ topic, showForum = false, className = "" }: { topic: 
         {t.replyCount}
         <span className="sr-only"> réponses</span>
       </span>
-      <RelativeTime date={t.lastActivityAt} className="hidden text-right text-sm whitespace-nowrap text-fg-muted md:block" />
+      <RowDate topic={t} className="hidden truncate text-right text-sm whitespace-nowrap text-fg-muted md:block" />
+      {trailing}
     </li>
+  );
+}
+
+/** Last activity, or in a favorite list the date of addition. */
+function RowDate({ topic, className }: { topic: TopicRowData; className?: string }) {
+  if (!topic.addedAt) return <RelativeTime date={topic.lastActivityAt} className={className} />;
+  return (
+    <span className={className}>
+      ajouté <RelativeTime date={topic.addedAt} />
+    </span>
   );
 }

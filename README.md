@@ -34,7 +34,9 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
   avec Readability, HTML assaini, images servies par un proxy interne. Cache et ré-extraction à la demande.
 - **Notes perso** sur chaque topic.
 - **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
-  les listes de topics. Les articles enregistrés ne sont jamais purgés du cache de lecture.
+  les listes de topics. Pages « Listes » (renommer, couleur, ordre par glisser-déposer, suppression) et une page par
+  liste (tri par date d'ajout, retrait avec « Annuler », « Copier en Markdown »). Les articles enregistrés ne sont jamais
+  purgés du cache de lecture, et les pages de listes sont gardées pour la lecture hors ligne.
 - **Navigation** : bouton « ← Retour » et fil d'Ariane sur chaque page ; retour à la même page et au même défilement
   de la liste quand on vient d'un topic ; raccourcis **Échap** ou **U** pour remonter d'un niveau.
 - **Mode sombre** qui suit l'appareil, ou forcé clair / sombre depuis « Mon compte › Apparence » (réglage du

@@ -3,7 +3,7 @@
 import { useEffect, useId, useImperativeHandle, useRef, type Ref } from "react";
 import { Button } from "./button";
 
-export type ConfirmDialogHandle = { open: () => void };
+export type ConfirmDialogHandle = { open: () => void; close: () => void };
 
 /**
  * Native <dialog> confirmation, opened by an icon button (`trigger`); the dialog
@@ -21,14 +21,14 @@ export function ConfirmDialog({
   handle?: Ref<ConfirmDialogHandle>;
   title: string;
   description: React.ReactNode;
-  /** Opening icon button: accessible label (also used as tooltip), extra classes, icon. */
-  trigger: { label: string; className?: string; icon: React.ReactNode };
+  /** Opening icon button: accessible label (also used as tooltip), extra classes, icon. Omitted: opened only through `handle`. */
+  trigger?: { label: string; className?: string; icon: React.ReactNode };
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descId = useId();
-  useImperativeHandle(handle, () => ({ open: () => ref.current?.showModal() }), []);
+  useImperativeHandle(handle, () => ({ open: () => ref.current?.showModal(), close: () => ref.current?.close() }), []);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -43,15 +43,17 @@ export function ConfirmDialog({
 
   return (
     <>
-      <Button
-        variant="ghost-icon"
-        className={trigger.className}
-        aria-label={trigger.label}
-        title={trigger.label}
-        onClick={() => ref.current?.showModal()}
-      >
-        {trigger.icon}
-      </Button>
+      {trigger && (
+        <Button
+          variant="ghost-icon"
+          className={trigger.className}
+          aria-label={trigger.label}
+          title={trigger.label}
+          onClick={() => ref.current?.showModal()}
+        >
+          {trigger.icon}
+        </Button>
+      )}
       <dialog
         ref={ref}
         aria-labelledby={titleId}
