@@ -4,7 +4,10 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { reloadArticle } from "@/lib/actions/topics";
 import { getDb } from "@/lib/db";
 import { formatFull } from "@/lib/format-date";
+import { aiConfig } from "@/lib/ai/config";
+import { articleText, isFrench } from "@/lib/ai/text";
 import { getArticle } from "@/lib/reader/article";
+import { AiArticle } from "./ai-article";
 
 type TopicRef = { id: number; url: string; excerpt: string };
 
@@ -100,10 +103,21 @@ export async function ReaderArticle({ topic }: { topic: TopicRef }) {
         Mode lecture · {article.source === "feed" ? "contenu fourni par le flux" : "extrait de la page d'origine"} ·{" "}
         <time dateTime={article.fetchedAt.toISOString()}>{formatFull(article.fetchedAt)}</time>
       </p>
-      {/* Sanitized server-side with a strict allow-list before storage (see lib/reader/sanitize.ts). */}
-      <div id="article" className="reader" dangerouslySetInnerHTML={{ __html: article.html }} />
+      {aiConfig() ? (
+        // Résumer / Traduire (Gemini, server side): only when GEMINI_API_KEY is set.
+        <AiArticle topicId={topic.id} canTranslate={!isFrench(articleText(article.html))}>
+          <ArticleBody html={article.html} />
+        </AiArticle>
+      ) : (
+        <ArticleBody html={article.html} />
+      )}
       <Actions topic={topic} />
       <SaveTopicForOffline />
     </>
   );
+}
+
+function ArticleBody({ html }: { html: string }) {
+  // Sanitized server-side with a strict allow-list before storage (see lib/reader/sanitize.ts).
+  return <div id="article" className="reader" dangerouslySetInnerHTML={{ __html: html }} />;
 }

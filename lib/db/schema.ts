@@ -130,6 +130,35 @@ export const articleContents = pgTable(
   ],
 );
 
+export const AI_KINDS = ["summary", "translation"] as const;
+export type AiKind = (typeof AI_KINDS)[number];
+
+/**
+ * Gemini summaries and translations (lib/ai), per topic + kind + model. Already rendered and
+ * sanitized HTML. References the cached article: purging the article (90 days, never for a topic
+ * saved in a list) removes them too. `articleFetchedAt` = the article version they were made from;
+ * a newer article (« Recharger l'article ») makes them stale.
+ */
+export const aiOutputs = pgTable(
+  "ai_outputs",
+  {
+    topicId: integer("topic_id")
+      .notNull()
+      .references(() => articleContents.topicId, { onDelete: "cascade" }),
+    kind: text("kind", { enum: AI_KINDS }).notNull(),
+    model: text("model").notNull(),
+    html: text("html").notNull(),
+    /** The model stopped at its output limit (shown as « tronqué »). */
+    truncated: boolean("truncated").notNull().default(false),
+    articleFetchedAt: tsz("article_fetched_at").notNull(),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.topicId, t.kind, t.model] }),
+    check("ai_outputs_kind_check", sql`${t.kind} in ('summary', 'translation')`),
+  ],
+);
+
 export const REPLY_TYPES = ["note", "source", "comment"] as const;
 export type ReplyType = (typeof REPLY_TYPES)[number];
 /**
