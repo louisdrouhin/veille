@@ -44,3 +44,31 @@ describe("★ in topic rows", () => {
     expect(row(undefined)).not.toContain("Enregistré");
   });
 });
+
+describe("rows of a favorite list", () => {
+  it("show the date of addition and put « retirer » beside the link, not inside it", () => {
+    const html = renderToString(
+      createElement(TopicRow, {
+        topic: {
+          id: 9,
+          title: "Ceph",
+          replyCount: 0,
+          lastActivityAt: new Date("2026-11-20T08:00:00Z"),
+          addedAt: new Date("2026-11-23T08:00:00Z"),
+          read: true,
+          sourceName: "LWN",
+          faviconSrc: null,
+          forum: { name: "Infra", slug: "infra" },
+          savedCount: 1,
+        } satisfies TopicRowData,
+        showForum: true,
+        trailing: createElement("button", { type: "button", "aria-label": "Retirer « Ceph » de la liste" }),
+      }),
+    );
+    expect(html.match(/ajouté <!-- -->?<time/g) ?? html.match(/ajouté <time/g)).toHaveLength(2);
+    const link = /<a [^>]*href="\/t\/9"[^>]*>[\s\S]*?<\/a>/.exec(html)![0];
+    expect(link).not.toContain("Retirer");
+    expect(html).toContain('aria-label="Retirer « Ceph » de la liste"');
+    expect(html).toMatch(/md:grid-cols-\[28px_minmax\(0,1fr\)_150px_170px_48px_140px_36px\]/);
+  });
+});

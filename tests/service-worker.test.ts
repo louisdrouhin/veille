@@ -142,6 +142,25 @@ describe("service worker — never cached", () => {
     expect(sw.caches.paths("veille-pages")).toEqual(["/", "/f/admin", "/f/dev-web?page=3", "/f/dev-web", "/t/42"]);
   });
 
+  it("keeps the favorite lists and one list (with its page number), with a strictly validated id", async () => {
+    for (const p of ["/listes", "/listes/7", "/listes/7?page=2"]) sw.network.routes.set(p, () => html(p));
+    for (const p of ["/listes", "/listes/7?toast=ok&title=x", "/listes/7?page=2", "/listes/7?page=../x"]) await sw.navigate(p);
+    // Insertion order: « ?page=../x » is rebuilt as /listes/7, stored again last.
+    expect(sw.caches.paths("veille-pages")).toEqual(["/listes", "/listes/7?page=2", "/listes/7"]);
+    // Rebuilt from validated parts when asked by a message, like the other pages.
+    await sw.message({ type: "cache-page", url: "/listes/7?page=2&evil=1" });
+    expect(sw.caches.paths("veille-pages")).toEqual(["/listes", "/listes/7?page=2", "/listes/7"]);
+  });
+
+  it("refuses any other list path: /listes/0, /listes/07, /listes/abc, /listes/1/2, an 11-digit id, /listesx", async () => {
+    for (const p of ["/listes/0", "/listes/07", "/listes/abc", "/listes/1/2", "/listes/12345678901", "/listesx", "/listes/"]) {
+      sw.network.routes.set(p, () => html(p));
+      expect((await sw.navigate(p))!.status, p).toBe(200);
+      await sw.message({ type: "cache-page", url: p });
+    }
+    expect(sw.caches.paths("veille-pages")).toEqual([]);
+  });
+
   it("anything else is network only: /t/abc, /f/Upper, /f/a/b, /administratif, /_not-found…", async () => {
     for (const p of ["/t/abc", "/t/0", "/f/Upper", "/f/a/b", "/administratif", "/_not-found", "/t/1/edit"]) {
       sw.network.routes.set(p, () => html(p));

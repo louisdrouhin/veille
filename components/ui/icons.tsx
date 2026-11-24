@@ -44,6 +44,28 @@ export const IconMore = (p: IconProps) => (
     <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2.5} />
   </Svg>
 );
+export const IconClipboard = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="2.75" width="9" height="11.5" rx="1.25" />
+    <path d="M6 2.75V2.5c0-.55.45-1 1-1h2c.55 0 1 .45 1 1v.25M6 7h4M6 9.75h4" />
+  </Svg>
+);
+export const IconChevronDown = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 6l4.5 4.5L12.5 6" />
+  </Svg>
+);
+export const IconFolder = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M1.75 4.25c0-.55.45-1 1-1h3.1l1.4 1.5h6c.55 0 1 .45 1 1v6.5c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1z" />
+  </Svg>
+);
+export const IconSettings = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="2.1" />
+    <path d="M8 1.75v1.6M8 12.65v1.6M14.25 8h-1.6M3.35 8h-1.6M12.42 3.58l-1.13 1.13M4.71 11.29l-1.13 1.13M12.42 12.42l-1.13-1.13M4.71 4.71L3.58 3.58" />
+  </Svg>
+);
 export const IconAlert = (p: IconProps) => (
   <Svg {...p}>
     <path d="M8 4.5v4.5" />
