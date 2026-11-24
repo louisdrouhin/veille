@@ -45,6 +45,9 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET manquant}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       FETCH_USER_AGENT: ${FETCH_USER_AGENT:-}
+      # Optional: « Résumer » / « Traduire » (Gemini). Empty: the buttons are hidden.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
     ports:
       # Exposed to the existing reverse proxy (HTTPS is terminated upstream).
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"

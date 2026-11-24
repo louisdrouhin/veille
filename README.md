@@ -32,6 +32,8 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
   source après 3 échecs, dédoublonnage par URL normalisée (sans `utm_*`, `fbclid`, fragment…).
 - **Mode lecture** : l'article complet dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
   avec Readability, HTML assaini, images servies par un proxy interne. Cache et ré-extraction à la demande.
+- **Résumé et traduction par IA** (Gemini, optionnel) : « Résumer » en 3 à 5 puces au-dessus de l'article,
+  « Traduire en français » à la place de l'article (« Voir l'original »), à la demande, mis en cache.
 - **Notes perso** sur chaque topic.
 - **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
   les listes de topics. Pages « Listes » (renommer, couleur, ordre par glisser-déposer, suppression) et une page par
@@ -199,6 +201,22 @@ docker compose exec app node dist/reset-password.js --email moi@example.com --pa
 
 Ensuite : créer des forums et des sources dans **Admin**, puis « Récupérer maintenant » ou attendre le worker
 (toutes les `FETCH_INTERVAL_MINUTES`, 15 par défaut).
+
+### Résumé et traduction (Gemini)
+
+Optionnel : renseigner `GEMINI_API_KEY` (clé Google AI Studio) dans le `.env` du serveur, puis
+`docker compose up -d`. Sans clé, les boutons « Résumer » et « Traduire en français » sont masqués.
+
+- Modèle par défaut `gemini-3.5-flash-lite` (stable, rapide, offre gratuite) ; `GEMINI_MODEL` pour en changer.
+- Appels **côté serveur uniquement** : la clé n'est jamais envoyée au navigateur et la CSP ne change pas.
+- Seuls le titre et le texte de l'article sont envoyés (jamais les notes), coupés à 24 000 caractères, dans un bloc
+  délimité présenté au modèle comme une donnée non fiable. La réponse, demandée en Markdown, passe par un rendu
+  Markdown fermé (ni lien, ni image, ni HTML) puis par la même liste blanche que le mode lecture.
+- Limite par utilisateur : 6 appels par minute et 60 par jour (les réponses en cache ne comptent pas) ; timeout
+  de 30 s ; quota Gemini dépassé, clé refusée ou contenu bloqué sont affichés en clair.
+- Cache en base par topic, type et modèle (`ai_outputs`), supprimé avec l'article (purge à 90 jours, jamais pour un
+  topic présent dans une liste) et refait si l'article est rechargé.
+- Offre gratuite de Gemini : Google peut utiliser le texte envoyé (des articles publics) pour améliorer ses produits.
 
 ### Supervision
 
