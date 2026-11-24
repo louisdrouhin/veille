@@ -7,9 +7,11 @@ import { AddNoteForm } from "@/components/thread/add-note-form";
 import { Post } from "@/components/thread/post";
 import { MarkTopicRead } from "@/components/topic/mark-topic-read";
 import { ReaderArticle, ReaderArticleSkeleton } from "@/components/thread/reader-article";
+import { SaveButton } from "@/components/lists/save-button";
 import { getDb } from "@/lib/db";
 import { forums, replies, sourceFavicons, sources, topics, type ReplyType } from "@/lib/db/schema";
 import { faviconUrl } from "@/lib/feeds/favicon";
+import { getPickerLists } from "@/lib/lists/queries";
 import { requireSession } from "@/lib/session";
 
 type Props = { params: Promise<{ id: string }> };
@@ -50,11 +52,10 @@ export default async function TopicPage({ params }: Props) {
   if (topic.readAt === null) {
     await db.update(topics).set({ readAt: new Date() }).where(and(eq(topics.id, topic.id), isNull(topics.readAt)));
   }
-  const replyRows = await db
-    .select()
-    .from(replies)
-    .where(eq(replies.topicId, topic.id))
-    .orderBy(asc(replies.createdAt), asc(replies.id));
+  const [replyRows, saved] = await Promise.all([
+    db.select().from(replies).where(eq(replies.topicId, topic.id)).orderBy(asc(replies.createdAt), asc(replies.id)),
+    getPickerLists(db, topic.id),
+  ]);
 
   return (
     <>
@@ -71,7 +72,13 @@ export default async function TopicPage({ params }: Props) {
           date={topic.publishedAt}
           author={{ name: sourceName ?? "Source supprimée", role: "Source", muted: !sourceName, faviconSrc: faviconUrl(topic.sourceId, faviconAt) }}
         >
-          <h1 className="text-lg font-semibold">{topic.title}</h1>
+          {/* ★ alone (no reading-mode button): right of the title on desktop, under it on the right on mobile. */}
+          <div className="flex flex-col gap-2.5 md:flex-row md:items-start md:gap-4">
+            <h1 className="min-w-0 flex-1 text-lg font-semibold">{topic.title}</h1>
+            <div className="self-end md:self-start">
+              <SaveButton topicId={topic.id} topicTitle={topic.title} initial={saved} />
+            </div>
+          </div>
           {/* Reading mode: the first opening may download the page (up to 10 s), so it is streamed. */}
           <Suspense fallback={<ReaderArticleSkeleton topic={topic} />}>
             <ReaderArticle topic={topic} />

@@ -119,6 +119,29 @@ describe("purgeArticleContents", () => {
     expect((await rows()).map((r) => r.topicId)).toEqual([other!.id]);
   });
 
+  it("never purges the article of a topic saved in at least one list, even very old", async () => {
+    const forumId = (await db.select().from(forums))[0]!.id;
+    const [other] = await db
+      .insert(topics)
+      .values({ forumId, title: "b", url: "https://b.example.org/", normalizedUrl: "https://b.example.org", publishedAt: NOW, lastActivityAt: NOW })
+      .returning();
+    const old = new Date(NOW.getTime() - 3 * ARTICLE_RETENTION_MS);
+    await db.insert(articleContents).values([
+      { topicId: topic.id, html: "<p>gardé</p>", source: "feed", fetchedAt: old },
+      { topicId: other!.id, html: "<p>purgé</p>", source: "feed", fetchedAt: old },
+    ]);
+    const [list] = await db.insert(schema.lists).values({ name: "Homelab", color: "teal" }).returning();
+    await db.insert(schema.listItems).values({ listId: list!.id, topicId: topic.id });
+
+    expect(await purgeArticleContents(db, NOW)).toBe(1);
+    expect((await rows()).map((r) => r.topicId)).toEqual([topic.id]);
+
+    // Removed from its last list: the next purge takes it like any other.
+    await db.delete(schema.lists).where(eq(schema.lists.id, list!.id));
+    expect(await purgeArticleContents(db, NOW)).toBe(1);
+    expect(await rows()).toHaveLength(0);
+  });
+
   it("rows go away with their topic", async () => {
     await db.insert(articleContents).values({ topicId: topic.id, html: "<p>x</p>", source: "feed", fetchedAt: NOW });
     await db.delete(topics).where(eq(topics.id, topic.id));

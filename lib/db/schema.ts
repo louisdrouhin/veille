@@ -6,10 +6,12 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+import { LIST_COLORS } from "@/lib/lists/palette";
 import { THEMES } from "@/lib/theme";
 
 const tsz = (name: string) => timestamp(name, { withTimezone: true });
@@ -153,6 +155,46 @@ export const replies = pgTable(
   (t) => [
     index("replies_topic_idx").on(t.topicId, t.createdAt),
     check("replies_type_check", sql`type in ('note', 'source', 'comment')`),
+  ],
+);
+
+/**
+ * Favorite lists (docs/design/v3). Single-user app: lists are not tied to an account.
+ * `position`: display order, 0 first. The name need not be unique (the UI warns about an exact duplicate).
+ */
+export const lists = pgTable(
+  "lists",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    color: text("color", { enum: LIST_COLORS }).notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("lists_name_check", sql`length(trim(${t.name})) between 1 and 60`),
+    check("lists_color_check", sql`${t.color} in ('slate', 'blue', 'teal', 'green', 'mustard', 'orange', 'rose', 'violet')`),
+  ],
+);
+
+/** A topic saved in a list. Deleting the list or the topic removes the row. */
+export const listItems = pgTable(
+  "list_items",
+  {
+    listId: integer("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
+    topicId: integer("topic_id")
+      .notNull()
+      .references(() => topics.id, { onDelete: "cascade" }),
+    addedAt: tsz("added_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.listId, t.topicId] }),
+    // « saved » mark in topic lists
+    index("list_items_topic_idx").on(t.topicId),
+    // a list's page, newest addition first
+    index("list_items_list_added_idx").on(t.listId, t.addedAt.desc()),
   ],
 );
 

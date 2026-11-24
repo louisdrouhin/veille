@@ -33,6 +33,8 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Mode lecture** : l'article complet dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
   avec Readability, HTML assaini, images servies par un proxy interne. Cache et ré-extraction à la demande.
 - **Notes perso** sur chaque topic.
+- **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
+  les listes de topics. Les articles enregistrés ne sont jamais purgés du cache de lecture.
 - **Navigation** : bouton « ← Retour » et fil d'Ariane sur chaque page ; retour à la même page et au même défilement
   de la liste quand on vient d'un topic ; raccourcis **Échap** ou **U** pour remonter d'un niveau.
 - **Mode sombre** qui suit l'appareil, ou forcé clair / sombre depuis « Mon compte › Apparence » (réglage du
@@ -326,7 +328,7 @@ On peut aussi utiliser un vrai PostgreSQL :
   GitHub ; v3 : recherche plein texte, raccourcis, mode sombre).
 - [`docs/design/`](docs/design/) : briefs de direction artistique et design tokens. `v1/` : la base (`HANDOFF.md`,
   `veille-tokens.css`) ; `v2/` : mode sombre, nouvel accueil, mode lecture (`HANDOFF-v2.md`, tokens clair + sombre
-  fusionnés dans `app/globals.css`).
+  fusionnés dans `app/globals.css`) ; `v3/` : listes de favoris (`HANDOFF-v3.md`, tokens v2 + 11 variables).
 
 ## Licence
 

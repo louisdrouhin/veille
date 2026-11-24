@@ -3,7 +3,7 @@
 Deux évolutions sur la base existante (Next.js 16 App Router + Tailwind v4, même DA « forum rétro modernisé ») :
 
 1. **Nouvelle page d'accueil** (À la une, résumé chiffré, derniers non lus, forums).
-2. **Mode sombre de toute l'app**, qui suit le système, avec un choix Clair / Sombre / Système dans **Mon compte**. Ajout d'un **mode lecture** sur la page topic.
+2. **Mode sombre de toute l'app**, qui suit le système, avec un choix Clair / Sombre / Système dans **Mon compte**.
 
 Plus le renommage **Veille → Folders**.
 
@@ -50,16 +50,15 @@ Le variant Tailwind `dark:` est redéfini pour couvrir « forcé sombre » et «
 - `app/layout.tsx` (Server Component) lit le cookie et rend `<html lang="fr" data-theme={theme}>`. **Pas de script anti-flash** : « système » est résolu en CSS pur, « clair » et « sombre » sont connus côté serveur.
 - Server Action `setTheme(value)` : valide la valeur, met à jour la DB et le cookie, puis `revalidatePath("/", "layout")`. Le client applique tout de suite `document.documentElement.dataset.theme = value` (retour instantané, sans attendre le serveur).
 
-### 1.4 Barre d'état iPhone et header continu
+### 1.4 Barre d'état iPhone et en-tête
 
 ```ts
 // app/layout.tsx
 export const metadata: Metadata = {
   applicationName: "Folders",
-  appleWebApp: { capable: true, title: "Folders", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Folders" }, // pas de statusBarStyle "black-translucent"
 };
 export const viewport: Viewport = {
-  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#1E3640" },
     { media: "(prefers-color-scheme: dark)",  color: "#1C3039" },
@@ -67,12 +66,15 @@ export const viewport: Viewport = {
 };
 ```
 
-- `black-translucent` : la page passe **sous** la barre d'état, et l'heure et la batterie s'affichent en blanc. C'est pourquoi `--bar` est foncé dans les deux thèmes (texte blanc : 12:1 en clair comme en sombre).
-- Header : `bg-bar pt-[env(safe-area-inset-top)]`. La safe-area prend donc la couleur du header, sans aucune fausse barre d'état dessinée.
-- Le header n'est pas sticky. Pour que le contenu ne défile pas sous l'heure, ajouter une bande fixe :
-  `<div aria-hidden className="fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-bar" />`
-- Rebond (overscroll) en haut : `html { background: var(--bar) }` et `body { background: var(--bg); min-height: 100dvh }`, pour éviter un éclair de fond clair au-dessus du header.
-- Bas d'écran : `pb-[calc(env(safe-area-inset-bottom)+12px)]` sur `<main>`, et toasts au-dessus de l'indicateur d'accueil (`bottom-[calc(env(safe-area-inset-bottom)+8px)]`).
+- **Pas de `black-translucent`** : la page commence sous la barre d'état, elle ne passe pas dessous. Ne pas le réintroduire.
+- En-tête **sticky et opaque** : `sticky top-0 z-40 bg-bar`. Le bleu-gris de l'en-tête et le `theme-color` assurent la continuité visuelle avec la barre d'état, en clair comme en sombre.
+- Rebond (overscroll) en haut : `html { background: var(--bar) }` et `body { background: var(--bg); min-height: 100dvh }`, pour éviter un éclair de fond clair au-dessus de l'en-tête.
+- **Tirer pour rafraîchir** (app installée) : roue affichée sous l'en-tête sticky.
+- Bas d'écran mobile, du bas vers le haut :
+  1. indicateur d'accueil (`env(safe-area-inset-bottom)`) ;
+  2. bouton flottant **« Remonter en haut »** en bas à droite ;
+  3. **toasts au-dessus de ce bouton**, jamais par-dessus.
+  `<main>` garde assez de marge basse pour que le dernier élément passe au-dessus du bouton.
 - `manifest.ts` : `display: "standalone"`, `background_color: "#1E3640"` (écran de lancement bleu-gris, neutre dans les deux thèmes), `theme_color: "#1E3640"`.
 - Si le thème est forcé (`light` ou `dark`), rendre un seul `<meta name="theme-color">` correspondant (via `generateViewport` qui lit le cookie).
 
@@ -85,7 +87,7 @@ Ordre de haut en bas, identique en mobile et desktop :
 ```
 FeaturedSection   « À la une »         ← v2 future, emplacement prévu dès maintenant
 HomeStats         résumé chiffré + ErrorAlert (si erreurs)
-LatestUnread      « Derniers non lus »  (8 topics, tous forums)
+LatestUnread      « Derniers non lus »  (mobile : 3 + « + N autres non lus » qui déplie ; desktop : 8)
 ForumTable        liste des forums (inchangée)
 ```
 
@@ -97,7 +99,8 @@ components/home/
   FeaturedCard.tsx      dossier chaud 20 px, titre text-base/md bold, « Repris par N sources » (text-hot, bold), favicons empilés (-ml-1.5, bordure surface)
   HomeStats.tsx         <dl> en 3 colonnes : non lus · reçus aujourd'hui · dernière récup.
   ErrorAlert.tsx        lien vers /admin#sources ; null si errorCount === 0
-  LatestUnread.tsx      panneau (en-tête bg-bar-2) + <ul> de TopicRow showForum
+  LatestUnread.tsx      panneau (en-tête bg-bar-2) + <ul> de TopicRow showForum ;
+                        mobile : 3 lignes puis bouton « + N autres non lus » qui déplie la suite ; desktop : 8 lignes
 ```
 
 **FeaturedSection** : conteneur `rounded-lg border-[1.5px] border-dashed border-line-strong p-2` pendant le développement (repère d'emplacement) ; à l'activation, la bordure en pointillés disparaît et le titre « À la une » reste en `font-cond uppercase text-hot`. Carte : `rounded-md border border-hot bg-surface`.
@@ -137,24 +140,7 @@ const [stats, latest, forums, featured] = await Promise.all([
 
 ---
 
-## 3. Mode lecture
-
-> **Abandonné (24/11/2026).** Pas de route `/t/[id]/lire`, pas de bouton « Mode lecture » : l'article complet
-> (contenu du flux ou extrait avec Readability, HTML assaini, images via le proxy) reste affiché dans la page
-> topic, comme avant la v2. La suite de cette section est gardée pour mémoire.
-
-- Route : `/t/[id]/lire` (partageable, et le bouton Retour natif fonctionne). Entrée : bouton secondaire « Mode lecture » (icône livre) à côté du compteur de messages, `h-11` mobile / `h-[34px]` desktop.
-- Pas de header standard : barre fine `bg-bar` (avec la safe-area) contenant « ‹ Quitter la lecture » (lien vers `/t/[id]`) et le groupe `role="group" aria-label="Taille du texte"` avec A− / A+ (44 × 44 mobile).
-- Desktop : touche **Échap** pour quitter (écouteur sur la page de lecture uniquement), indice `<kbd>`.
-- Fond `bg-surface`, colonne `mx-auto max-w-[680px] px-5.5` (mobile) / `px-6 py-12` (desktop).
-- Contenu : forum en capitales + badge Chaud ; h1 `text-[26px]/[33px]` mobile, `text-[34px]/[42px]` desktop, `font-semibold text-balance` ; ligne source · date ; extrait en 2 paragraphes ; bouton primaire « Lire l'article complet ↗ » (`h-12` pleine largeur sur mobile).
-- « Dans le fil · N » : réponses **aplaties** (pas de colonne auteur) : badge de type + auteur + heure, puis texte `text-base/[25px]`. Lien « Ajouter une note » en bas (renvoie à `/t/[id]#note`).
-- Taille du texte : 4 crans (16/26, 18/30, 20/33, 22/36 px en mobile ; +1 px en desktop), cran 2 par défaut, gardé dans `localStorage("folders-reading-size")`. Appliqué via une variable CSS sur `<article>`, pas de re-render serveur.
-- Fonctionne dans les deux thèmes sans token supplémentaire.
-
----
-
-## 4. Mon compte `/compte`
+## 3. Mon compte `/compte`
 
 - Accès : desktop, lien « Mon compte » avec avatar à droite du header (remplace le bouton Déconnexion) ; mobile, entrée du menu burger (Forums, Admin, Mon compte, Se déconnecter).
 - Sections : Profil (avatar, pseudo, email), **Apparence**, déconnexion (bouton danger secondaire).
@@ -176,16 +162,16 @@ const [stats, latest, forums, featured] = await Promise.all([
 
 ---
 
-## 5. Autres écrans en sombre
+## 4. Autres écrans en sombre
 
-Liste de topics, page topic, admin et connexion : **aucun changement de structure**, uniquement les tokens. Ajustements :
+Liste de topics, page topic, admin et connexion : **aucun changement de structure**, uniquement les tokens. La page topic affiche l'article complet directement, sans bouton de lecture. Ajustements :
 - Admin mobile : sources en **cartes** (nom + URL mono, badge forum, statut + dernière récup., message d'erreur en `font-mono text-err`, rangée d'actions « Récupérer » (bouton plein largeur) + 3 boutons icône 44 px). Carte en erreur : `border-err`. Onglets d'ancre « Forums · 5 / Sources · 8 » en contrôle segmenté (`bg-off-soft p-[3px]`, actif `bg-surface shadow-sm`). Forums : flèches 44 px + menu « … » (Renommer, Supprimer).
 - Connexion mobile : le bloc logo est dans le header `bg-bar` (avec la safe-area), champs `h-12 text-base` (16 px, pas de zoom iOS).
-- Toasts mobiles : pleine largeur moins 10 px, au-dessus de l'indicateur d'accueil, bouton fermer 44 px.
+- Toasts mobiles : pleine largeur moins 10 px, **au-dessus du bouton « Remonter en haut »** (voir § 1.4), bouton fermer 44 px.
 
 ---
 
-## 6. Accessibilité (rappel v2)
+## 5. Accessibilité (rappel v2)
 
 - Contraste AA vérifié dans les deux thèmes (voir la planche) : texte ≥ 4,5:1, icônes et bords de champs ≥ 3:1.
 - Les états lu / non lu / chaud reposent sur la graisse, la forme de l'icône (pleine / contour / flamme) et le libellé (`aria-label`, badge « Chaud »), jamais la couleur seule.
@@ -195,12 +181,12 @@ Liste de topics, page topic, admin et connexion : **aucun changement de structur
 
 ---
 
-## 7. Recette
+## 6. Recette
 
-- [ ] Safari iOS, app installée : header bleu-gris continu sous l'heure, en clair et en sombre ; le contenu ne passe jamais sous l'heure en défilant.
+- [ ] Safari iOS, app installée : en-tête sticky opaque, bleu-gris continu avec la barre d'état, en clair et en sombre ; pas de `black-translucent`.
+- [ ] Tirer pour rafraîchir : roue sous l'en-tête ; « Remonter en haut » et toasts ne se chevauchent jamais.
 - [ ] Réglage iOS clair ↔ sombre avec « Système » : bascule sans recharger.
 - [ ] Clair ou Sombre forcé : survit au rechargement, pas de flash au démarrage à froid de la PWA.
 - [ ] DevTools > Rendering > prefers-color-scheme : les deux valeurs, sur chaque écran.
-- [ ] Accueil : 0 source, tout lu, avec erreurs, sans erreur.
-- [ ] ~~Mode lecture : A− / A+ mémorisé, Échap (desktop), Retour natif.~~ (§3 abandonnée)
+- [ ] Accueil : 0 source, tout lu, avec erreurs, sans erreur ; mobile 3 derniers non lus + « + N autres non lus » qui déplie, desktop 8.
 - [ ] Lighthouse / axe : 0 erreur de contraste dans les deux thèmes.
