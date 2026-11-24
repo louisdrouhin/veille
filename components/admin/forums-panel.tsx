@@ -12,11 +12,11 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { FORUM_ICON_LABELS, ForumIcon } from "@/components/forum/forum-icon";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { IconArrowDown, IconArrowUp, IconGrip, IconPencil, IconPlus, IconTrash } from "@/components/ui/icons";
+import { ConfirmDialog, type ConfirmDialogHandle } from "@/components/ui/confirm-dialog";
+import { IconArrowDown, IconArrowUp, IconGrip, IconMore, IconPencil, IconPlus, IconTrash } from "@/components/ui/icons";
 import { Panel } from "@/components/ui/panel";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -81,6 +81,97 @@ function ForumEditForm({ forum, onCancel }: { forum: AdminForum; onCancel: () =>
   );
 }
 
+/**
+ * Mobile « … » of a forum: Renommer, Supprimer (or why it cannot be deleted). A disclosure
+ * (button + aria-expanded), closed by Escape, a tap outside or choosing an item.
+ */
+function ForumMenu({
+  forum,
+  blockedReason,
+  onRename,
+  onDelete,
+}: {
+  forum: AdminForum;
+  blockedReason: string | null;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+      root.current?.querySelector("button")?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const item = "flex min-h-11 w-full cursor-pointer items-center gap-2 px-3 text-left text-base hover:bg-surface-hover";
+  return (
+    <div ref={root} className="relative md:hidden">
+      <Button
+        variant="ghost-icon"
+        aria-label={`Actions pour « ${forum.name} »`}
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <IconMore size={16} />
+      </Button>
+      <div
+        id={menuId}
+        hidden={!open}
+        className="absolute top-full right-0 z-20 mt-1 w-60 overflow-hidden rounded-md border border-line bg-surface py-1 shadow-md"
+      >
+        <button
+          type="button"
+          className={item}
+          onClick={() => {
+            setOpen(false);
+            onRename();
+          }}
+        >
+          <IconPencil size={15} /> Renommer
+        </button>
+        {blockedReason ? (
+          <div className="px-3 py-2">
+            <button type="button" disabled className={`${item} -mx-3 cursor-not-allowed text-fg-read`} aria-describedby={`${menuId}-why`}>
+              <IconTrash size={15} /> Supprimer
+            </button>
+            <p id={`${menuId}-why`} className="text-sm text-fg-muted">
+              {blockedReason}
+            </p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={`${item} text-err`}
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            <IconTrash size={15} /> Supprimer
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ForumItem({
   forum,
   index,
@@ -103,6 +194,7 @@ function ForumItem({
         ? `Impossible : ce forum contient ${plural(forum.topicCount, "topic")} (et tes notes).`
         : null;
   const tipId = `forum-del-tip-${forum.id}`;
+  const deleteDialog = useRef<ConfirmDialogHandle>(null);
 
   return (
     <li
@@ -116,7 +208,7 @@ function ForumItem({
         <button
           ref={setActivatorNodeRef}
           type="button"
-          className="inline-flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded-sm text-fg-read hover:text-fg-muted active:cursor-grabbing max-md:h-11"
+          className="inline-flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded-sm text-fg-read hover:text-fg-muted active:cursor-grabbing max-md:hidden"
           aria-label={`Déplacer « ${forum.name} »`}
           title="Glisser pour réordonner"
           {...attributes}
@@ -136,7 +228,7 @@ function ForumItem({
         <div className="flex shrink-0 items-center">
           <Button
             variant="ghost-icon"
-            className="size-7.5"
+            className="size-7.5 max-md:size-11"
             aria-label={`Monter « ${forum.name} »`}
             title="Monter"
             disabled={index === 0 || busy}
@@ -146,7 +238,7 @@ function ForumItem({
           </Button>
           <Button
             variant="ghost-icon"
-            className="size-7.5"
+            className="size-7.5 max-md:size-11"
             aria-label={`Descendre « ${forum.name} »`}
             title="Descendre"
             disabled={index === count - 1 || busy}
@@ -156,7 +248,7 @@ function ForumItem({
           </Button>
           <Button
             variant="ghost-icon"
-            className="size-7.5"
+            className="size-7.5 max-md:hidden"
             aria-label={`Renommer « ${forum.name} »`}
             title="Renommer"
             aria-expanded={editing}
@@ -165,23 +257,26 @@ function ForumItem({
             <IconPencil size={14} />
           </Button>
           {blockedReason ? (
-            <Tooltip id={tipId} text={blockedReason}>
-              <Button
-                variant="ghost-icon"
-                className="size-7.5"
-                aria-label={`Supprimer « ${forum.name} »`}
-                aria-disabled="true"
-                aria-describedby={tipId}
-                onClick={(e) => e.preventDefault()}
-              >
-                <IconTrash size={14} />
-              </Button>
-            </Tooltip>
+            <span className="max-md:hidden">
+              <Tooltip id={tipId} text={blockedReason}>
+                <Button
+                  variant="ghost-icon"
+                  className="size-7.5"
+                  aria-label={`Supprimer « ${forum.name} »`}
+                  aria-disabled="true"
+                  aria-describedby={tipId}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <IconTrash size={14} />
+                </Button>
+              </Tooltip>
+            </span>
           ) : (
             <ConfirmDialog
+              handle={deleteDialog}
               title={`Supprimer « ${forum.name} » ?`}
               description="Le forum est vide. Cette action est définitive."
-              trigger={{ label: `Supprimer « ${forum.name} »`, className: "size-7.5 text-err", icon: <IconTrash size={14} /> }}
+              trigger={{ label: `Supprimer « ${forum.name} »`, className: "size-7.5 text-err max-md:hidden", icon: <IconTrash size={14} /> }}
             >
               <form action={deleteForum}>
                 <input type="hidden" name="id" value={forum.id} />
@@ -189,6 +284,12 @@ function ForumItem({
               </form>
             </ConfirmDialog>
           )}
+          <ForumMenu
+            forum={forum}
+            blockedReason={blockedReason}
+            onRename={() => setEditing(true)}
+            onDelete={() => deleteDialog.current?.open()}
+          />
         </div>
       </div>
       {editing && <ForumEditForm forum={forum} onCancel={() => setEditing(false)} />}

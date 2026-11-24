@@ -139,6 +139,10 @@ const [stats, latest, forums, featured] = await Promise.all([
 
 ## 3. Mode lecture
 
+> **Abandonné (24/11/2026).** Pas de route `/t/[id]/lire`, pas de bouton « Mode lecture » : l'article complet
+> (contenu du flux ou extrait avec Readability, HTML assaini, images via le proxy) reste affiché dans la page
+> topic, comme avant la v2. La suite de cette section est gardée pour mémoire.
+
 - Route : `/t/[id]/lire` (partageable, et le bouton Retour natif fonctionne). Entrée : bouton secondaire « Mode lecture » (icône livre) à côté du compteur de messages, `h-11` mobile / `h-[34px]` desktop.
 - Pas de header standard : barre fine `bg-bar` (avec la safe-area) contenant « ‹ Quitter la lecture » (lien vers `/t/[id]`) et le groupe `role="group" aria-label="Taille du texte"` avec A− / A+ (44 × 44 mobile).
 - Desktop : touche **Échap** pour quitter (écouteur sur la page de lecture uniquement), indice `<kbd>`.
@@ -198,5 +202,5 @@ Liste de topics, page topic, admin et connexion : **aucun changement de structur
 - [ ] Clair ou Sombre forcé : survit au rechargement, pas de flash au démarrage à froid de la PWA.
 - [ ] DevTools > Rendering > prefers-color-scheme : les deux valeurs, sur chaque écran.
 - [ ] Accueil : 0 source, tout lu, avec erreurs, sans erreur.
-- [ ] Mode lecture : A− / A+ mémorisé, Échap (desktop), Retour natif.
+- [ ] ~~Mode lecture : A− / A+ mémorisé, Échap (desktop), Retour natif.~~ (§3 abandonnée)
 - [ ] Lighthouse / axe : 0 erreur de contraste dans les deux thèmes.

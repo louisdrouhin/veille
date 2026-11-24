@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { BackForwardRefresh } from "@/components/layout/back-forward-refresh";
 import { NavigationTracker } from "@/components/layout/navigation-tracker";
+import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { ScrollTopButton } from "@/components/layout/scroll-top-button";
 import { OfflinePageCache } from "@/components/pwa/offline-page-cache";
 import { UpdateToast } from "@/components/pwa/update-toast";
@@ -38,6 +39,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <OfflinePageCache />
         <BackForwardRefresh />
       </Suspense>
+      <PullToRefresh />
       <AccountThemeSync theme={parseTheme((session.user as { theme?: unknown }).theme)} />
     </ReadTopicsProvider>
   );

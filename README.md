@@ -45,7 +45,8 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Supervision** : `/api/health` signale une base injoignable ou un worker arrêté (pour Uptime Kuma & co).
 - **Sauvegardes** : `pg_dump` quotidien avec rétention de 7 jours, procédure de restauration testée.
 - **App installable (PWA)** sur iPhone, Android et ordinateur : plein écran, lecture hors ligne des topics déjà
-  ouverts (article et images compris), bouton « Actualiser » dans l'app installée, avis de nouvelle version.
+  ouverts (article et images compris), bouton « Actualiser » et « tirer pour rafraîchir » dans l'app installée
+  (iOS n'en a pas en mode app), avis de nouvelle version.
 
 ## Stack
 

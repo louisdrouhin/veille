@@ -6,8 +6,9 @@ import { buttonClass } from "@/components/ui/button";
 import { IconAlertCircle, Logo } from "@/components/ui/icons";
 import { authClient } from "@/lib/auth-client";
 
+// Mobile: 48 px fields in 16 px (below 16 px, iOS zooms in on focus).
 const FIELD =
-  "h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-[16px] font-normal text-fg md:text-[15px] aria-invalid:border-err";
+  "h-12 w-full rounded-sm border border-line-strong bg-surface px-3 text-[16px] font-normal text-fg md:h-10 md:text-[15px] aria-invalid:border-err";
 
 export function LoginForm() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto flex max-w-[380px] flex-col gap-5">
-      <div className="flex items-center justify-center gap-3">
+      <div className="hidden items-center justify-center gap-3 md:flex">
         <span className="inline-flex size-11 items-center justify-center rounded-lg bg-bar">
           <Logo size={30} />
         </span>
@@ -109,7 +110,7 @@ export function LoginForm() {
                 aria-invalid={error ? true : undefined}
               />
             </label>
-            <button type="submit" className={buttonClass("primary", "md", "h-10.5 w-full max-md:h-11")} disabled={pending}>
+            <button type="submit" className={buttonClass("primary", "md", "h-10.5 w-full max-md:h-12 max-md:text-base")} disabled={pending}>
               {pending ? "Connexion…" : "Se connecter"}
             </button>
           </form>
@@ -138,7 +139,7 @@ export function LoginForm() {
               <input type="checkbox" name="trust" className="size-4" />
               Faire confiance à cet appareil pendant 30 jours
             </label>
-            <button type="submit" className={buttonClass("primary", "md", "h-10.5 w-full max-md:h-11")} disabled={pending}>
+            <button type="submit" className={buttonClass("primary", "md", "h-10.5 w-full max-md:h-12 max-md:text-base")} disabled={pending}>
               {pending ? "Vérification…" : "Valider"}
             </button>
             <button

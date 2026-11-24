@@ -42,7 +42,8 @@ export function Toaster({ children }: { children?: React.ReactNode }) {
   const dismiss = useCallback((id: number) => setItems((prev) => prev.filter((t) => t.id !== id)), []);
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-[340px]">
+    // Mobile: full width minus 10 px, 8 px above the iPhone home indicator (docs/design/v2 § 5).
+    <div className="pointer-events-none fixed inset-x-[5px] bottom-[calc(env(safe-area-inset-bottom)+8px)] z-50 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-[340px]">
       {children}
       {items.map((t) => (
         <Toast key={t.id} toast={t} onDismiss={dismiss} />
@@ -87,7 +88,7 @@ function Toast({ toast, onDismiss }: { toast: Item; onDismiss: (id: number) => v
         onClick={() => onDismiss(id)}
         aria-label="Fermer la notification"
         title="Fermer"
-        className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-fg-muted hover:bg-surface-hover"
+        className="-my-2.5 -mr-2 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-sm text-fg-muted hover:bg-surface-hover md:my-0 md:mr-0 md:size-6"
       >
         <IconClose size={14} />
       </button>

@@ -1,5 +1,6 @@
 import { asc, count, eq } from "drizzle-orm";
 import type { Metadata } from "next";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 import { ForumsPanel, type AdminForum } from "@/components/admin/forums-panel";
 import { SourcesPanel } from "@/components/admin/sources-panel";
 import { PageNav } from "@/components/layout/page-nav";
@@ -49,6 +50,7 @@ export default async function AdminPage({ searchParams }: Props) {
       {/* Editing a source (?edit=…) is a form: back goes to the previous page, else to the admin itself. */}
       <PageNav items={[{ label: "Administration" }]} back={{ href: editing ? "/admin" : "/", mode: "any" }} />
       <h1 className="mb-3 font-cond text-xl font-bold">Administration</h1>
+      <AdminTabs counts={{ forums: adminForums.length, sources: adminSources.length }} />
       <div className="flex flex-wrap items-start gap-5">
         <ForumsPanel forums={adminForums} />
         <SourcesPanel sources={adminSources} forums={forumRows} editing={editing} now={now} />
