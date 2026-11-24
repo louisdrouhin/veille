@@ -19,6 +19,7 @@ next-env.d.ts
 docker-compose.override.yml
 compose.override.yml
 .claude/settings.local.json
+CLAUDE.local.md
 
 # Database dumps of the backup service (only backups/README.md is tracked)
 backups/*
