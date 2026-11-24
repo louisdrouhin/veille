@@ -20,14 +20,14 @@ function stateOf(t: TopicRowData): FolderState {
  * `showForum` (home « Derniers non lus »): forum badge first in the mobile metadata,
  * and an extra desktop column whose badge links to the forum.
  */
-export function TopicRow({ topic, showForum = false }: { topic: TopicRowData; showForum?: boolean }) {
+export function TopicRow({ topic, showForum = false, className = "" }: { topic: TopicRowData; showForum?: boolean; className?: string }) {
   const { isRead } = useReadTopics();
   const t = isRead(topic.id) && !topic.read ? { ...topic, read: true } : topic;
   const source = t.sourceName ?? "Source supprimée";
   const forum = showForum ? t.forum : undefined;
   return (
     <li
-      className={`${showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus`}
+      className={`${showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} ${className} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus`}
     >
       <FolderIcon state={stateOf(t)} className="pt-px md:pt-0" />
       <div className="flex min-w-0 flex-col gap-1 md:flex-row md:items-center md:gap-2">
