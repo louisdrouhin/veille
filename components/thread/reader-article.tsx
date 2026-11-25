@@ -5,6 +5,7 @@ import { reloadArticle } from "@/lib/actions/topics";
 import { getDb } from "@/lib/db";
 import { formatFull } from "@/lib/format-date";
 import { aiConfig } from "@/lib/ai/config";
+import { getStoredAiOutputs } from "@/lib/ai/service";
 import { articleText, isFrench } from "@/lib/ai/text";
 import { getArticle } from "@/lib/reader/article";
 import { AiArticle } from "./ai-article";
@@ -97,15 +98,26 @@ export async function ReaderArticle({ topic }: { topic: TopicRef }) {
     );
   }
 
+  const config = aiConfig();
+  // Results already made (on any device): shown from the database, never a call to Gemini here.
+  const stored = config ? await getStoredAiOutputs(getDb(), topic.id, article.fetchedAt, config) : {};
+
   return (
     <>
       <p className="text-xs text-fg-muted">
         Mode lecture · {article.source === "feed" ? "contenu fourni par le flux" : "extrait de la page d'origine"} ·{" "}
         <time dateTime={article.fetchedAt.toISOString()}>{formatFull(article.fetchedAt)}</time>
       </p>
-      {aiConfig() ? (
+      {config ? (
         // Résumer / Traduire (Gemini, server side): only when GEMINI_API_KEY is set.
-        <AiArticle topicId={topic.id} canTranslate={!isFrench(articleText(article.html))}>
+        <AiArticle
+          // A reloaded article starts over (its stored results belong to the previous version).
+          key={article.fetchedAt.getTime()}
+          topicId={topic.id}
+          canTranslate={!isFrench(articleText(article.html))}
+          initialSummary={stored.summary ?? null}
+          initialTranslation={stored.translation ?? null}
+        >
           <ArticleBody html={article.html} />
         </AiArticle>
       ) : (
