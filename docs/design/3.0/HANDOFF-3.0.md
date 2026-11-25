@@ -79,7 +79,7 @@ notification_settings (threshold text default 'high', exploited_always bool defa
 ### 2.2 Versions
 Comparer avec un comparateur **par schéma**, pas une simple comparaison de texte :
 - semver (`1.32.0`) ;
-- style Debian / OpenSSH (`9.8p1`) ;
+- style Debian / OpenSSH (`9.4p1`) ;
 - schémas propres à l'éditeur (`8.0 U2`, `2022`).
 
 Une version que le comparateur ne sait pas interpréter n'est jamais déclarée « à jour » en silence : statut « Version non reconnue », à corriger dans l'édition.
@@ -134,8 +134,8 @@ Une version que le comparateur ne sait pas interpréter n'est jamais déclarée 
 
 ### 4.3 Édition et retrait
 - Feuille : lien vers l'alerte en cours (bandeau `sev-*-soft` + badge) ; version ; contexte ; « Enregistrer » ; « Retirer de ma stack » (texte `text-err`).
-- Changer la version recalcule tout de suite : « La 7.4.5 corrige CVE-… : l'alerte passera en traitée à l'enregistrement. »
-- Retrait : confirmation « Retirer Nextcloud 30.0.1 de ta stack ? ». Les alertes ouvertes sont archivées ; l'historique reste dans « Traitées ».
+- Changer la version recalcule tout de suite : « La 7.0.16 corrige CVE-… : l'alerte passera en traitée à l'enregistrement. »
+- Retrait : confirmation « Retirer Nextcloud 28.0.6 de ta stack ? ». Les alertes ouvertes sont archivées ; l'historique reste dans « Traitées ».
 
 ### 4.4 Alertes (`/stack/alertes`)
 - Filtres : À traiter (défaut) · Traitées · Ignorées.
@@ -198,10 +198,10 @@ Après « Marquer comme traitée » : l'état devient « Traitée aujourd'hui à
 - Web Push standard : clés VAPID, `service worker` → `self.registration.showNotification`.
 - Un abonnement par appareil ; nettoyer ceux qui renvoient 404 / 410.
 - Contenu :
-  - titre : « Critique · FortiOS 7.4.3 » (gravité en **mots**, produit + **ta** version ; pas d'emoji ni de couleur, iOS ne les affiche pas de façon fiable) ;
-  - corps : « CVE-2026-XXXX, exploitée. Corrigé en 7.4.5. Touche pour voir l'alerte. » (2 lignes max).
+  - titre : « Critique · FortiOS 7.0.12 » (gravité en **mots**, produit + **ta** version ; pas d'emoji ni de couleur, iOS ne les affiche pas de façon fiable) ;
+  - corps : « CVE-2026-XXXX, exploitée. Corrigé en 7.0.16. Touche pour voir l'alerte. » (2 lignes max).
 - `tag` = id de l'alerte (une mise à jour remplace la notification au lieu d'en empiler). `data.url` = `/stack/alertes/[id]`.
-- Groupé, après les heures calmes : « Ma stack : 3 nouvelles alertes » / « 1 haute, 2 moyennes · OpenSSH 9.8p1, Nextcloud 30.0.1… » → `/stack/alertes`.
+- Groupé, après les heures calmes : « Ma stack : 3 nouvelles alertes » / « 1 haute, 2 moyennes · OpenSSH 9.4p1, Nextcloud 28.0.1… » → `/stack/alertes`.
 - Déclencheur : création d'une alerte (`new`) dont gravité ≥ seuil, **ou** exploitée si l'option est active. Passage en « exploitée » d'une alerte existante = nouvelle notification.
 
 ---
@@ -227,7 +227,7 @@ Squelettes : `animate-pulse-soft`, `motion-reduce:animate-none`.
 ---
 
 ## 8. Recette
-- [ ] Ajouter un produit trouvé, puis un produit « suivi par nom » ; versions semver, `9.8p1`, `8.0 U2`.
+- [ ] Ajouter un produit trouvé, puis un produit « suivi par nom » ; versions semver, `9.4p1`, `8.0 U2`.
 - [ ] Changer la version d'un logiciel vulnérable vers une version corrigée : alerte passée en traitée, badge mis à jour.
 - [ ] Tri des alertes par gravité ; nouvelle → vue à l'ouverture ; traiter → toast + Annuler ; ignorer avec raison.
 - [ ] Bloc d'accueil : critique (rouge), haute (orange), absent à 0.

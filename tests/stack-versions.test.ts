@@ -28,10 +28,10 @@ describe("semver", () => {
 });
 
 describe("Debian / OpenSSH", () => {
-  it("9.8p1 is after 9.8 and before 9.9; 9.10p1 after 9.9p1", () => {
-    lt("9.8", "9.8p1", "debian");
-    lt("9.8p1", "9.8p2", "debian");
-    lt("9.8p1", "9.9p1", "debian");
+  it("9.4p1 is after 9.4 and before 9.5; 9.10p1 after 9.9p1", () => {
+    lt("9.4", "9.4p1", "debian");
+    lt("9.4p1", "9.4p2", "debian");
+    lt("9.4p1", "9.5p1", "debian");
     lt("9.9p1", "9.10p1", "debian");
   });
 
@@ -57,7 +57,7 @@ describe("vendor schemes", () => {
     lt("2022", "2025", "vendor");
     lt("10.0.20348.2340", "10.0.20348.2700", "vendor");
     lt("7.2.1-69057", "7.2.2-72806", "vendor");
-    lt("7.4.3", "7.4.5", "vendor");
+    lt("7.0.12", "7.0.16", "vendor");
   });
 });
 
@@ -106,8 +106,8 @@ describe("affected ranges", () => {
 
 describe("fixes and releases", () => {
   it("nearest fix: the lowest fixed version above mine, in my branch when there is one", () => {
-    expect(nearestFix("7.4.3", ["7.6.1", "7.2.9", "7.4.5"], "vendor")).toBe("7.4.5");
-    expect(nearestFix("7.4.3", ["8.0.1", "7.2.9"], "vendor")).toBe("8.0.1");
+    expect(nearestFix("7.0.12", ["7.6.1", "6.4.9", "7.0.16"], "vendor")).toBe("7.0.16");
+    expect(nearestFix("7.0.12", ["8.0.1", "6.4.9"], "vendor")).toBe("8.0.1");
     expect(nearestFix("29.0.4", ["30.0.2", "29.0.9", "28.0.12"], "semver")).toBe("29.0.9");
     expect(nearestFix("9.6p1", ["9.8p1"], "debian")).toBe("9.8p1");
     expect(nearestFix("9.9p1", ["9.8p1"], "debian")).toBeNull();
@@ -116,7 +116,7 @@ describe("fixes and releases", () => {
 
   it("sorts newest first, drops unreadable; NVD version + update → one string", () => {
     expect(sortVersionsDesc(["1.9.0", "1.37.5", "1.10.2", "nightly"], "semver")).toEqual(["1.37.5", "1.10.2", "1.9.0"]);
-    expect(nvdVersion("9.8", "p1")).toBe("9.8p1");
+    expect(nvdVersion("9.4", "p1")).toBe("9.4p1");
     expect(nvdVersion("8.0", "update_2")).toBe("8.0 U2");
     expect(nvdVersion("4.4", "-")).toBe("4.4");
     expect(nvdVersion("4.4", "*")).toBe("4.4");

@@ -15,7 +15,7 @@ import { SEVERITY_PANEL, SeverityBadge } from "./badges";
 import { ContextField, VersionCheck, VersionField } from "./version-field";
 
 /**
- * Edit sheet (docs/design/3.0 § 4.3): link to the current alert, version (checked at once: « La 7.4.5
+ * Edit sheet (docs/design/3.0 § 4.3): link to the current alert, version (checked at once: « La 7.0.16
  * corrige CVE-… »), context, « Enregistrer », « Retirer de ma stack » with a confirmation.
  */
 export function EditSheet({ row, onClose }: { row: SoftwareRow | null; onClose: () => void }) {

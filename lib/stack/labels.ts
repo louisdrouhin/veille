@@ -66,7 +66,7 @@ export type VersionPreview =
 /** The immediate check under the version field (role="status"). */
 export function previewMessage(version: string, p: VersionPreview, productName: string): string {
   const v = version.trim();
-  if (p.kind === "unrecognized") return "Version non reconnue : vérifie le format (chiffres, points, ex. 9.8p1 ou 8.0 U2).";
+  if (p.kind === "unrecognized") return "Version non reconnue : vérifie le format (chiffres, points, ex. 9.4p1 ou 8.0 U2).";
   if (p.kind === "pending") return `Première vérification de ${productName}…`;
   if (p.kind === "unchecked") return `${productName} n'a pas encore pu être vérifié : le statut apparaîtra après la prochaine vérification.`;
   const update = p.updateAvailable && p.latest ? ` Mise à jour ${p.latest} disponible.` : "";

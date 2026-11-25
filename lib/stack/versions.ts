@@ -1,10 +1,10 @@
 /**
  * Version comparison per scheme (docs/design/3.0 § 2.2), never a plain string comparison:
  * - semver: 1.32.0, v1.32.0-rc.1 (build metadata « +… » ignored);
- * - debian: OpenSSH style 9.8p1, and Debian packages 1:9.2p1-2+deb12u3 (epoch, upstream, revision);
+ * - debian: OpenSSH style 9.4p1, and Debian packages 1:9.2p1-2+deb12u3 (epoch, upstream, revision);
  * - vendor: 8.0 U2, 10.0.20348.2340, 2022, 7.2.2-72806.
  * A version is cut into numbers and words; separators (. - _ + space) do not count. Pre-release words
- * (alpha, beta, rc…) come before the release, post-release words (p, U, SP…) after it: 9.8 < 9.8p1,
+ * (alpha, beta, rc…) come before the release, post-release words (p, U, SP…) after it: 9.4 < 9.4p1,
  * 8.0 < 8.0 U2, 1.0rc1 < 1.0. A version that cannot be read (unknown word, no leading number…) gives
  * null: it is shown as « Version non reconnue », never as « à jour ».
  */

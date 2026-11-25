@@ -36,7 +36,7 @@ export function VersionField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoFocus={autoFocus}
-        // Semver is digits and dots; OpenSSH (9.8p1) and vendor versions (8.0 U2) need letters.
+        // Semver is digits and dots; OpenSSH (9.4p1) and vendor versions (8.0 U2) need letters.
         inputMode={scheme === "semver" ? "decimal" : "text"}
         autoComplete="off"
         autoCapitalize="off"
