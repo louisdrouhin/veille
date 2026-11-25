@@ -29,8 +29,9 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`READM
 
 - **Commits** : une seule ligne (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `ci:`, `build:`), sans corps ni
   co-auteur.
-- **Flux** : branche → PR → CI verte (y compris CodeQL) → merge en squash → suppression de la branche →
-  déploiement → vérification de `/api/health`.
+- **Flux** : branche → PR → CI verte (y compris CodeQL et le scan Trivy de l'image) → merge en squash →
+  suppression de la branche → si la version a changé, la CI publie l'image sur GHCR et la Release `vX.Y.Z`
+  (`.github/workflows/release.yml`) → déploiement de cette version (`APP_VERSION`) → vérification de `/api/health`.
 - **Version** : chaque PR qui change l'app monte la version de `package.json` (et les deux champs `version` en tête
   de `package-lock.json`, à la main) : **patch** pour un correctif, **mineure** pour une fonctionnalité, rien
   pour docs/tests/CI seuls. Ajouter l'entrée en tête de `CHANGELOG.md` (`## x.y.z — JJ/MM/AAAA`, puces en français,
@@ -41,6 +42,8 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`READM
 - **UI** : quand l'interface change, tester dans Chrome (desktop + mobile) sur un build de prod avant la PR.
 - **Lockfile** : jamais `npm audit fix` ni `npm install --package-lock-only` (ils suppriment les champs `libc` et
   cassent l'image Alpine). Vérifier le diff de `package-lock.json` à chaque ajout de paquet.
+- **Image** : jamais de `build:` dans `docker-compose.yml` (image GHCR à `APP_VERSION`) ; le build local passe par
+  `docker-compose.build.yml`. Actions des workflows épinglées par SHA, permissions minimales par job.
 - **docker-compose.yml** : `name: veille` ne doit **jamais** changer (sinon nouveau volume, base vide). Idem pour
   les volumes et identifiants internes `veille`.
 - **Liens vers `/t/…`** : toujours `prefetch={false}`, sinon des topics passent en lu sans être ouverts

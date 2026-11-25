@@ -125,18 +125,37 @@ Dans `.env`, renseigner au minimum :
 - `BETTER_AUTH_URL` : l'URL publique exacte de l'app, telle que la voit le navigateur ;
 - `APP_PORT` / `APP_BIND` : le port publié pour le reverse proxy (`APP_BIND=127.0.0.1` si le proxy est sur la même machine ;
   inutile si le proxy rejoint l'app par un réseau Docker, voir [Nginx Proxy Manager](#derrière-nginx-proxy-manager)) ;
-- `TRUSTED_PROXIES` (optionnel) : l'IP du reverse proxy, pour un rate limiting par client exact.
+- `TRUSTED_PROXIES` (optionnel) : l'IP du reverse proxy, pour un rate limiting par client exact ;
+- `APP_VERSION` : la version de l'image à lancer (voir les [Releases](https://github.com/louisdrouhin/veille/releases)).
 
 > Le port de l'app ne doit être joignable que par le reverse proxy (`APP_BIND`, pare-feu) : en accès direct, un client
 > peut forger `X-Forwarded-For` et contourner le rate limiting de la connexion.
 
 ```sh
-APP_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
+docker compose pull
+docker compose up -d
 curl http://localhost:3000/api/health     # {"status":"ok",…} une fois le premier cycle du worker terminé
 ```
 
-`APP_COMMIT` (optionnel) est passé au build : `.git` n'est pas copié dans l'image, et Mon compte › À propos affiche
-la version, ce commit et la date du build. Sans lui, le commit est « inconnu ».
+L'image `ghcr.io/louisdrouhin/veille` (linux/amd64, publique) est construite par la CI à chaque nouvelle version,
+analysée par Trivy (une faille CRITIQUE corrigeable ou un secret bloque la publication) et publiée avec sa
+provenance et son SBOM, sous les tags `X.Y.Z`, `X.Y`, commit court et `latest`. Mon compte › À propos affiche la
+version, le commit et la date du build.
+
+#### Mise à jour et retour arrière
+
+1. Lire les notes de la [Release](https://github.com/louisdrouhin/veille/releases) ; si elle contient une migration
+   (nouveau fichier dans `drizzle/`), faire d'abord une sauvegarde :
+   `docker compose exec -T db pg_dump -U veille -d veille -Fc > backups/avant-X.Y.Z.dump`.
+2. Mettre la nouvelle version dans `.env` (`APP_VERSION=X.Y.Z`), puis `git pull` (fichier compose à jour).
+3. `docker compose pull && docker compose up -d`, puis vérifier `/api/health`.
+
+Retour arrière : remettre l'ancienne `APP_VERSION` dans `.env`, puis `docker compose pull && docker compose up -d`.
+Les migrations ne sont pas annulées : après une version qui en contenait, restaurer aussi la sauvegarde (voir
+[Sauvegardes et restauration](#sauvegardes-et-restauration)).
+
+Pour construire l'image soi-même (développement, fork) :
+`APP_VERSION=local APP_COMMIT=$(git rev-parse --short HEAD) docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
 - `app` applique les migrations au démarrage puis sert Next ; `worker` démarre une fois `app` healthy ;
   `db` stocke ses données dans le volume `db-data`. Logs Docker limités à 3 × 10 Mo par service.

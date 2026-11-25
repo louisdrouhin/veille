@@ -1,0 +1,226 @@
+name: Release
+
+# On every PR and push: the Docker image is built and scanned (Trivy). On master, when the
+# version of package.json changes (and vX.Y.Z does not exist yet), the image is pushed to GHCR
+# with provenance and SBOM, then the tag and the GitHub Release (notes: the CHANGELOG section)
+# are created. A CRITICAL vulnerability that has a fix, or a secret in the image, stops it all.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Nothing by default: each job asks for what it needs.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel a release half way; PR runs are superseded by newer pushes.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/louisdrouhin/veille
+  PLATFORM: linux/amd64
+
+# Actions are pinned by commit SHA (version in comment); Dependabot keeps them up to date.
+# Values from the context reach scripts through env, never through ${{ }} inside `run`.
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      minor: ${{ steps.v.outputs.minor }}
+      commit: ${{ steps.v.outputs.commit }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Read the version and decide whether to release
+        id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          set -eu
+          version=$(node -p "require('./package.json').version")
+          commit=$(git rev-parse --short=7 HEAD)
+          # Every version must have its CHANGELOG section (it becomes the release notes).
+          node scripts/release-notes.mjs "$version" > /dev/null
+          release=false
+          if [ "$EVENT" != pull_request ] && [ "$REF" = refs/heads/master ]; then
+            previous=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null || echo none)
+            if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+              echo "v$version is already released: nothing to do."
+            elif [ "$version" != "$previous" ] || [ "$EVENT" = workflow_dispatch ]; then
+              release=true
+              echo "New version $previous → $version: release."
+            else
+              echo "Version unchanged ($version): no release."
+            fi
+          fi
+          {
+            echo "version=$version"
+            echo "minor=${version%.*}"
+            echo "commit=$commit"
+            echo "release=$release"
+          } >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Image (build and scan)
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Trivy results in the Security tab (pushes to master only).
+      security-events: write
+    env:
+      APP_COMMIT: ${{ needs.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build (loaded locally, not pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: ${{ env.PLATFORM }}
+          build-args: APP_COMMIT=${{ env.APP_COMMIT }}
+          tags: veille:scan
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: No secret, .env, git data or package manager in the image
+        run: |
+          set -eu
+          found=$(docker run --rm --entrypoint sh veille:scan -c \
+            'find /app \( -name ".env" -o -name ".env.*" -o -name ".git" -o -name ".npmrc" -o -name "*.pem" -o -name "*.key" \
+              -o -name "id_rsa*" -o -name "id_ed25519*" -o -name "*.dump" -o -name "CLAUDE.local.md" \) -print')
+          if [ -n "$found" ]; then echo "::error::Files that must not be in the image:"; echo "$found"; exit 1; fi
+          if docker run --rm --entrypoint sh veille:scan -c 'command -v npm || command -v npx || command -v yarn'; then
+            echo "::error::A package manager is still in the image"; exit 1
+          fi
+          # The commit given at build is inlined in the app (Mon compte › À propos).
+          docker run --rm --entrypoint sh veille:scan -c "grep -rqs '$APP_COMMIT' .next/server" \
+            || { echo "::error::APP_COMMIT $APP_COMMIT not found in the build"; exit 1; }
+          echo "OK: no secret file, no package manager, commit $APP_COMMIT inlined."
+
+      - name: Trivy report (SARIF, CRITICAL and HIGH)
+        id: report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: veille:scan
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0"
+      - name: Trivy gate (CRITICAL with a fix, or a secret, fails the release)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: veille:scan
+          scanners: vuln,secret
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
+      - name: Publish the Trivy results (Security tab)
+        if: always() && steps.report.outcome == 'success' && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-image
+
+  publish:
+    name: Publish to GHCR
+    needs: [version, scan]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Push the image (and its attestations) to ghcr.io/louisdrouhin/veille.
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=${{ needs.version.outputs.minor }}
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=Folders
+            org.opencontainers.image.description=Veille tech auto-hébergée présentée comme un forum rétro
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+      # Same build as the scanned one (layers from the GHA cache), now with provenance and SBOM.
+      - name: Build and push, with provenance and SBOM
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: ${{ env.PLATFORM }}
+          build-args: APP_COMMIT=${{ needs.version.outputs.commit }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+
+  release:
+    name: Tag and GitHub Release
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Create the tag and the release.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create vX.Y.Z with the CHANGELOG section as notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          set -eu
+          node scripts/release-notes.mjs "$VERSION" > notes.md
+          {
+            echo
+            echo "---"
+            echo
+            echo "Image : \`$IMAGE:$VERSION\` (\`$DIGEST\`), avec provenance et SBOM."
+          } >> notes.md
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file notes.md
