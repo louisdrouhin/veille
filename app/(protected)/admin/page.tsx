@@ -4,6 +4,8 @@ import { AdminTabs } from "@/components/admin/admin-tabs";
 import { ForumsPanel, type AdminForum } from "@/components/admin/forums-panel";
 import { SourcesPanel } from "@/components/admin/sources-panel";
 import { PageNav } from "@/components/layout/page-nav";
+import { LinkButton } from "@/components/ui/button";
+import { IconSettings } from "@/components/ui/icons";
 import { getDb } from "@/lib/db";
 import { forums, sources, topics } from "@/lib/db/schema";
 import { requireSession } from "@/lib/session";
@@ -49,7 +51,12 @@ export default async function AdminPage({ searchParams }: Props) {
     <>
       {/* Editing a source (?edit=…) is a form: back goes to the previous page, else to the admin itself. */}
       <PageNav items={[{ label: "Administration" }]} back={{ href: editing ? "/admin" : "/", mode: "any" }} />
-      <h1 className="mb-3 font-cond text-xl font-bold">Administration</h1>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="font-cond text-xl font-bold">Administration</h1>
+        <LinkButton href="/admin/integrations">
+          <IconSettings size={14} /> Intégrations
+        </LinkButton>
+      </div>
       <AdminTabs counts={{ forums: adminForums.length, sources: adminSources.length }} />
       <div className="flex flex-wrap items-start gap-5">
         <ForumsPanel forums={adminForums} />

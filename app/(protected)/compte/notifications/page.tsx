@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { NotificationsSettings } from "@/components/account/notifications-panel";
 import { PageNav } from "@/components/layout/page-nav";
 import { getDb } from "@/lib/db";
-import { vapidConfig } from "@/lib/push/config";
+import { currentVapid } from "@/lib/secrets/effective";
 import { getNotificationSettings } from "@/lib/push/notify";
 import { requireSession } from "@/lib/session";
 
@@ -19,7 +19,7 @@ export default async function NotificationsPage() {
       <PageNav items={[{ label: "Mon compte", href: "/compte" }, { label: "Notifications" }]} back={{ href: "/compte", mode: "any" }} />
       <h1 className="mb-3 font-cond text-xl font-bold">Notifications</h1>
       <NotificationsSettings
-        publicKey={vapidConfig()?.publicKey ?? null}
+        publicKey={(await currentVapid(getDb()))?.publicKey ?? null}
         settings={{
           threshold: s.threshold,
           exploitedAlways: s.exploitedAlways,

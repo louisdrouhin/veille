@@ -78,6 +78,13 @@
       "when": 1795613246810,
       "tag": "0010_stack",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795635444705,
+      "tag": "0011_integrations",
+      "breakpoints": true
     }
   ]
 }

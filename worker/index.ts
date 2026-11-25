@@ -8,9 +8,9 @@
  *   node dist/worker.js --once   run a single cycle and exit (exit code 1 if the cycle crashed)
  */
 import { aiConfig } from "@/lib/ai/config";
+import { currentVapid, effectiveEnv } from "@/lib/secrets/effective";
 import { closeDb, getDb } from "@/lib/db";
 import { dispatchNotifications } from "@/lib/push/notify";
-import { vapidConfig } from "@/lib/push/config";
 import { checkIfDue, CHECK_INTERVAL_MIN } from "@/lib/stack/sync";
 import { recordCycle } from "@/lib/worker/heartbeat";
 import { runCycle } from "@/lib/worker/run-cycle";
@@ -58,9 +58,11 @@ async function cycle(): Promise<boolean> {
 async function stackCheck() {
   if (stopping) return;
   try {
-    await checkIfDue(getDb(), { env: process.env, ai: aiConfig(), log }, stackInterval);
+    // Keys of Admin › Intégrations first, then the .env (re-read at most every 10 s).
+    const env = await effectiveEnv(getDb());
+    await checkIfDue(getDb(), { env, ai: aiConfig(env), log }, stackInterval);
     // Every cycle, not only after a check: alerts held during quiet hours go out at their end.
-    await dispatchNotifications(getDb(), { vapid: vapidConfig(), log });
+    await dispatchNotifications(getDb(), { vapid: await currentVapid(getDb()), log });
   } catch (err) {
     log(`[stack] Vérification en échec : ${(err as Error)?.name ?? "erreur"}`);
   }
