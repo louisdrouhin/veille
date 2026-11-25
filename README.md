@@ -131,9 +131,12 @@ Dans `.env`, renseigner au minimum :
 > peut forger `X-Forwarded-For` et contourner le rate limiting de la connexion.
 
 ```sh
-docker compose up -d --build
+APP_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
 curl http://localhost:3000/api/health     # {"status":"ok",…} une fois le premier cycle du worker terminé
 ```
+
+`APP_COMMIT` (optionnel) est passé au build : `.git` n'est pas copié dans l'image, et Mon compte › À propos affiche
+la version, ce commit et la date du build. Sans lui, le commit est « inconnu ».
 
 - `app` applique les migrations au démarrage puis sert Next ; `worker` démarre une fois `app` healthy ;
   `db` stocke ses données dans le volume `db-data`. Logs Docker limités à 3 × 10 Mo par service.
