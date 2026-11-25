@@ -32,8 +32,11 @@ export function truncateForModel(text: string, max = MAX_INPUT_CHARS): { text: s
 const FR = new Set("le la les des du de un une et est sont pour dans que qui sur pas avec au aux ce cette ces il elle nous vous ils leur plus par mais ou où été être a ont sa son ses en ne".split(" "));
 const EN = new Set("the and of to is are for in that which on not with this these it they we you their more by but or been be has have its an as at from was were will".split(" "));
 
-/** Whether the text is mostly French (stop-word count on its first 4 000 characters). */
-export function isFrench(text: string): boolean {
+/**
+ * Language of the text, from stop-word counts on its first 4 000 characters: « fr », « en », or
+ * null when it is neither clearly (another language, or too short to tell).
+ */
+export function detectLanguage(text: string): "fr" | "en" | null {
   const words = text.slice(0, 4000).toLowerCase().match(/[a-zàâäçéèêëîïôöùûüœ']+/g) ?? [];
   let fr = 0;
   let en = 0;
@@ -42,5 +45,12 @@ export function isFrench(text: string): boolean {
     if (FR.has(w)) fr++;
     if (EN.has(w)) en++;
   }
-  return fr >= 5 && fr > en * 1.5;
+  if (fr >= 5 && fr > en * 1.5) return "fr";
+  if (en >= 5 && en > fr * 1.5) return "en";
+  return null;
+}
+
+/** Whether the text is mostly French: translation is then not offered. */
+export function isFrench(text: string): boolean {
+  return detectLanguage(text) === "fr";
 }

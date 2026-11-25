@@ -107,7 +107,7 @@ export const ARTICLE_SOURCES = ["feed", "readability"] as const;
 export type ArticleSource = (typeof ARTICLE_SOURCES)[number];
 
 /**
- * Reading-mode cache (lib/reader): article HTML, already sanitized, taken from
+ * Article cache (lib/reader): article HTML, already sanitized, taken from
  * the feed (content:encoded / Atom content) or extracted from the page with
  * Readability. `html = null` means « extraction failed » (`error` says why);
  * failures are retried after a day or on « Recharger l'article ».

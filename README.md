@@ -5,7 +5,7 @@
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
 Agrégateur de veille technique auto-hébergé, présenté comme un **forum des années 2000** : chaque source RSS / Atom
-alimente un forum thématique, chaque article devient un topic, et on le lit directement dans l'app en mode lecture.
+alimente un forum thématique, chaque article devient un topic, et on le lit directement dans l'app.
 Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose derrière un reverse proxy.
 
 ![Accueil : la liste des forums avec les compteurs de non-lus](docs/screenshots/home.png)
@@ -14,9 +14,9 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 > figé dans `docker-compose.yml`), les volumes (`veille_db-data`), la base et les identifiants internes gardent
 > `veille` : renommer le projet Compose créerait un nouveau volume, donc une base vide.
 
-| Liste des topics | Mode lecture |
+| Liste des topics | Page topic |
 |---|---|
-| ![Forum « Sécurité » : topics lus et non lus](docs/screenshots/forum.png) | ![Page topic : l'article en mode lecture et une note perso](docs/screenshots/topic.png) |
+| ![Forum « Sécurité » : topics lus et non lus](docs/screenshots/forum.png) | ![Page topic : l'article complet et une note perso](docs/screenshots/topic.png) |
 
 ![Administration : forums triables et sources avec leur statut de récupération](docs/screenshots/admin.png)
 
@@ -30,11 +30,12 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
   « Tout marquer comme lu », compteurs de non-lus sur l'accueil.
 - **Récupération des flux** par un worker séparé : ETag / If-Modified-Since, timeout, mise en pause automatique d'une
   source après 3 échecs, dédoublonnage par URL normalisée (sans `utm_*`, `fbclid`, fragment…).
-- **Mode lecture** : l'article complet dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
+- **Article complet** dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
   avec Readability, HTML assaini (tableaux compris), images servies par un proxy interne. Cache et ré-extraction à la demande.
-- **Résumé et traduction par IA** (Gemini, optionnel) : « Résumer » en 3 à 5 puces au-dessus de l'article (avec
-  « À retenir » quand il y a une action à faire), « Traduire en français » à la place de l'article (« Voir
-  l'original ») en gardant images, liens, tableaux et code, à la demande, mis en cache.
+- **Résumé et traduction par IA** (Gemini, optionnel) : dans la barre d'actions du topic, « Résumer » en
+  3 à 5 puces au-dessus de l'article (avec « À retenir » quand il y a une action à faire), « Traduire » à la place
+  de l'article (« Original ») en gardant images, liens, tableaux et code, à la demande, mis en cache et réaffiché
+  sans appel sur tous les appareils.
 - **Notes perso** sur chaque topic.
 - **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
   les listes de topics. Pages « Listes » (renommer, couleur, ordre par glisser-déposer, suppression) et une page par
@@ -74,7 +75,7 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 L'app affiche du HTML venu de sites tiers et télécharge des URL qu'elle ne contrôle pas : la sécurité a guidé la
 conception.
 
-- **SSRF** (`lib/net/safe-fetch.ts`) : toutes les requêtes sortantes déclenchées par du contenu tiers (mode lecture,
+- **SSRF** (`lib/net/safe-fetch.ts`) : toutes les requêtes sortantes déclenchées par du contenu tiers (articles,
   favicons, proxy d'images) passent par `safeFetch`. Seuls `http` et `https` sont acceptés ; le nom est résolu et
   toute adresse privée, loopback, link-local ou réservée est refusée (10/8, 172.16/12, 192.168/16, 127/8,
   169.254/16, 100.64/10, `::1`, `fc00::/7`, `fe80::/10`, IPv4 mappée…). La socket elle-même utilise un `lookup`
@@ -213,7 +214,7 @@ Optionnel : renseigner `GEMINI_API_KEY` (clé Google AI Studio) dans le `.env` d
 - Appels **côté serveur uniquement** : la clé n'est jamais envoyée au navigateur et la CSP ne change pas.
 - Seul l'article est envoyé (jamais les notes), dans un bloc délimité présenté au modèle comme une donnée non fiable.
 - **Résumé** : titre et texte, coupés à 24 000 caractères ; la réponse, demandée en Markdown, passe par un rendu
-  Markdown fermé (ni lien, ni image, ni HTML) puis par la même liste blanche que le mode lecture.
+  Markdown fermé (ni lien, ni image, ni HTML) puis par la même liste blanche que les articles.
 - **Traduction** : le modèle ne produit jamais de HTML. L'article assaini est découpé en passages de texte numérotés
   (paragraphes, titres, éléments de liste, citations, légendes, cellules), envoyés en JSON `{ id: texte }` par lots
   de 8 000 caractères (un long article fait plusieurs appels, rien n'est coupé ; au-delà de 160 000 caractères la
@@ -345,7 +346,7 @@ On peut aussi utiliser un vrai PostgreSQL :
   `ON CONFLICT DO NOTHING` sur l'URL normalisée, donc le worker et « Récupérer maintenant » peuvent tourner en même temps.
 - **Premier import** d'une source : les articles arrivent marqués comme lus. Une date absente, invalide ou future est
   remplacée par la date de récupération. Affichage en Europe/Paris.
-- **Mode lecture** : le contenu du flux est utilisé s'il fait au moins 500 caractères de texte ; sinon la page est
+- **Article** : le contenu du flux est utilisé s'il fait au moins 500 caractères de texte ; sinon la page est
   extraite à la première ouverture (rendu streamé). En cas d'échec (erreur HTTP, paywall, extraction trop courte) :
   message, extrait et lien d'origine ; l'échec est mis en cache 24 h. Cache `article_contents` purgé après 90 jours.
 - **Favicons** : depuis le `<link rel="icon">` du site ou `/favicon.ico`, PNG / ICO / GIF / JPEG / WebP ≤ 100 Ko,
@@ -357,8 +358,9 @@ On peut aussi utiliser un vrai PostgreSQL :
 - [`docs/SPEC.md`](docs/SPEC.md) : spécification et feuille de route (v2 : fusion multi-sources, Reddit, HN,
   GitHub ; v3 : recherche plein texte, raccourcis, mode sombre).
 - [`docs/design/`](docs/design/) : briefs de direction artistique et design tokens. `v1/` : la base (`HANDOFF.md`,
-  `veille-tokens.css`) ; `v2/` : mode sombre, nouvel accueil, mode lecture (`HANDOFF-v2.md`, tokens clair + sombre
-  fusionnés dans `app/globals.css`) ; `v3/` : listes de favoris (`HANDOFF-v3.md`, tokens v2 + 11 variables).
+  `veille-tokens.css`) ; `v2/` : mode sombre, nouvel accueil (`HANDOFF-v2.md`, tokens clair + sombre fusionnés dans
+  `app/globals.css`) ; `v3/` : listes de favoris (`HANDOFF-v3.md`, tokens v2 + 11 variables) ; `v3.1/` : barre
+  d'actions de la page topic (`HANDOFF-v3.1.md`, sans nouveau token).
 
 ## Licence
 

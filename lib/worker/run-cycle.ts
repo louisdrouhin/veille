@@ -8,7 +8,7 @@ export type CycleStats = { sources: number; inserted: number; notModified: numbe
 /**
  * One worker pass: fetches every due source with `concurrency` parallel lanes,
  * then refreshes its favicon when missing or older than 7 days. Also purges
- * reading-mode articles cached more than 90 days ago.
+ * articles cached more than 90 days ago.
  */
 export async function runCycle(
   db: Db,
@@ -16,7 +16,7 @@ export async function runCycle(
 ): Promise<CycleStats> {
   const log = opts.log ?? (() => {});
   const purged = await purgeArticleContents(db);
-  if (purged) log(`Mode lecture : ${purged} article(s) de plus de 90 jours purgé(s)`);
+  if (purged) log(`Articles : ${purged} article(s) de plus de 90 jours purgé(s)`);
   const due = await listDueSources(db);
   log(`Cycle : ${due.length} source(s) à récupérer`);
   const stats: CycleStats = { sources: due.length, inserted: 0, notModified: 0, failed: 0 };

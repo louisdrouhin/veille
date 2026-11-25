@@ -71,7 +71,7 @@ export function isAtomDocument(xml: string): boolean {
 }
 
 /**
- * Full content of an entry, for the reading mode. With rss-parser, `content` is
+ * Full content of an entry, shown as the topic article. With rss-parser, `content` is
  * the RSS <description> but the Atom <content>: it only counts for Atom.
  */
 function pickContent(item: RawItem, atom: boolean): string | undefined {

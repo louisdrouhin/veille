@@ -30,8 +30,21 @@ const POPOVER_WIDTH = 320;
  * « ★ Enregistrer » of the topic page (docs/design/v3 § 3.1-3.4). Opens a bottom sheet (<dialog>,
  * mobile) or an anchored popover (native popover API, desktop) with the same content. Every change
  * applies at once (useOptimistic), rolls back with a message in the status line if the action fails.
+ *
+ * Rendered as the topic's action bar (docs/design/v3.1 § 1-2): ★ on the left, `actions` (the AI
+ * tools) on the right, on one line; the « Dans … » chips under it.
  */
-export function SaveButton({ topicId, topicTitle, initial }: { topicId: number; topicTitle: string; initial: SavedState }) {
+export function SaveButton({
+  topicId,
+  topicTitle,
+  initial,
+  actions,
+}: {
+  topicId: number;
+  topicTitle: string;
+  initial: SavedState;
+  actions?: React.ReactNode;
+}) {
   // A page restored from the router cache may predate this visit's changes (see saved-state.ts).
   const [committed, setCommitted] = useState<SavedState>(() => savedStateOf(topicId) ?? initial);
   const [state, addOptimistic] = useOptimistic(committed, apply);
@@ -104,7 +117,8 @@ export function SaveButton({ topicId, topicTitle, initial }: { topicId: number; 
     const btn = buttonRef.current;
     if (!pop || !btn) return;
     const r = btn.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.right - POPOVER_WIDTH, window.innerWidth - POPOVER_WIDTH - 8));
+    // Left-aligned on the button (left of the action bar), kept on screen.
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - POPOVER_WIDTH - 8));
     pop.style.top = `${r.bottom + 8}px`;
     pop.style.left = `${left}px`;
   }
@@ -143,35 +157,39 @@ export function SaveButton({ topicId, topicTitle, initial }: { topicId: number; 
   const savedLists = state.lists.filter((l) => selected.has(l.id));
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={mode !== null}
-        aria-label={label}
-        // A click on the button while the popover is open: light dismiss has already closed it
-        // (on pointerdown/up), so the click must not reopen it.
-        onPointerDown={() => {
-          wasOpen.current = popoverRef.current?.matches(":popover-open") ?? false;
-        }}
-        onClick={() => {
-          if (wasOpen.current) {
-            wasOpen.current = false;
-            const pop = popoverRef.current;
-            if (pop?.matches(":popover-open")) pop.hidePopover();
-            return;
-          }
-          open();
-        }}
-        className={`inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-sm border px-3.5 text-base font-semibold text-fg md:h-[34px] md:text-sm ${
-          count > 0 ? "border-saved bg-saved-soft" : "border-line-strong bg-surface shadow-sm hover:bg-surface-hover"
-        }`}
-      >
-        <Star filled={count > 0} size={16} />
-        {count > 0 ? "Enregistré" : "Enregistrer"}
-        {count > 0 && <span className="rounded-full bg-saved px-1.5 font-mono text-xs font-bold text-saved-soft">{count}</span>}
-      </button>
+    <div className="flex flex-col gap-2">
+      <div role="group" aria-label="Actions sur l'article" className="flex flex-nowrap items-center justify-between gap-2">
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={mode !== null}
+          aria-label={label}
+          // A click on the button while the popover is open: light dismiss has already closed it
+          // (on pointerdown/up), so the click must not reopen it.
+          onPointerDown={() => {
+            wasOpen.current = popoverRef.current?.matches(":popover-open") ?? false;
+          }}
+          onClick={() => {
+            if (wasOpen.current) {
+              wasOpen.current = false;
+              const pop = popoverRef.current;
+              if (pop?.matches(":popover-open")) pop.hidePopover();
+              return;
+            }
+            open();
+          }}
+          // Mobile spacing a little tighter than v3 so that ★ + the AI tools fit on one line at 390 px.
+          className={`inline-flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-sm border px-3 text-base font-semibold text-fg md:h-[34px] md:gap-2 md:px-3.5 md:text-sm ${
+            count > 0 ? "border-saved bg-saved-soft" : "border-line-strong bg-surface shadow-sm hover:bg-surface-hover"
+          }`}
+        >
+          <Star filled={count > 0} size={16} />
+          {count > 0 ? "Enregistré" : "Enregistrer"}
+          {count > 0 && <span className="rounded-full bg-saved px-1.5 font-mono text-xs font-bold text-saved-soft">{count}</span>}
+        </button>
+        {actions}
+      </div>
 
       {savedLists.length > 0 && <ListChips lists={savedLists} />}
 
@@ -182,7 +200,7 @@ export function SaveButton({ topicId, topicTitle, initial }: { topicId: number; 
         )}
       </BottomSheet>
 
-      {/* Desktop: popover anchored under the button, right-aligned. */}
+      {/* Desktop: popover anchored under the button, left-aligned. */}
       <div
         ref={popoverRef}
         popover="auto"
@@ -190,7 +208,7 @@ export function SaveButton({ topicId, topicTitle, initial }: { topicId: number; 
         aria-labelledby={`${titleId}-pop`}
         className="fixed m-0 w-80 overflow-visible rounded-md border border-line bg-surface p-0 text-fg shadow-md [inset:auto]"
       >
-        <span aria-hidden className="absolute -top-1.5 right-7 size-3 rotate-45 border-t border-l border-line bg-bar-2" />
+        <span aria-hidden className="absolute -top-1.5 left-7 size-3 rotate-45 border-t border-l border-line bg-bar-2" />
         <div className="relative flex h-9 items-center rounded-t-md bg-bar-2 px-3">
           <h2 id={`${titleId}-pop`} className="font-cond text-sm font-semibold tracking-caps text-bar-fg uppercase">
             Enregistrer dans…
@@ -206,10 +224,10 @@ export function SaveButton({ topicId, topicTitle, initial }: { topicId: number; 
   );
 }
 
-/** « Dans [■ Homelab] [■ À lire plus tard] » under the button. */
+/** « Dans [■ Homelab] [■ À lire plus tard] » under the action bar. */
 function ListChips({ lists }: { lists: PickerList[] }) {
   return (
-    <p className="flex flex-wrap items-center justify-end gap-1.5 text-sm text-fg-muted">
+    <p className="flex flex-wrap items-center gap-1.5 text-sm text-fg-muted">
       <span>Dans</span>
       {lists.map((l) => (
         <Link

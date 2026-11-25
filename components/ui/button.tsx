@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "danger" | "danger-solid" | "ghost-icon";
+export type ButtonVariant = "primary" | "secondary" | "danger" | "danger-solid" | "ghost" | "ghost-icon";
 export type ButtonSize = "sm" | "md";
 
 const BASE =
@@ -24,6 +24,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
     "bg-surface border-err text-err hover:bg-err hover:text-err-fg " +
     "disabled:text-fg-read disabled:border-line disabled:bg-surface",
   "danger-solid": "bg-err border-err text-err-fg hover:opacity-90 hover:text-err-fg disabled:opacity-60",
+  /** Discreet text action (« Recharger l'article »). */
+  ghost: "border-transparent bg-transparent font-medium text-fg-muted hover:bg-surface-hover hover:text-fg disabled:text-fg-read",
   "ghost-icon":
     "size-8 max-md:size-11 p-0 border-transparent bg-transparent text-fg-muted hover:bg-surface-hover " +
     "disabled:text-line-strong disabled:bg-transparent aria-disabled:text-line-strong aria-disabled:hover:bg-transparent",

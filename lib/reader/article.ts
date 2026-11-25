@@ -34,7 +34,7 @@ async function extractNow(topic: TopicRef, now: Date, opts: DownloadOptions) {
 }
 
 /**
- * Reading-mode content of a topic: the cached row (feed content stored at
+ * Article of a topic: the cached row (feed content stored at
  * import, or a previous extraction), else the page is downloaded and
  * extracted now. Failures are cached too (html = null) and retried after a day.
  */

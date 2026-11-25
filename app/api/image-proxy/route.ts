@@ -10,7 +10,7 @@ const COMMON_HEADERS = {
 };
 
 /**
- * Images of the reading mode (/api/image-proxy?url=…): downloaded server-side
+ * Images of topic articles (/api/image-proxy?url=…): downloaded server-side
  * through safeFetch (SSRF checks), 5 MB max, PNG/JPEG/GIF/WebP/AVIF only (from
  * the bytes, not the upstream Content-Type). The browser never contacts the
  * third-party site. Session required, like every API route.

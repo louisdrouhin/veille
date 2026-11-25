@@ -54,10 +54,10 @@ describe("design tokens v2", () => {
     expect(preview("dark-surface")).toBe(color(DARK, "surface"));
   });
 
-  it("keeps the local rules merged with the v2 tokens (anchors, safe areas, reading mode)", () => {
+  it("keeps the local rules merged with the v2 tokens (anchors, safe areas, article body)", () => {
     expect(GLOBALS_CSS).toMatch(/scroll-padding-top:/);
     expect(GLOBALS_CSS).toMatch(/@utility safe-top/);
-    expect(GLOBALS_CSS).toMatch(/\.reader pre/);
+    expect(GLOBALS_CSS).toMatch(/\.article-body pre/);
     // next/font/local variables of app/fonts.ts
     const fonts = read("app", "fonts.ts");
     for (const v of ["--font-plex-sans", "--font-plex-cond", "--font-plex-mono"]) {

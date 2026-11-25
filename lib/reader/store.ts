@@ -1,5 +1,5 @@
 /**
- * Writes to the reading-mode cache that need no download (used by the worker,
+ * Writes to the article cache that need no download (used by the worker,
  * which therefore does not bundle Readability / linkedom).
  */
 import { and, eq, lt, notExists } from "drizzle-orm";

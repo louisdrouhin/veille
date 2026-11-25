@@ -1,5 +1,5 @@
 /**
- * Strict Content-Security-Policy, required by the topic page (its reading mode
+ * Strict Content-Security-Policy, required by the topic page (its article
  * renders third-party HTML) and applied to every page by proxy.ts. Scripts
  * need the per-request nonce, which Next.js reads from the request header set
  * by proxy.ts and puts on its own scripts; images only from our origin

@@ -57,12 +57,15 @@ export function Post({
   type,
   author,
   date,
+  dateSlot,
   children,
 }: {
   n: number;
   type: PostType;
   author: PostAuthorData;
   date: Date;
+  /** Replaces the date on the right of the header (#1: « récupéré le … »). */
+  dateSlot?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const isNote = type === "note";
@@ -82,10 +85,14 @@ export function Post({
           </a>
           <PostTypeBadge type={type} />
         </div>
-        <time dateTime={date.toISOString()} title={formatTitle(date)}>
-          <span className="hidden md:inline">{formatFull(date)}</span>
-          <span className="md:hidden">{formatShort(date)}</span>
-        </time>
+        {dateSlot !== undefined ? (
+          dateSlot
+        ) : (
+          <time dateTime={date.toISOString()} title={formatTitle(date)}>
+            <span className="hidden md:inline">{formatFull(date)}</span>
+            <span className="md:hidden">{formatShort(date)}</span>
+          </time>
+        )}
       </div>
       <div className="flex flex-wrap">
         <PostAuthor type={type} author={author} />
