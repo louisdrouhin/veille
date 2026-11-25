@@ -14,6 +14,7 @@ livre (voir `CHANGELOG.md`).
 | `v3.1/` | 2.11 | Barre d'actions de la page topic (sans nouveau token) |
 | `3.0/` | 3.0 | Ma stack (radar de vulnérabilités) et notifications push ; tokens `--sev-*` |
 | `3.2/` | 3.2 | Menu contextuel des lignes de topic, desktop (sans nouveau token ; note écrite pour « 3.1 ») |
+| `3.3/` | 3.3 | « Demande à ta veille » : recherche, questions, fusion des doublons, À la une ; tokens `--mark-*` |
 
 ## Règle pour la suite
 
