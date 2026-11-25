@@ -18,7 +18,7 @@ forum thématique, article complet dans la page topic, notes perso. Mono-utilisa
 - Docker Compose : `app`, `worker`, `db`, `backup`.
 - Code et identifiants en anglais, interface en français, dates en Europe/Paris.
 
-Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`v1/`, `v2/`, `v3/`, `v3.1/` : HANDOFF + tokens), `git log --oneline -40`.
+Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`README.md` : correspondance avec les versions de l'app), `git log --oneline -40`.
 
 ## Commandes
 
@@ -50,5 +50,8 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`v1/`,
   tourne : le relancer seul avant de conclure.
 - **Rien de privé dans le dépôt** (IP, domaine, chemins ou comptes du serveur, secrets) : en cas de doute, lancer
   `gitleaks`.
+- **Notes de design** : `docs/design/<version>/HANDOFF-<version>.md`, `<version>` étant la version de l'app qui
+  livre le lot, sans le patch (prochain lot : `3.0/`). Ne pas renommer `v1/` à `v3.1/` (des tests lisent
+  `docs/design/v3/`) ; tenir à jour la correspondance dans `docs/design/README.md`.
 - Design : tokens uniquement (`docs/design/v3/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
   en dur. Mode sombre par `data-theme` sur `<html>` (cookie `folders-theme`), jamais de script inline (CSP).
