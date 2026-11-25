@@ -196,10 +196,10 @@ describe("full check", () => {
     const net = fakeNet(routes());
     const { deps: d } = deps(net);
     await runStackSync(db, d);
-    const n = net.calls.filter((c) => c.url.includes("api.github.com")).length;
+    const n = net.calls.filter((c) => new URL(c.url).hostname === "api.github.com").length;
     await runStackSync(db, d);
-    expect(net.calls.filter((c) => c.url.includes("api.github.com")).length).toBe(n);
-    const nvd = net.calls.filter((c) => c.url.includes("nist.gov"));
+    expect(net.calls.filter((c) => new URL(c.url).hostname === "api.github.com").length).toBe(n);
+    const nvd = net.calls.filter((c) => new URL(c.url).hostname === "services.nvd.nist.gov");
     expect(new URL(nvd.at(-1)!.url).searchParams.has("lastModStartDate")).toBe(true);
     // CERT-FR advisories are downloaded once.
     expect(net.calls.filter((c) => c.url.endsWith("/json/")).length).toBe(4);
