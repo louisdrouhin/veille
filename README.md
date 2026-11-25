@@ -363,7 +363,8 @@ On peut aussi utiliser un vrai PostgreSQL :
 - [`docs/design/`](docs/design/) : briefs de direction artistique et design tokens. `v1/` : la base (`HANDOFF.md`,
   `veille-tokens.css`) ; `v2/` : mode sombre, nouvel accueil (`HANDOFF-v2.md`, tokens clair + sombre fusionnés dans
   `app/globals.css`) ; `v3/` : listes de favoris (`HANDOFF-v3.md`, tokens v2 + 11 variables) ; `v3.1/` : barre
-  d'actions de la page topic (`HANDOFF-v3.1.md`, sans nouveau token).
+  d'actions de la page topic (`HANDOFF-v3.1.md`, sans nouveau token). Correspondance avec les versions de l'app et règle de
+  nommage des prochains lots (`3.0/`…) : [`docs/design/README.md`](docs/design/README.md).
 
 ## Licence
 
