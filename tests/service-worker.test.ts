@@ -99,6 +99,21 @@ describe("service worker — pages (network-first)", () => {
     expect(page).toContain("<span>Folders</span>");
   });
 
+  it("Ma stack (3.0): software, alerts (with their « etat » filter) and one alert are kept; /stack offline answers with a saved page", async () => {
+    for (const p of ["/stack/logiciels", "/stack/alertes", "/stack/alertes/12", "/stack/alertes?etat=traitees"]) {
+      sw.network.routes.set(p.split("?")[0]!, () => html("Ma stack · Folders", p));
+      await sw.navigate(`${p}${p.includes("?") ? "&" : "?"}toast=ok&title=x`);
+    }
+    await sw.navigate("/stack/alertes?etat=../../admin");
+    expect(sw.caches.paths("veille-pages").sort()).toEqual(["/stack/alertes", "/stack/alertes/12", "/stack/alertes?etat=traitees", "/stack/logiciels"]);
+    sw.network.online = false;
+    const res = await sw.navigate("/stack");
+    expect(res!.status).toBe(200);
+    expect(await res!.text()).toContain("/stack/alertes");
+    // Not Ma stack pages: never kept.
+    for (const p of ["/stack/logiciels/3", "/stack/autre", "/stacks"]) expect((await sw.navigate(p))!.status).toBe(503);
+  });
+
   it("never caches a redirect (expired session → /login), an error or a non-HTML response", async () => {
     sw.network.routes.set("/t/1", () => basic("", { status: 200, redirected: true, headers: { "content-type": "text/html" } }));
     sw.network.routes.set("/t/2", () => basic("", { status: 500, headers: { "content-type": "text/html" } }));
