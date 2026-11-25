@@ -18,3 +18,18 @@ export function installMode(s: { standalone: boolean; dismissed: boolean; hasPro
   if (s.hasPrompt) return "prompt";
   return s.ios ? "ios" : "none";
 }
+
+export type PushAvailability = "unconfigured" | "install-ios" | "unsupported" | "denied" | "available";
+
+/**
+ * What « Sur cet appareil » can offer (docs/design/3.0 § 5): Web Push only works in the app
+ * installed on the iPhone home screen (iOS 16.4+), never in Safari itself; a permission refused in
+ * iOS must be changed in Réglages; the server may have no VAPID keys.
+ */
+export function pushAvailability(s: { configured: boolean; ios: boolean; standalone: boolean; hasPush: boolean; permission: NotificationPermission | null }): PushAvailability {
+  if (!s.configured) return "unconfigured";
+  if (s.ios && !s.standalone) return "install-ios";
+  if (!s.hasPush) return "unsupported";
+  if (s.permission === "denied") return "denied";
+  return "available";
+}
