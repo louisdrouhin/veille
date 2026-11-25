@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    # release/*: integration branch of a major version (each PR merged there, then one PR to master).
+    branches: [master, main, "release/**"]
+  # Every PR, whatever its base (master or release/*).
   pull_request:
   workflow_dispatch:
 

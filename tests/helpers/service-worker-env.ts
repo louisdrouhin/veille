@@ -82,7 +82,32 @@ export function loadServiceWorker() {
   };
   const self = {
     location: new URL(ORIGIN + "/sw.js"),
-    clients: { claim: async () => {} },
+    clients: {
+      claim: async () => {},
+      windows: [] as { url: string; focused: boolean; navigatedTo?: string }[],
+      opened: [] as string[],
+      async matchAll() {
+        return this.windows.map((w) => ({
+          url: w.url,
+          focus: async () => {
+            w.focused = true;
+            return undefined;
+          },
+          navigate: async (u: string) => {
+            w.navigatedTo = u;
+          },
+        }));
+      },
+      async openWindow(u: string) {
+        this.opened.push(u);
+      },
+    },
+    registration: {
+      shown: [] as { title: string; options: Record<string, unknown> }[],
+      async showNotification(title: string, options: Record<string, unknown>) {
+        this.shown.push({ title, options });
+      },
+    },
     skipWaitingCalls: 0,
     skipWaiting() {
       this.skipWaitingCalls++;
@@ -124,5 +149,12 @@ export function loadServiceWorker() {
     navigate: (path: string) => dispatch("fetch", { request: request(path, { mode: "navigate" }) }),
     message: (data: unknown, origin = ORIGIN) => dispatch("message", { data, origin }),
     activate: () => dispatch("activate", {}),
+    /** A push message with this JSON payload (or raw text). */
+    push: (payload: unknown) =>
+      dispatch("push", { data: { json: () => (typeof payload === "string" ? JSON.parse(payload) : payload) } }),
+    notificationClick: (data: unknown) => {
+      const notification = { data, closed: false, close() { this.closed = true; } };
+      return dispatch("notificationclick", { notification }).then(() => notification);
+    },
   };
 }

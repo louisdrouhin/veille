@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { IconRefresh } from "@/components/ui/icons";
+import { runPageRefresh } from "@/lib/page-refresh";
 import { isStandalone } from "@/lib/pwa/client";
 import { canStartPull, classifyGesture, pullDistance, pullProgress, shouldRefresh } from "@/lib/pull-to-refresh";
 
@@ -77,7 +78,12 @@ export function PullToRefresh() {
       if (!gesture.current) return;
       const refresh = shouldRefresh(distanceRef.current);
       reset();
-      if (refresh) startRefresh(() => router.refresh());
+      // The page may add its own job first (Ma stack: a new check), then the data is re-rendered.
+      if (refresh)
+        startRefresh(async () => {
+          await runPageRefresh();
+          router.refresh();
+        });
     }
 
     window.addEventListener("touchstart", onStart, { passive: true });

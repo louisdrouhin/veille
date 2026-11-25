@@ -1,6 +1,7 @@
 import { ForumTable } from "@/components/forum/forum-table";
 import { FeaturedSection } from "@/components/home/featured";
 import { HomeStats } from "@/components/home/home-stats";
+import { StackBlock } from "@/components/home/stack-block";
 import { LatestUnread } from "@/components/home/latest-unread";
 import { InstallBanner } from "@/components/pwa/install-banner";
 import { LinkButton } from "@/components/ui/button";
@@ -10,20 +11,22 @@ import { getDb } from "@/lib/db";
 import { FEATURED_ENABLED } from "@/lib/flags";
 import { getFeatured, getForumsWithCounts, getHomeStats, getLatestUnread } from "@/lib/home";
 import { requireSession } from "@/lib/session";
+import { getHomeStack } from "@/lib/stack/queries";
 
 const FEATURED_WINDOW_MS = 3 * 24 * 3_600_000;
 
-/** Home (docs/design/v2 § 2): À la une · summary · latest unread · forums, same order on mobile and desktop. */
+/** Home (docs/design/v2 § 2): À la une · Ma stack (3.0) · summary · latest unread · forums, same order on mobile and desktop. */
 export default async function HomePage() {
   await requireSession();
   const db = getDb();
   const now = new Date();
 
-  const [stats, latest, forums, featured] = await Promise.all([
+  const [stats, latest, forums, featured, stack] = await Promise.all([
     getHomeStats(db, now),
     getLatestUnread(db, { limit: 8 }),
     getForumsWithCounts(db),
     FEATURED_ENABLED ? getFeatured(db, { limit: 3, since: new Date(now.getTime() - FEATURED_WINDOW_MS) }) : [],
+    getHomeStack(db),
   ]);
 
   if (stats.sourceCount === 0) {
@@ -51,6 +54,8 @@ export default async function HomePage() {
       <h1 className="sr-only">Accueil</h1>
       <div className="flex flex-col gap-4">
         <FeaturedSection items={featured} />
+        {/* Ma stack (3.0): above the stats, under « À la une ». */}
+        <StackBlock stack={stack} />
         <HomeStats stats={stats} />
         <LatestUnread topics={latest} />
         <section aria-labelledby="forums-title">

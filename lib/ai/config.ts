@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * Gemini (résumé / traduction), models checked in the docs (aistudio.google.com/docs, nov. 2026):
  * - summary: gemini-3.5-flash-lite — stable, free tier, made for high-volume, low-latency tasks;

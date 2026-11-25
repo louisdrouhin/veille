@@ -71,6 +71,13 @@
       "when": 1795591894103,
       "tag": "0009_ai_output_format",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795613246810,
+      "tag": "0010_stack",
+      "breakpoints": true
     }
   ]
 }

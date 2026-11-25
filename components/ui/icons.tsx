@@ -235,3 +235,42 @@ export function Logo({ size = 26, className }: { size?: number; className?: stri
     </svg>
   );
 }
+
+/** Ma stack (3.0): shield, in the header and the home block. */
+export const IconShield = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 1.75l5 1.9v3.85c0 3.15-2.1 5.6-5 6.75-2.9-1.15-5-3.6-5-6.75V3.65z" />
+  </Svg>
+);
+export const IconShieldCheck = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 1.75l5 1.9v3.85c0 3.15-2.1 5.6-5 6.75-2.9-1.15-5-3.6-5-6.75V3.65z" />
+    <path d="M5.75 8.1l1.6 1.6 3-3.2" />
+  </Svg>
+);
+/** « Exploitée »: warning triangle. */
+export const IconTriangle = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 2.25l6.25 11H1.75z" />
+    <path d="M8 6.5v3" />
+    <path d="M8 11.4v.01" strokeWidth={2} />
+  </Svg>
+);
+export const IconSearch = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M10.5 10.5l3.25 3.25" />
+  </Svg>
+);
+export const IconBell = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 11.25V7a4 4 0 0 1 8 0v4.25l1.25 1.25H2.75z" />
+    <path d="M6.5 14a1.6 1.6 0 0 0 3 0" />
+  </Svg>
+);
+export const IconExternal = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9.5 2.75h3.75V6.5M13.25 2.75L7.5 8.5" />
+    <path d="M11.5 9.5v3.25a.5.5 0 0 1-.5.5H3.25a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5H6.5" />
+  </Svg>
+);

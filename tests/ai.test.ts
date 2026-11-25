@@ -94,10 +94,21 @@ describe("configuration", () => {
 
   it("the key is only read on the server: no NEXT_PUBLIC_ variable, server-only modules", async () => {
     const { readFileSync } = await import("node:fs");
+    const { readdirSync } = await import("node:fs");
+    const root = path.join(import.meta.dirname, "..");
     for (const f of ["config.ts", "gemini.ts", "service.ts", "rate-limit.ts"]) {
-      const src = readFileSync(path.join(import.meta.dirname, "..", "lib", "ai", f), "utf8");
-      expect(src, f).toMatch(/^import "server-only";/);
+      const src = readFileSync(path.join(root, "lib", "ai", f), "utf8");
+      // config.ts and gemini.ts are bundled by the worker too (Ma stack summaries): no server-only
+      // there, but no client component may import them (checked below).
+      if (f === "service.ts" || f === "rate-limit.ts") expect(src, f).toMatch(/^import "server-only";/);
       expect(src, f).not.toMatch(/NEXT_PUBLIC/);
+    }
+    const files = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : []));
+    for (const f of [...files(path.join(root, "components")), ...files(path.join(root, "app"))]) {
+      const src = readFileSync(f, "utf8");
+      // Value imports only: `import type` is erased at build and bundles nothing.
+      if (/^["']use client["']/.test(src)) expect(src, f).not.toMatch(/^import (?!type )[^;]*from "@\/lib\/(?:ai\/(?:config|gemini)|stack\/(?:sync|summarize|sources))/m);
     }
   });
 

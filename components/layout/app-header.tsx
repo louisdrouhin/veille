@@ -6,14 +6,37 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { LogoutButton } from "@/components/account/logout-button";
 import { Avatar } from "@/components/account/avatar";
 import { Star } from "@/components/lists/star";
-import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, Logo } from "@/components/ui/icons";
+import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, Logo } from "@/components/ui/icons";
+import { runPageRefresh } from "@/lib/page-refresh";
 import { useStandalone } from "@/lib/pwa/client";
 
-export type NavCounts = { unread: number; lists: number; errors: number };
+export type NavCounts = { unread: number; lists: number; errors: number; stack: { open: number; critical: number } };
+
+/** « Ma stack, 5 alertes à traiter dont 2 critiques » (docs/design/3.0 § 3). */
+export function stackLabel({ open, critical }: NavCounts["stack"]): string {
+  if (open === 0) return "Ma stack";
+  return `Ma stack, ${open} alerte${open > 1 ? "s" : ""} à traiter${critical ? ` dont ${critical} critique${critical > 1 ? "s" : ""}` : ""}`;
+}
+
+/** Red (sev-critical) with at least one critical, else bar-accent; absent at 0. */
+function StackBadge({ counts, className = "" }: { counts: NavCounts["stack"]; className?: string }) {
+  if (counts.open === 0) return null;
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono text-[11px] leading-none font-bold ${
+        counts.critical ? "bg-sev-critical text-sev-critical-fg" : "bg-bar-accent text-bar"
+      } ${className}`}
+    >
+      {counts.open}
+    </span>
+  );
+}
 
 const NAV = [
   { href: "/", label: "Forums", match: (p: string) => p === "/" || p.startsWith("/f/") || p.startsWith("/t/") },
   { href: "/listes", label: "Listes", match: (p: string) => p === "/listes" || p.startsWith("/listes/") },
+  { href: "/stack", label: "Ma stack", match: (p: string) => p === "/stack" || p.startsWith("/stack/") },
   { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin") },
 ] as const;
 
@@ -27,6 +50,12 @@ const MENU_ROW =
 function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   if (href === "/") return counts.unread > 0 ? <span className="ml-auto font-mono text-sm text-bar-muted">{counts.unread} non lus</span> : null;
   if (href === "/listes") return <span className="ml-auto font-mono text-sm text-bar-muted">{counts.lists}</span>;
+  if (href === "/stack")
+    return counts.stack.open > 0 ? (
+      <span className={`ml-auto rounded-full px-2 text-xs leading-5 font-semibold ${counts.stack.critical ? "bg-sev-critical text-sev-critical-fg" : "bg-bar-accent text-bar"}`}>
+        {counts.stack.open} à traiter
+      </span>
+    ) : null;
   if (counts.errors > 0)
     return (
       <span className="ml-auto rounded-full bg-err px-2 text-xs leading-5 font-semibold text-err-fg">
@@ -36,7 +65,7 @@ function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   return null;
 }
 
-const MENU_ICONS = { "/": IconFolder, "/admin": IconSettings } as const;
+const MENU_ICONS = { "/": IconFolder, "/stack": IconShield, "/admin": IconSettings } as const;
 
 const NAV_LINK =
   "rounded-sm px-3 py-[7px] text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg " +
@@ -59,7 +88,12 @@ function RefreshButton({ className }: { className: string }) {
       aria-label="Actualiser"
       title="Actualiser"
       aria-busy={pending}
-      onClick={() => startTransition(() => router.refresh())}
+      onClick={() =>
+        startTransition(async () => {
+          await runPageRefresh();
+          router.refresh();
+        })
+      }
     >
       <IconRefresh size={18} className={pending ? "animate-spin" : undefined} />
     </button>
@@ -105,9 +139,12 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
               href={item.href}
               className={`${NAV_LINK} inline-flex items-center gap-1.5`}
               aria-current={item.match(pathname) ? "page" : undefined}
+              aria-label={item.href === "/stack" ? stackLabel(counts.stack) : undefined}
             >
               {item.href === "/listes" && <Star size={14} />}
+              {item.href === "/stack" && <IconShield size={15} />}
               {item.label}
+              {item.href === "/stack" && <StackBadge counts={counts.stack} />}
             </Link>
           ))}
         </nav>
@@ -125,6 +162,16 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
         </div>
 
         <div className="ml-auto flex items-center md:hidden">
+          {/* Ma stack shortcut, between the logo and the burger: 44 px, badge top right. */}
+          <Link
+            href="/stack/alertes"
+            aria-label={stackLabel(counts.stack)}
+            aria-current={pathname.startsWith("/stack") ? "page" : undefined}
+            className="relative inline-flex size-11 items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 hover:text-bar-fg aria-[current=page]:bg-white/10 focus-visible:outline-bar-accent"
+          >
+            <IconShield size={20} />
+            <StackBadge counts={counts.stack} className="absolute top-1 right-0.5" />
+          </Link>
           <RefreshButton className={`${REFRESH_CLASS} size-11`} />
         <button
           type="button"
@@ -144,7 +191,13 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
           {NAV.map((item) => {
             const Icon = item.href === "/listes" ? null : MENU_ICONS[item.href];
             return (
-              <Link key={item.href} href={item.href} className={MENU_ROW} aria-current={item.match(pathname) ? "page" : undefined}>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={MENU_ROW}
+                aria-current={item.match(pathname) ? "page" : undefined}
+                aria-label={item.href === "/stack" ? stackLabel(counts.stack) : undefined}
+              >
                 {Icon ? <Icon size={20} className="text-bar-muted" /> : <Star size={20} className="text-bar-muted" />}
                 {item.label}
                 <MenuExtra href={item.href} counts={counts} />

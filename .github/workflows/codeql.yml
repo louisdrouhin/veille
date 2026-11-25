@@ -3,8 +3,9 @@ name: CodeQL
 on:
   push:
     branches: [master]
+  # Release branches (release/3.0…) collect several PRs before a single PR to master.
   pull_request:
-    branches: [master]
+    branches: [master, "release/**"]
   schedule:
     - cron: "17 4 * * 1"
   workflow_dispatch:

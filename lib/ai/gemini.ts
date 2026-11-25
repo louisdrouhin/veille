@@ -1,6 +1,7 @@
-import "server-only";
-
-/** generateContent of the Gemini API (REST, server side only: the key never reaches the browser). */
+/**
+ * generateContent of the Gemini API (REST, server side only: the key never reaches the browser).
+ * No "server-only" import: the worker (Ma stack summaries) bundles it too, outside Next.js.
+ */
 export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 export const GEMINI_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 512 * 1024;

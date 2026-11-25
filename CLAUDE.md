@@ -32,6 +32,9 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`READM
 - **Flux** : branche → PR → CI verte (y compris CodeQL et le scan Trivy de l'image) → merge en squash →
   suppression de la branche → si la version a changé, la CI publie l'image sur GHCR et la Release `vX.Y.Z`
   (`.github/workflows/release.yml`) → déploiement de cette version (`APP_VERSION`) → vérification de `/api/health`.
+- **Version majeure** : branche d'intégration `release/X.0` ; chaque PR du lot y va (CI et CodeQL tournent sur les PR
+  vers `release/**`), sans montée de version ; à la fin, une seule PR `release/X.0` → `master` qui passe en X.0.0
+  avec l'entrée CHANGELOG.
 - **Version** : chaque PR qui change l'app monte la version de `package.json` (et les deux champs `version` en tête
   de `package-lock.json`, à la main) : **patch** pour un correctif, **mineure** pour une fonctionnalité, rien
   pour docs/tests/CI seuls. Ajouter l'entrée en tête de `CHANGELOG.md` (`## x.y.z — JJ/MM/AAAA`, puces en français,
@@ -52,9 +55,10 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`READM
   `MSYS_NO_PATHCONV=1` ou PowerShell. `tests/backup-script.test.ts` est instable sous Windows quand toute la suite
   tourne : le relancer seul avant de conclure.
 - **Rien de privé dans le dépôt** (IP, domaine, chemins ou comptes du serveur, secrets) : en cas de doute, lancer
-  `gitleaks`.
+  `gitleaks`. **Ma stack** : l'inventaire réel (logiciels, versions, contexte Travail) ne va jamais dans le dépôt, les
+  journaux ni le seed de démo ; exemples et tests avec des versions fictives et des CVE `CVE-2099-…`.
 - **Notes de design** : `docs/design/<version>/HANDOFF-<version>.md`, `<version>` étant la version de l'app qui
-  livre le lot, sans le patch (prochain lot : `3.0/`). Ne pas renommer `v1/` à `v3.1/` (des tests lisent
-  `docs/design/v3/`) ; tenir à jour la correspondance dans `docs/design/README.md`.
-- Design : tokens uniquement (`docs/design/v3/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
+  livre le lot, sans le patch (`3.0/`, puis `3.1/`…). Ne pas renommer les dossiers existants (le code et les tests
+  y renvoient) ; tenir à jour la correspondance dans `docs/design/README.md`.
+- Design : tokens uniquement (`docs/design/3.0/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
   en dur. Mode sombre par `data-theme` sur `<html>` (cookie `folders-theme`), jamais de script inline (CSP).
