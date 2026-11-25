@@ -18,6 +18,10 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Short commit shown in Mon compte › À propos, inlined at build (.git is not in the image):
+#   APP_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
+ARG APP_COMMIT=""
+ENV APP_COMMIT=$APP_COMMIT
 # Builds Next (standalone) + bundles worker, migrate, create-user and reset-password into dist/
 RUN npm run build
 

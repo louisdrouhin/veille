@@ -32,7 +32,12 @@ services:
       retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        # Commit shown in Mon compte › À propos (.git is not in the image):
+        #   APP_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
+        APP_COMMIT: ${APP_COMMIT:-}
     logging: *logging
     image: veille:latest
     restart: unless-stopped

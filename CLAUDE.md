@@ -31,6 +31,11 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`v1/`,
   co-auteur.
 - **Flux** : branche → PR → CI verte (y compris CodeQL) → merge en squash → suppression de la branche →
   déploiement → vérification de `/api/health`.
+- **Version** : chaque PR qui change l'app monte la version de `package.json` (et les deux champs `version` en tête
+  de `package-lock.json`, à la main) : **patch** pour un correctif, **mineure** pour une fonctionnalité, rien
+  pour docs/tests/CI seuls. Ajouter l'entrée en tête de `CHANGELOG.md` (`## x.y.z — JJ/MM/AAAA`, puces en français,
+  côté utilisateur). `tests/app-version.test.ts` vérifie la concordance. Elle s'affiche dans Mon compte › À propos
+  et « Nouveautés ».
 - **master est protégé** (historique linéaire, conversations résolues). CodeQL publie ses alertes en fils de revue :
   un merge « BLOCKED » avec CI verte = fil CodeQL non résolu. Corriger le code, jamais `--admin`.
 - **UI** : quand l'interface change, tester dans Chrome (desktop + mobile) sur un build de prod avant la PR.

@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
+import { AboutPanel } from "@/components/account/about-panel";
 import { Avatar } from "@/components/account/avatar";
 import { LogoutButton } from "@/components/account/logout-button";
 import { ThemePicker } from "@/components/account/theme-picker";
@@ -51,6 +52,7 @@ export default async function AccountPage() {
             <LogoutButton className={buttonClass("danger", "md")} />
           </div>
         </Panel>
+        <AboutPanel />
       </div>
     </>
   );
