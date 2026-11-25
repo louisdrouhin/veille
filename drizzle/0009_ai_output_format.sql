@@ -1,0 +1,1 @@
+ALTER TABLE "ai_outputs" ADD COLUMN "format" integer DEFAULT 1 NOT NULL;

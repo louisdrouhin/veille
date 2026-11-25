@@ -48,6 +48,7 @@ services:
       # Optional: « Résumer » / « Traduire » (Gemini). Empty: the buttons are hidden.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      GEMINI_TRANSLATE_MODEL: ${GEMINI_TRANSLATE_MODEL:-}
     ports:
       # Exposed to the existing reverse proxy (HTTPS is terminated upstream).
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"

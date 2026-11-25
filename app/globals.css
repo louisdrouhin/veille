@@ -341,7 +341,7 @@ html[data-standalone] { overscroll-behavior-y: none; }
   padding-right: env(safe-area-inset-right);
 }
 
-/* ---------- Mode lecture (HTML assaini : p, h2-h4, listes, a, strong, em, blockquote, pre/code, img, figure) ---------- */
+/* ---------- Mode lecture (HTML assaini : p, h2-h4, listes, a, strong, em, blockquote, pre/code, img, figure, tableaux) ---------- */
 @layer components {
   .reader {
     @apply flex max-w-[72ch] flex-col gap-3 text-md break-words;
@@ -364,4 +364,9 @@ html[data-standalone] { overscroll-behavior-y: none; }
   .reader img { @apply h-auto max-w-full rounded-sm; }
   .reader figure { @apply flex flex-col gap-1.5; }
   .reader figcaption { @apply text-sm text-fg-muted; }
+  /* A wide table scrolls on its own instead of widening the page. */
+  .reader table { @apply block max-w-full overflow-x-auto border-collapse text-sm; }
+  .reader caption { @apply pb-1 text-left text-fg-muted; }
+  .reader :where(th, td) { @apply border border-line px-2 py-1 text-left align-top; }
+  .reader th { @apply bg-surface-alt font-semibold; }
 }
