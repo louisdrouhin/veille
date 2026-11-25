@@ -6,14 +6,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseTheme, themeCookieOptions, THEMES } from "@/lib/theme";
-import { color, DARK, GLOBALS_CSS, LIGHT, SYSTEM_DARK } from "./helpers/tokens";
+import { color, contrast, DARK, GLOBALS_CSS, LIGHT, SYSTEM_DARK } from "./helpers/tokens";
 
 const ROOT = path.join(import.meta.dirname, "..");
 const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
 
 describe("design tokens v2", () => {
-  it("match docs/design/v3/veille-tokens.css (v2 + favorite lists), light and dark, in both directions", () => {
-    const doc = read("docs", "design", "v3", "veille-tokens.css");
+  it("match docs/design/3.0/veille-tokens.css (v2 + favorite lists + severities), light and dark, in both directions", () => {
+    const doc = read("docs", "design", "3.0", "veille-tokens.css");
     for (const [selector, tokens] of [
       [':root,\n:root[data-theme="light"] {', LIGHT],
       [':root[data-theme="dark"] {', DARK],
@@ -35,6 +35,34 @@ describe("design tokens v2", () => {
       expect(DARK[name], name).toBeDefined();
       expect(SYSTEM_DARK[name], name).toBe(DARK[name]);
       expect(GLOBALS_CSS).toContain(`--color-${name}: var(--${name});`);
+    }
+  });
+
+  it("3.0 severity tokens: values of the design note, in the three blocks and exposed to Tailwind", () => {
+    const sev = ["critical", "critical-soft", "critical-fg", "high", "high-soft", "medium", "medium-soft", "low", "low-soft"].map((s) => `sev-${s}`);
+    for (const name of sev) {
+      expect(SYSTEM_DARK[name], name).toBe(DARK[name]);
+      expect(GLOBALS_CSS).toContain(`--color-${name}: var(--${name});`);
+    }
+    // « Rouge = critique ou erreur, rien d'autre » : critical is the error red, in both themes.
+    for (const t of [LIGHT, DARK]) {
+      expect(color(t, "sev-critical")).toBe(color(t, "err"));
+      expect(color(t, "sev-critical-soft")).toBe(color(t, "err-soft"));
+      expect(color(t, "sev-critical-fg")).toBe(color(t, "err-fg"));
+    }
+    expect([LIGHT["sev-high"], LIGHT["sev-medium"], LIGHT["sev-low"]]).toEqual(["#A54A0A", "#7A5F00", "#4F5C68"]);
+    expect([DARK["sev-high"], DARK["sev-medium"], DARK["sev-low"]]).toEqual(["#F2A465", "#D8B84C", "#A9B4BE"]);
+  });
+
+  it("severity colors: ≥ 5:1 on their soft background and on every surface, in both themes", () => {
+    for (const [theme, t] of [["clair", LIGHT], ["sombre", DARK]] as const) {
+      for (const level of ["critical", "high", "medium", "low"]) {
+        const fg = color(t, `sev-${level}`);
+        for (const bg of [`sev-${level}-soft`, "bg", "surface", "surface-alt"]) {
+          expect(contrast(fg, color(t, bg)), `${theme} sev-${level} sur ${bg}`).toBeGreaterThanOrEqual(5);
+        }
+      }
+      expect(contrast(color(t, "sev-critical-fg"), color(t, "sev-critical")), `${theme} badge critique`).toBeGreaterThanOrEqual(4.5);
     }
   });
 

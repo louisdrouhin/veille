@@ -5,11 +5,15 @@ import {
   customType,
   index,
   integer,
+  jsonb,
+  numeric,
   pgTable,
   primaryKey,
   serial,
   text,
+  time,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { LIST_COLORS } from "@/lib/lists/palette";
 import { THEMES } from "@/lib/theme";
@@ -246,6 +250,255 @@ export const workerStatus = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Ma stack (docs/design/3.0): software I run, its versions, the CVEs that touch them
+// ---------------------------------------------------------------------------
+
+export const VERSION_SCHEMES = ["semver", "debian", "vendor"] as const;
+export type VersionScheme = (typeof VERSION_SCHEMES)[number];
+export const STACK_CONTEXTS = ["homelab", "work"] as const;
+export type StackContext = (typeof STACK_CONTEXTS)[number];
+export const SEVERITIES = ["critical", "high", "medium", "low"] as const;
+export type Severity = (typeof SEVERITIES)[number];
+export const ALERT_STATES = ["new", "seen", "done", "ignored"] as const;
+export type AlertState = (typeof ALERT_STATES)[number];
+/** Why an alert was closed: the version was changed, by hand, or the software was removed. */
+export const DONE_REASONS = ["updated", "manual", "removed"] as const;
+export type DoneReason = (typeof DONE_REASONS)[number];
+export const IGNORE_REASONS = ["not_exposed", "not_concerned", "backport", "other"] as const;
+export type IgnoreReason = (typeof IGNORE_REASONS)[number];
+export const NOTIFY_THRESHOLDS = ["critical", "high", "medium", "all"] as const;
+export type NotifyThreshold = (typeof NOTIFY_THRESHOLDS)[number];
+
+/**
+ * Products that can be matched automatically. `key` identifies a catalog entry (lib/stack/catalog.ts,
+ * upserted at every start); entries found in the NVD CPE dictionary have `key = null`.
+ * The last columns are the sync state (lib/stack/sync.ts).
+ */
+export const products = pgTable(
+  "products",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").unique(),
+    name: text("name").notNull(),
+    vendor: text("vendor").notNull(),
+    /** cpe:2.3:<part>:<vendor>:<product> (NVD). */
+    cpePrefix: text("cpe_prefix").unique(),
+    /** owner/repo (GitHub releases and security advisories). */
+    githubRepo: text("github_repo"),
+    versionScheme: text("version_scheme", { enum: VERSION_SCHEMES }).notNull().default("vendor"),
+    /** Where to read the version (« pveversion », « winver »…), shown under the field. */
+    versionHint: text("version_hint"),
+    nvdSyncedAt: tsz("nvd_synced_at"),
+    githubSyncedAt: tsz("github_synced_at"),
+    /** Last stable release (GitHub) and the few before it, newest first. */
+    latestVersion: text("latest_version"),
+    recentVersions: text("recent_versions").array().notNull().default(sql`'{}'::text[]`),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("products_scheme_check", sql`${t.versionScheme} in ('semver', 'debian', 'vendor')`),
+    check("products_source_check", sql`${t.cpePrefix} is not null or ${t.githubRepo} is not null`),
+  ],
+);
+
+/**
+ * A piece of software in my stack. `productId = null`: « suivi par nom » (no automatic match).
+ * Removing it keeps its row (`removedAt`) so that its closed alerts stay in « Traitées ».
+ */
+export const stackItems = pgTable(
+  "stack_items",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id").references(() => products.id, { onDelete: "restrict" }),
+    customName: text("custom_name"),
+    version: text("version").notNull(),
+    context: text("context", { enum: STACK_CONTEXTS }).notNull(),
+    /** Distribution package (« Debian openssh 1:9.2p1-2+deb12u3 »): kept for later, not compared yet. */
+    distroPackage: text("distro_package"),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+    removedAt: tsz("removed_at"),
+  },
+  (t) => [
+    check("stack_items_context_check", sql`${t.context} in ('homelab', 'work')`),
+    check("stack_items_name_check", sql`${t.productId} is not null or length(trim(${t.customName})) between 1 and 80`),
+    check("stack_items_version_check", sql`length(trim(${t.version})) between 1 and 64`),
+    // A product once per context (OpenSSH at home and at work are two items).
+    uniqueIndex("stack_items_product_context_idx").on(t.productId, t.context).where(sql`removed_at is null and product_id is not null`),
+  ],
+);
+
+/** One affected range, compared with the product's version scheme (lib/stack/versions.ts). */
+export type AffectedRange = {
+  /** An exact version (NVD criteria with a version)… */
+  exact?: string;
+  /** …that covers its updates too (« 8.0 » with update `*`: 8.0, 8.0 U1, 8.0 U2…). */
+  anyUpdate?: boolean;
+  /** Or bounds; none at all = every version. */
+  start?: string;
+  startIncluding?: boolean;
+  end?: string;
+  endIncluding?: boolean;
+  /** Version that fixes it, when the source says so (GitHub « patched_versions »). */
+  fixed?: string;
+  /** Where the range comes from: a source replaces its own ranges only. */
+  src?: "nvd" | "github";
+};
+export type VulnSourceKind = "certfr" | "nvd" | "github" | "vendor";
+export type VulnSource = { kind: VulnSourceKind; ref: string; url: string };
+
+/**
+ * A vulnerability (CVE, or GHSA without CVE). Texts from NVD, GitHub and CERT-FR are untrusted:
+ * only shown as plain text, and given to Gemini as data (lib/stack/summarize.ts).
+ */
+export const vulnerabilities = pgTable(
+  "vulnerabilities",
+  {
+    id: serial("id").primaryKey(),
+    /** CVE-… or GHSA-…: the identity of the row. */
+    ref: text("ref").notNull().unique(),
+    cveId: text("cve_id"),
+    titleFr: text("title_fr"),
+    summaryFr: text("summary_fr"),
+    /** Who wrote the French texts: the CERT-FR advisory, or Gemini (« Généré par IA »). */
+    textSource: text("text_source", { enum: ["certfr", "ai"] }),
+    actionsFr: jsonb("actions_fr").$type<string[]>().notNull().default([]),
+    descriptionEn: text("description_en").notNull().default(""),
+    cvss: numeric("cvss", { precision: 3, scale: 1, mode: "number" }),
+    severity: text("severity", { enum: SEVERITIES }).notNull(),
+    exploited: boolean("exploited").notNull().default(false),
+    publishedAt: tsz("published_at").notNull(),
+    updatedAt: tsz("updated_at").notNull(),
+    sources: jsonb("sources").$type<VulnSource[]>().notNull().default([]),
+    /** A Folders topic mentioning the same CVE (title, excerpt or article). */
+    topicId: integer("topic_id").references(() => topics.id, { onDelete: "set null" }),
+    /** CERT-FR advisory already applied (its reference). */
+    certfrRef: text("certfr_ref"),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("vulnerabilities_cve_idx").on(t.cveId),
+    check("vulnerabilities_severity_check", sql`${t.severity} in ('critical', 'high', 'medium', 'low')`),
+    check("vulnerabilities_text_source_check", sql`${t.textSource} in ('certfr', 'ai')`),
+  ],
+);
+
+/** Which versions of a product a vulnerability touches, and the versions that fix it. */
+export const vulnerabilityProducts = pgTable(
+  "vulnerability_products",
+  {
+    vulnerabilityId: integer("vulnerability_id")
+      .notNull()
+      .references(() => vulnerabilities.id, { onDelete: "cascade" }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    ranges: jsonb("ranges").$type<AffectedRange[]>().notNull(),
+    fixedVersions: text("fixed_versions").array().notNull().default(sql`'{}'::text[]`),
+  },
+  (t) => [primaryKey({ columns: [t.vulnerabilityId, t.productId] }), index("vulnerability_products_product_idx").on(t.productId)],
+);
+
+/**
+ * A vulnerability that touches the version of a stack item. `notifiedAt`: push sent, or not needed
+ * (alerts found while adding or editing are on screen already); `notifiedExploited`: the
+ * « exploitée » notification was sent.
+ */
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: serial("id").primaryKey(),
+    stackItemId: integer("stack_item_id")
+      .notNull()
+      .references(() => stackItems.id, { onDelete: "cascade" }),
+    vulnerabilityId: integer("vulnerability_id")
+      .notNull()
+      .references(() => vulnerabilities.id, { onDelete: "cascade" }),
+    state: text("state", { enum: ALERT_STATES }).notNull().default("new"),
+    doneReason: text("done_reason", { enum: DONE_REASONS }),
+    ignoredReason: text("ignored_reason", { enum: IGNORE_REASONS }),
+    ignoredNote: text("ignored_note"),
+    doneAt: tsz("done_at"),
+    notifiedAt: tsz("notified_at"),
+    notifiedExploited: boolean("notified_exploited").notNull().default(false),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("alerts_item_vuln_idx").on(t.stackItemId, t.vulnerabilityId),
+    index("alerts_state_idx").on(t.state),
+    check("alerts_state_check", sql`${t.state} in ('new', 'seen', 'done', 'ignored')`),
+    check("alerts_done_reason_check", sql`${t.doneReason} in ('updated', 'manual', 'removed')`),
+    check("alerts_ignored_reason_check", sql`${t.ignoredReason} in ('not_exposed', 'not_concerned', 'backport', 'other')`),
+  ],
+);
+
+/**
+ * CERT-FR advisories (avis, alertes) seen in its feeds, kept so that each is downloaded once (again
+ * when its feed entry changes, « [MàJ] »). Their French texts are applied to the matching CVEs.
+ */
+export const certfrAdvisories = pgTable("certfr_advisories", {
+  ref: text("ref").primaryKey(),
+  kind: text("kind", { enum: ["avis", "alerte"] }).notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  solution: text("solution").notNull().default(""),
+  cves: text("cves").array().notNull().default(sql`'{}'::text[]`),
+  exploited: boolean("exploited").notNull().default(false),
+  url: text("url").notNull(),
+  /** Feed title when downloaded: a different one means the advisory was updated. */
+  feedTitle: text("feed_title").notNull(),
+  fetchedAt: tsz("fetched_at").notNull(),
+});
+
+/** Ma stack's sync state (single row, id = 1). `runningUntil`: lease, two checks never overlap. */
+export const stackStatus = pgTable(
+  "stack_status",
+  {
+    id: integer("id").primaryKey().default(1),
+    lastCheckAt: tsz("last_check_at"),
+    /** Last check where every source answered: the statuses date from then. */
+    lastFullCheckAt: tsz("last_full_check_at"),
+    /** Sources that failed during the last check (« nvd », « certfr », « github »). */
+    failedSources: text("failed_sources").array().notNull().default(sql`'{}'::text[]`),
+    runningUntil: tsz("running_until"),
+    /** Last check asked by hand (pull to refresh, « Réessayer »): at most one every 5 min. */
+    requestedAt: tsz("requested_at"),
+  },
+  (t) => [check("stack_status_singleton", sql`${t.id} = 1`)],
+);
+
+/** Web Push subscriptions, one per device (endpoint on a known push service, lib/push). */
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull().unique(),
+  keys: jsonb("keys").$type<{ p256dh: string; auth: string }>().notNull(),
+  userAgent: text("user_agent"),
+  createdAt: tsz("created_at").notNull().defaultNow(),
+  lastOkAt: tsz("last_ok_at"),
+});
+
+/** Notification settings (single row, id = 1). */
+export const notificationSettings = pgTable(
+  "notification_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    threshold: text("threshold", { enum: NOTIFY_THRESHOLDS }).notNull().default("high"),
+    exploitedAlways: boolean("exploited_always").notNull().default(true),
+    quietEnabled: boolean("quiet_enabled").notNull().default(true),
+    quietFrom: time("quiet_from").notNull().default("22:00"),
+    quietTo: time("quiet_to").notNull().default("07:30"),
+    /** « Notifications discrètes »: generic title and body, per context (on for Travail by default). */
+    discreetHomelab: boolean("discreet_homelab").notNull().default(false),
+    discreetWork: boolean("discreet_work").notNull().default(true),
+  },
+  (t) => [
+    check("notification_settings_singleton", sql`${t.id} = 1`),
+    check("notification_settings_threshold_check", sql`${t.threshold} in ('critical', 'high', 'medium', 'all')`),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Better Auth tables (core schema for email + password, two-factor plugin)
 // ---------------------------------------------------------------------------
 
@@ -341,3 +594,7 @@ export type Topic = typeof topics.$inferSelect;
 export type Reply = typeof replies.$inferSelect;
 export type SourceFavicon = typeof sourceFavicons.$inferSelect;
 export type ArticleContent = typeof articleContents.$inferSelect;
+export type Product = typeof products.$inferSelect;
+export type StackItem = typeof stackItems.$inferSelect;
+export type Vulnerability = typeof vulnerabilities.$inferSelect;
+export type Alert = typeof alerts.$inferSelect;

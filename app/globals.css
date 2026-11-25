@@ -1,6 +1,6 @@
 /* =========================================================================
    Folders — design tokens v2 (Tailwind CSS v4, Next.js 16)
-   Source : docs/design/v3/veille-tokens.css (v2 + listes de favoris ; ne pas diverger sur les couleurs).
+   Source : docs/design/3.0/veille-tokens.css (v2 + listes de favoris + gravités ; ne pas diverger sur les couleurs).
 
    Thème : attribut data-theme sur <html>, rendu côté serveur depuis le cookie
    folders-theme (app/layout.tsx, lib/theme.ts) :
@@ -79,6 +79,17 @@
   --list-rose: #AD2E68;
   --list-violet: #6B47AE;
 
+  /* 3.0 — Ma stack : gravités (rouge = critique ou erreur, rien d'autre) */
+  --sev-critical: #B42318;
+  --sev-critical-soft: #FCE8E6;
+  --sev-critical-fg: #FFFFFF;
+  --sev-high: #A54A0A;
+  --sev-high-soft: #FBEBDD;
+  --sev-medium: #7A5F00;
+  --sev-medium-soft: #FAF2D3;
+  --sev-low: #4F5C68;
+  --sev-low-soft: #EBEEF1;
+
   color-scheme: light;
 }
 
@@ -132,6 +143,17 @@
   --list-orange: #F2A465;
   --list-rose: #F28CBB;
   --list-violet: #BBA4F2;
+
+  /* 3.0 — Ma stack : gravités (rouge = critique ou erreur, rien d'autre) */
+  --sev-critical: #F2877B;
+  --sev-critical-soft: #351816;
+  --sev-critical-fg: #1A0B09;
+  --sev-high: #F2A465;
+  --sev-high-soft: #33200F;
+  --sev-medium: #D8B84C;
+  --sev-medium-soft: #2C2510;
+  --sev-low: #A9B4BE;
+  --sev-low-soft: #22272B;
 
   color-scheme: dark;
 }
@@ -189,6 +211,17 @@
     --list-orange: #F2A465;
     --list-rose: #F28CBB;
     --list-violet: #BBA4F2;
+
+    /* 3.0 — Ma stack : gravités (rouge = critique ou erreur, rien d'autre) */
+    --sev-critical: #F2877B;
+    --sev-critical-soft: #351816;
+    --sev-critical-fg: #1A0B09;
+    --sev-high: #F2A465;
+    --sev-high-soft: #33200F;
+    --sev-medium: #D8B84C;
+    --sev-medium-soft: #2C2510;
+    --sev-low: #A9B4BE;
+    --sev-low-soft: #22272B;
 
     color-scheme: dark;
   }
@@ -248,6 +281,17 @@
   --color-list-orange: var(--list-orange);
   --color-list-rose: var(--list-rose);
   --color-list-violet: var(--list-violet);
+
+  /* 3.0 — Ma stack */
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-critical-soft: var(--sev-critical-soft);
+  --color-sev-critical-fg: var(--sev-critical-fg);
+  --color-sev-high: var(--sev-high);
+  --color-sev-high-soft: var(--sev-high-soft);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-medium-soft: var(--sev-medium-soft);
+  --color-sev-low: var(--sev-low);
+  --color-sev-low-soft: var(--sev-low-soft);
 
   --shadow-sm: var(--elev-sm);
   --shadow-md: var(--elev-md);
