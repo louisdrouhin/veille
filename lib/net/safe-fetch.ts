@@ -10,6 +10,9 @@
  * - redirects followed manually (max 3), every hop re-checked;
  * - body size capped while streaming (see readLimited).
  *
+ * Also used for the Ma stack sources (NVD, CERT-FR, GitHub) and to send Web Push messages (POST to a
+ * push service, lib/push): a POST never follows a redirect.
+ *
  * Feed URLs are NOT fetched through this (they are typed by the owner).
  */
 import dns from "node:dns";
@@ -154,9 +157,14 @@ export type SafeFetchOptions = {
   resolve?: Resolver;
   /** Injected in tests; defaults to undici fetch through the guarded agent. */
   fetchImpl?: typeof fetch;
+  /** GET (default) or POST; a POST is never redirected (a 3xx is returned as is). */
+  method?: "GET" | "POST";
+  /** Extra request headers (API keys, conditional requests, push headers). */
+  headers?: Record<string, string>;
+  body?: Uint8Array | string;
 };
 
-/** GET with SSRF checks on the URL and on every redirect hop. Throws SsrfError when refused. */
+/** GET (or POST) with SSRF checks on the URL and on every redirect hop. Throws SsrfError when refused. */
 export async function safeFetch(input: string, opts: SafeFetchOptions = {}): Promise<Response> {
   const maxRedirects = opts.maxRedirects ?? MAX_REDIRECTS;
   const fetchImpl = opts.fetchImpl ?? guardedFetch;
@@ -170,17 +178,20 @@ export async function safeFetch(input: string, opts: SafeFetchOptions = {}): Pro
 
   for (let hop = 0; ; hop++) {
     await assertPublicUrl(url, opts.resolve);
+    const method = opts.method ?? "GET";
     const res = await fetchImpl(url.toString(), {
-      method: "GET",
+      method,
       redirect: "manual",
       signal,
       headers: {
         ...(opts.accept ? { Accept: opts.accept } : {}),
         ...(opts.userAgent ? { "User-Agent": opts.userAgent } : {}),
+        ...opts.headers,
       },
+      ...(method === "POST" && opts.body !== undefined ? { body: opts.body as BodyInit } : {}),
     });
     const location = res.headers.get("location");
-    if (res.status >= 300 && res.status < 400 && location) {
+    if (method === "GET" && res.status >= 300 && res.status < 400 && location) {
       await res.body?.cancel().catch(() => {});
       if (hop >= maxRedirects) throw new SsrfError(`Trop de redirections (max ${maxRedirects})`);
       try {

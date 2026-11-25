@@ -1,0 +1,78 @@
+[
+ {
+  "ghsa_id": "GHSA-7jg8-8m5x-6j9r",
+  "cve_id": null,
+  "url": "https://api.github.com/repos/dani-garcia/vaultwarden/security-advisories/GHSA-7jg8-8m5x-6j9r",
+  "html_url": "https://github.com/dani-garcia/vaultwarden/security/advisories/GHSA-7jg8-8m5x-6j9r",
+  "summary": "vaultwarden: device-level 2FA \"remember\" tokens survive admin-initiated 2FA removal, allowing 2FA bypass for up to 30 days (residual gap in fix f1ff613)",
+  "description": "## Summary\r\n\r\nCommit `f1ff613` (\"revoke 2FA remember tokens when credentials or 2FA change\", released in 1.37.3) established that whenever a user's second factors change, every device's 30-day `twofactor_remember` token must be revoked. The fix covered the user self-service paths, the recovery-code path, and the security-stamp rotation chain - but missed the two administrative remediation paths that strip a user's second factor:\r\n\r\n- the admin panel endpoint `POST /admin/users/<user_id>/remove-2fa` (`src/api/admin.rs:508-514`), and\r\n- organization account recovery with `resetTwoFactor=true` bu",
+  "severity": "medium",
+  "state": "published",
+  "published_at": "2026-10-28T18:00:11Z",
+  "updated_at": "2026-10-28T18:00:11Z",
+  "withdrawn_at": null,
+  "vulnerabilities": [
+   {
+    "package": {
+     "ecosystem": "rust",
+     "name": "vaultwarden"
+    },
+    "vulnerable_version_range": "<=1.37.3",
+    "patched_versions": "1.37.4",
+    "vulnerable_functions": []
+   }
+  ],
+  "cvss_severities": {
+   "cvss_v3": {
+    "vector_string": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
+    "score": 6.8
+   },
+   "cvss_v4": {
+    "vector_string": null,
+    "score": null
+   }
+  },
+  "cvss": {
+   "vector_string": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
+   "score": 6.8
+  }
+ },
+ {
+  "ghsa_id": "GHSA-qwx4-wcv4-mpcv",
+  "cve_id": null,
+  "url": "https://api.github.com/repos/dani-garcia/vaultwarden/security-advisories/GHSA-qwx4-wcv4-mpcv",
+  "html_url": "https://github.com/dani-garcia/vaultwarden/security/advisories/GHSA-qwx4-wcv4-mpcv",
+  "summary": "Organization Admin can revoke and delete Owners through an Admin-mintable organization API key",
+  "description": "### Summary\r\n\r\nA confirmed organization Admin can revoke and permanently delete Owners and fellow Admins. The ordinary member removal route refuses exactly this, by name, with \"Only Owners can delete Admins or Owners\". The Admin instead creates the organization API key, which is guarded at Admin level where upstream requires Owner, and drives the public import endpoint, which applies no caller role check and does not exclude Owners.\r\n\r\n### Details\r\n\r\nTwo independent divergences from upstream combine. Either one alone is defensible design.\r\n\r\n`api_key()` in `src/api/core/organizations.rs` is gu",
+  "severity": "low",
+  "state": "published",
+  "published_at": "2026-10-28T18:00:28Z",
+  "updated_at": "2026-10-28T18:00:28Z",
+  "withdrawn_at": null,
+  "vulnerabilities": [
+   {
+    "package": {
+     "ecosystem": "rust",
+     "name": "vaultwarden"
+    },
+    "vulnerable_version_range": "<=1.37.3",
+    "patched_versions": "1.37.4",
+    "vulnerable_functions": []
+   }
+  ],
+  "cvss_severities": {
+   "cvss_v3": {
+    "vector_string": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:L",
+    "score": 3.8
+   },
+   "cvss_v4": {
+    "vector_string": null,
+    "score": null
+   }
+  },
+  "cvss": {
+   "vector_string": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:L",
+   "score": 3.8
+  }
+ }
+]

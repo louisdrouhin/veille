@@ -216,3 +216,19 @@ describe("connection-time guard (real sockets, no injected transport)", () => {
     expect(hits).toBe(0);
   });
 });
+
+describe("POST and extra headers (Ma stack APIs, Web Push)", () => {
+  it("sends the method, headers and body; a POST never follows a redirect", async () => {
+    const seen: RequestInit[] = [];
+    const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+      seen.push(init ?? {});
+      return new Response(null, { status: 307, headers: { location: "http://127.0.0.1/" } });
+    }) as typeof fetch;
+    const body = new Uint8Array([1, 2, 3]);
+    const res = await safeFetch("https://push.example.com/send/1", { method: "POST", headers: { TTL: "60" }, body, resolve: publicDns, fetchImpl });
+    expect(res.status).toBe(307);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ method: "POST", redirect: "manual", body });
+    expect((seen[0]!.headers as Record<string, string>).TTL).toBe("60");
+  });
+});

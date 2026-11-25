@@ -1,11 +1,14 @@
 /**
  * Feed fetching worker: every FETCH_INTERVAL_MINUTES (default 15), fetches
  * every enabled, non-paused source. Runs as its own process / container.
+ * Then, every STACK_CHECK_INTERVAL_MINUTES (default 30), the Ma stack check (lib/stack/sync.ts).
  *
  *   node dist/worker.js          loop forever
  *   node dist/worker.js --once   run a single cycle and exit (exit code 1 if the cycle crashed)
  */
+import { aiConfig } from "@/lib/ai/config";
 import { closeDb, getDb } from "@/lib/db";
+import { checkIfDue, CHECK_INTERVAL_MIN } from "@/lib/stack/sync";
 import { recordCycle } from "@/lib/worker/heartbeat";
 import { runCycle } from "@/lib/worker/run-cycle";
 
@@ -16,6 +19,7 @@ if (!Number.isFinite(intervalMinutes) || intervalMinutes < 1) {
   process.exit(1);
 }
 const concurrency = Math.max(1, Number(process.env.FETCH_CONCURRENCY ?? 4));
+const stackInterval = Math.max(5, Number(process.env.STACK_CHECK_INTERVAL_MINUTES) || CHECK_INTERVAL_MIN);
 
 let stopping = false;
 let wake: (() => void) | undefined;
@@ -37,12 +41,23 @@ async function cycle(): Promise<boolean> {
   try {
     const stats = await runCycle(getDb(), { concurrency, log, shouldStop: () => stopping });
     log(`Cycle terminé : ${stats.inserted} topic(s), ${stats.notModified} inchangée(s), ${stats.failed} en erreur`);
+    await stackCheck();
     // Heartbeat read by /api/health (503 after 3 intervals without a completed cycle).
     await recordCycle(getDb(), { startedAt, finishedAt: new Date(), intervalMinutes });
     return true;
   } catch (err) {
     log("Cycle en échec :", err);
     return false;
+  }
+}
+
+/** Ma stack: its own failures never stop the feeds. Logged without any detail of the stack. */
+async function stackCheck() {
+  if (stopping) return;
+  try {
+    await checkIfDue(getDb(), { env: process.env, ai: aiConfig(), log }, stackInterval);
+  } catch (err) {
+    log(`[stack] Vérification en échec : ${(err as Error)?.name ?? "erreur"}`);
   }
 }
 

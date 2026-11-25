@@ -54,7 +54,7 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`READM
 - **Rien de privé dans le dépôt** (IP, domaine, chemins ou comptes du serveur, secrets) : en cas de doute, lancer
   `gitleaks`.
 - **Notes de design** : `docs/design/<version>/HANDOFF-<version>.md`, `<version>` étant la version de l'app qui
-  livre le lot, sans le patch (prochain lot : `3.0/`). Ne pas renommer `v1/` à `v3.1/` (des tests lisent
-  `docs/design/v3/`) ; tenir à jour la correspondance dans `docs/design/README.md`.
-- Design : tokens uniquement (`docs/design/v3/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
+  livre le lot, sans le patch (`3.0/`, puis `3.1/`…). Ne pas renommer les dossiers existants (le code et les tests
+  y renvoient) ; tenir à jour la correspondance dans `docs/design/README.md`.
+- Design : tokens uniquement (`docs/design/3.0/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
   en dur. Mode sombre par `data-theme` sur `<html>` (cookie `folders-theme`), jamais de script inline (CSP).
