@@ -1,0 +1,12 @@
+# Builds the image from this checkout instead of pulling it from GHCR (development, a fork,
+# or testing a change before it is released):
+#   APP_VERSION=local APP_COMMIT=$(git rev-parse --short HEAD) \
+#     docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# The image is tagged ghcr.io/louisdrouhin/veille:local on this machine only (never pushed).
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Commit shown in Mon compte › À propos (.git is not in the image).
+        APP_COMMIT: ${APP_COMMIT:-}

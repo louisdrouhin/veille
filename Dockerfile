@@ -32,7 +32,12 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
-RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app
+RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app \
+    # Nothing runs npm, yarn or corepack in production (app and worker are plain `node`): removed,
+    # with their bundled dependencies, to keep the published image small and its scan clean.
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+              /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+              /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
 
 COPY --from=builder --chown=app:app /app/.next/standalone ./
 COPY --from=builder --chown=app:app /app/.next/static ./.next/static

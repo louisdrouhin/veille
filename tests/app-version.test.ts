@@ -49,12 +49,13 @@ describe("build metadata (next.config.ts → bundle)", () => {
     expect(cfg.output).toBe("standalone");
   });
 
-  it("Docker: APP_COMMIT is a build arg set before the build, passed by compose; CHANGELOG.md is in the context", () => {
+  it("Docker: APP_COMMIT is a build arg set before the build, passed by CI and the local build file; CHANGELOG.md is in the context", () => {
     const dockerfile = read("Dockerfile");
     expect(dockerfile.indexOf('ARG APP_COMMIT=""')).toBeGreaterThan(0);
     expect(dockerfile.indexOf("ARG APP_COMMIT")).toBeLessThan(dockerfile.indexOf("RUN npm run build"));
     expect(dockerfile).toContain("ENV APP_COMMIT=$APP_COMMIT");
-    expect(read("docker-compose.yml")).toMatch(/args:\n(?:\s+#.*\n)*\s+APP_COMMIT: \$\{APP_COMMIT:-\}/);
+    expect(read("docker-compose.build.yml")).toMatch(/args:\n(?:\s+#.*\n)*\s+APP_COMMIT: \$\{APP_COMMIT:-\}/);
+    expect(read(".github/workflows/release.yml")).toContain("build-args: APP_COMMIT=");
     expect(read("docker-compose.yml")).toMatch(/^name: veille$/m);
     expect(read(".dockerignore")).not.toMatch(/CHANGELOG/);
   });

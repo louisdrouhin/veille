@@ -4,6 +4,15 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 2.13.0 — 25/11/2026
+
+- **Releases automatiques** : chaque nouvelle version crée son tag et sa Release GitHub, avec ces notes.
+- **Image publiée** sur `ghcr.io/louisdrouhin/veille` (tags `X.Y.Z`, `X.Y`, commit et `latest`), construite par
+  la CI, analysée par Trivy et accompagnée de sa provenance et de son SBOM.
+- Déploiement par version (`APP_VERSION`) avec `docker compose pull`, et retour arrière en remettant la version
+  précédente.
+- Image plus légère : sans npm, yarn ni corepack.
+
 ## 2.12.0 — 25/11/2026
 
 - **À propos** dans Mon compte : version, commit (lien vers GitHub) et date du build, fixés au moment du build.

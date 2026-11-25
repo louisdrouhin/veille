@@ -32,14 +32,11 @@ services:
       retries: 10
 
   app:
-    build:
-      context: .
-      args:
-        # Commit shown in Mon compte › À propos (.git is not in the image):
-        #   APP_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
-        APP_COMMIT: ${APP_COMMIT:-}
+    # Image built, scanned and published by CI (.github/workflows/release.yml), one tag per version.
+    # APP_VERSION (server .env) fixes the version: going back = setting the previous one again.
+    # To build locally instead: docker-compose.build.yml.
+    image: ghcr.io/louisdrouhin/veille:${APP_VERSION:?APP_VERSION manquant (version de l'image, ex. 2.13.0)}
     logging: *logging
-    image: veille:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -71,7 +68,7 @@ services:
       start_period: 30s
 
   worker:
-    image: veille:latest
+    image: ghcr.io/louisdrouhin/veille:${APP_VERSION:?APP_VERSION manquant (version de l'image, ex. 2.13.0)}
     logging: *logging
     restart: unless-stopped
     command: ["node", "dist/worker.js"]
