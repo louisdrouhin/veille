@@ -15,7 +15,10 @@ export async function AlertsPage({ filter, detail }: { filter: AlertFilter; deta
   const [list, check, counts, software] = await Promise.all([getAlerts(db, filter), getCheckSummary(db), countOpenAlerts(db), countTrackedSoftware(db)]);
   return (
     <div className="pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-0">
-      <PageNav items={[{ label: "Ma stack", href: "/stack" }, { label: "Alertes", href: detail ? "/stack/alertes" : undefined }]} back={{ href: "/", mode: "any" }} />
+      {/* On a phone, an alert has its own « ‹ Alertes » link instead. */}
+      <div className={detail ? "max-md:hidden" : ""}>
+        <PageNav items={[{ label: "Ma stack", href: "/stack" }, { label: "Alertes", href: detail ? "/stack/alertes" : undefined }]} back={{ href: "/", mode: "any" }} />
+      </div>
       {!detail && <h1 className="sr-only">Ma stack · Alertes</h1>}
       <div className={`grid gap-3 ${detail ? "max-md:hidden" : ""}`}>
         <StackTabs current="alertes" toHandle={counts.open} />
