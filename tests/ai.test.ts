@@ -107,7 +107,8 @@ describe("configuration", () => {
       readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : []));
     for (const f of [...files(path.join(root, "components")), ...files(path.join(root, "app"))]) {
       const src = readFileSync(f, "utf8");
-      if (/^["']use client["']/.test(src)) expect(src, f).not.toMatch(/from "@\/lib\/(?:ai\/(?:config|gemini)|stack\/(?:sync|summarize|sources))/);
+      // Value imports only: `import type` is erased at build and bundles nothing.
+      if (/^["']use client["']/.test(src)) expect(src, f).not.toMatch(/^import (?!type )[^;]*from "@\/lib\/(?:ai\/(?:config|gemini)|stack\/(?:sync|summarize|sources))/m);
     }
   });
 

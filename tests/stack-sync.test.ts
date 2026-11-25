@@ -234,7 +234,7 @@ describe("alerts follow the version", () => {
     // Ignored by hand: stays ignored even when the version moves.
     const [sshAlert] = await db.select().from(alerts).where(eq(alerts.stackItemId, ssh.id));
     await db.update(alerts).set({ state: "ignored", ignoredReason: "backport" }).where(eq(alerts.id, sshAlert!.id));
-    await db.update(stackItems).set({ version: "9.8p1" }).where(eq(stackItems.id, ssh.id));
+    await db.update(stackItems).set({ version: "9.9p1" }).where(eq(stackItems.id, ssh.id));
     await recomputeAlerts(db, { now, itemIds: [ssh.id] });
     expect((await db.select().from(alerts).where(eq(alerts.id, sshAlert!.id)))[0]!.state).toBe("ignored");
   });

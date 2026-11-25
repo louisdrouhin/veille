@@ -7,10 +7,14 @@
  *
  * Refuses to run if the database already contains forums or accounts.
  */
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { closeDb, getDb } from "@/lib/db";
-import { forums, replies, sources, topics, user } from "@/lib/db/schema";
+import { forums, products, replies, sources, stackItems, stackStatus, topics, user, vulnerabilities, type AffectedRange } from "@/lib/db/schema";
 import { normalizeUrl } from "@/lib/feeds/normalize-url";
+import { recomputeAlerts } from "@/lib/stack/alerts";
+import { syncCatalog } from "@/lib/stack/catalog";
+import type { FetchedVuln } from "@/lib/stack/sources/types";
+import { storeVulns } from "@/lib/stack/sync";
 import { createUser } from "@/lib/users";
 
 const DEMO_EMAIL = "demo@veille.local";
@@ -156,10 +160,81 @@ async function main() {
     }
   }
 
+  const stack = await seedStack();
   console.log(
-    `Base de démo prête : ${forumRows.length} forums, ${sourceRows.length} sources, ${topicCount} topics, ${noteCount} notes.`,
+    `Base de démo prête : ${stack} logiciels fictifs dans Ma stack, ${forumRows.length} forums, ${sourceRows.length} sources, ${topicCount} topics, ${noteCount} notes.`,
   );
   console.log(`Connexion : ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+}
+
+/**
+ * Ma stack (docs/design/3.0) with FICTIONAL data only: made-up versions and CVE-2099-… identifiers,
+ * never a real inventory. Products are marked as checked: no network access.
+ */
+async function seedStack(): Promise<number> {
+  await syncCatalog(db);
+  const all = await db.select().from(products);
+  const p = (key: string) => all.find((x) => x.key === key)!;
+  const checked = ago(0.2);
+  const latest: Record<string, [string, string[]]> = {
+    vaultwarden: ["1.40.2", ["1.40.2", "1.40.1", "1.40.0"]],
+    nextcloud: ["31.0.2", ["31.0.2", "31.0.1", "30.0.9"]],
+  };
+  for (const key of ["vaultwarden", "fortios", "proxmox-ve", "openssh", "nextcloud", "windows-server-2022"]) {
+    const [v, recent] = latest[key] ?? [null, []];
+    await db.update(products).set({ nvdSyncedAt: checked, githubSyncedAt: p(key).githubRepo ? checked : null, latestVersion: v, recentVersions: recent }).where(eq(products.id, p(key).id));
+  }
+  const vuln = (ref: string, cvss: number, range: AffectedRange, extra: Partial<FetchedVuln> = {}): FetchedVuln => ({
+    ref,
+    cveId: ref,
+    descriptionEn: "Fictional vulnerability for the demo: a crafted request lets a remote attacker run code.",
+    cvss,
+    severity: null,
+    exploited: false,
+    publishedAt: ago(30),
+    updatedAt: ago(5),
+    sources: [{ kind: "nvd", ref, url: `https://nvd.nist.gov/vuln/detail/${ref}` }],
+    ranges: [range],
+    ...extra,
+  });
+  await storeVulns(db, p("fortios"), "nvd", [
+    vuln("CVE-2099-10001", 9.8, { start: "7.2.0", startIncluding: true, end: "7.2.9", endIncluding: false, src: "nvd" }, { exploited: true, publishedAt: ago(20) }),
+    vuln("CVE-2099-10002", 5.3, { start: "7.2.0", startIncluding: true, end: "7.2.11", endIncluding: false, src: "nvd" }),
+  ]);
+  await storeVulns(db, p("vaultwarden"), "github", [vuln("CVE-2099-10003", 7.5, { end: "1.40.0", endIncluding: false, src: "github" })]);
+  await storeVulns(db, p("openssh"), "nvd", [vuln("CVE-2099-10004", 8.1, { start: "8.5p1", startIncluding: true, end: "9.7p1", endIncluding: true, src: "nvd" })]);
+  await storeVulns(db, p("proxmox-ve"), "nvd", [vuln("CVE-2099-10005", 3.1, { end: "8.1.4", endIncluding: false, src: "nvd" })]);
+  await db
+    .update(vulnerabilities)
+    .set({
+      titleFr: "Exécution de code arbitraire à distance dans FortiOS (démo)",
+      summaryFr: "Vulnérabilité fictive de démonstration : une requête forgée permet à un attaquant non authentifié d'exécuter du code à distance.",
+      actionsFr: ["Se référer au bulletin de sécurité de l'éditeur pour l'obtention des correctifs."],
+      textSource: "certfr",
+    })
+    .where(eq(vulnerabilities.ref, "CVE-2099-10001"));
+  await db
+    .update(vulnerabilities)
+    .set({
+      titleFr: "Contournement de l'authentification dans Vaultwarden (démo)",
+      summaryFr: "Vulnérabilité fictive : un jeton de session reste valide après un changement de mot de passe.",
+      actionsFr: ["Mettre à jour vers la 1.40.0 ou une version ultérieure."],
+      textSource: "ai",
+    })
+    .where(eq(vulnerabilities.ref, "CVE-2099-10003"));
+  const items = [
+    { productId: p("fortios").id, version: "7.2.4", context: "work" as const },
+    { productId: p("vaultwarden").id, version: "1.39.0", context: "homelab" as const },
+    { productId: p("openssh").id, version: "9.6p1", context: "homelab" as const },
+    { productId: p("proxmox-ve").id, version: "8.1.3", context: "homelab" as const },
+    { productId: p("nextcloud").id, version: "30.0.9", context: "homelab" as const },
+    { productId: p("windows-server-2022").id, version: "10.0.20348.9999", context: "work" as const },
+    { customName: "Annuaire maison", version: "3.2", context: "work" as const },
+  ];
+  await db.insert(stackItems).values(items);
+  await recomputeAlerts(db, { silent: true });
+  await db.insert(stackStatus).values({ id: 1, lastCheckAt: checked, lastFullCheckAt: checked });
+  return items.length;
 }
 
 try {
