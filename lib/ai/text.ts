@@ -10,7 +10,10 @@ const ENTITIES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">
  * attribute is dropped. Only this, the article itself, is ever sent to the model — never notes.
  */
 export function articleText(html: string): string {
-  const blocks = html.replace(/<\/(p|h[1-6]|li|blockquote|pre|figure|figcaption)>/gi, "$&\n\n").replace(/<br\s*\/?>/gi, "\n");
+  const blocks = html
+    .replace(/<\/(p|h[1-6]|li|blockquote|pre|figure|figcaption|table|caption|tr)>/gi, "$&\n\n")
+    .replace(/<\/t[hd]>/gi, "$& | ")
+    .replace(/<br\s*\/?>/gi, "\n");
   const text = sanitizeHtml(blocks, { allowedTags: [], allowedAttributes: {} }).replace(/&(?:amp|lt|gt|quot|#39|nbsp);/g, (e) => ENTITIES[e] ?? e);
   return text
     .split("\n")

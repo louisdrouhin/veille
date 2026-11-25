@@ -31,9 +31,10 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
 - **Récupération des flux** par un worker séparé : ETag / If-Modified-Since, timeout, mise en pause automatique d'une
   source après 3 échecs, dédoublonnage par URL normalisée (sans `utm_*`, `fbclid`, fragment…).
 - **Mode lecture** : l'article complet dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
-  avec Readability, HTML assaini, images servies par un proxy interne. Cache et ré-extraction à la demande.
-- **Résumé et traduction par IA** (Gemini, optionnel) : « Résumer » en 3 à 5 puces au-dessus de l'article,
-  « Traduire en français » à la place de l'article (« Voir l'original »), à la demande, mis en cache.
+  avec Readability, HTML assaini (tableaux compris), images servies par un proxy interne. Cache et ré-extraction à la demande.
+- **Résumé et traduction par IA** (Gemini, optionnel) : « Résumer » en 3 à 5 puces au-dessus de l'article (avec
+  « À retenir » quand il y a une action à faire), « Traduire en français » à la place de l'article (« Voir
+  l'original ») en gardant images, liens, tableaux et code, à la demande, mis en cache.
 - **Notes perso** sur chaque topic.
 - **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
   les listes de topics. Pages « Listes » (renommer, couleur, ordre par glisser-déposer, suppression) et une page par
@@ -207,15 +208,24 @@ Ensuite : créer des forums et des sources dans **Admin**, puis « Récupérer m
 Optionnel : renseigner `GEMINI_API_KEY` (clé Google AI Studio) dans le `.env` du serveur, puis
 `docker compose up -d`. Sans clé, les boutons « Résumer » et « Traduire en français » sont masqués.
 
-- Modèle par défaut `gemini-3.5-flash-lite` (stable, rapide, offre gratuite) ; `GEMINI_MODEL` pour en changer.
+- Modèles (stables, offre gratuite) : `gemini-3.5-flash-lite` pour les résumés (`GEMINI_MODEL`),
+  `gemini-3.8-flash` pour les traductions (`GEMINI_TRANSLATE_MODEL`), plus fidèle que le Lite.
 - Appels **côté serveur uniquement** : la clé n'est jamais envoyée au navigateur et la CSP ne change pas.
-- Seuls le titre et le texte de l'article sont envoyés (jamais les notes), coupés à 24 000 caractères, dans un bloc
-  délimité présenté au modèle comme une donnée non fiable. La réponse, demandée en Markdown, passe par un rendu
+- Seul l'article est envoyé (jamais les notes), dans un bloc délimité présenté au modèle comme une donnée non fiable.
+- **Résumé** : titre et texte, coupés à 24 000 caractères ; la réponse, demandée en Markdown, passe par un rendu
   Markdown fermé (ni lien, ni image, ni HTML) puis par la même liste blanche que le mode lecture.
-- Limite par utilisateur : 6 appels par minute et 60 par jour (les réponses en cache ne comptent pas) ; timeout
-  de 30 s ; quota Gemini dépassé, clé refusée ou contenu bloqué sont affichés en clair.
-- Cache en base par topic, type et modèle (`ai_outputs`), supprimé avec l'article (purge à 90 jours, jamais pour un
-  topic présent dans une liste) et refait si l'article est rechargé.
+- **Traduction** : le modèle ne produit jamais de HTML. L'article assaini est découpé en passages de texte numérotés
+  (paragraphes, titres, éléments de liste, citations, légendes, cellules), envoyés en JSON `{ id: texte }` par lots
+  de 8 000 caractères (un long article fait plusieurs appels, rien n'est coupé ; au-delà de 160 000 caractères la
+  traduction est refusée). Liens, mise en forme et code en ligne y sont des marqueurs `⟦n⟧`. La réponse doit
+  reprendre exactement les mêmes identifiants et marqueurs, en texte brut, sinon le lot est redemandé une fois puis
+  refusé ; chaque traduction est réinjectée dans le nœud d'origine. Images, cibles des liens, tableaux, mise en
+  forme et blocs de code viennent donc toujours de notre HTML.
+- Limite par utilisateur : 6 demandes par minute et 60 par jour (les réponses en cache ne comptent pas) ; timeout
+  de 30 s (90 s par lot de traduction) ; quota Gemini dépassé, clé refusée ou contenu bloqué sont affichés en clair.
+- Cache en base par topic, type et modèle (`ai_outputs`), avec une version de format : un changement de format
+  (consignes, construction) refait les résultats. Supprimé avec l'article (purge à 90 jours, jamais pour un topic
+  présent dans une liste) et refait si l'article est rechargé.
 - Offre gratuite de Gemini : Google peut utiliser le texte envoyé (des articles publics) pour améliorer ses produits.
 
 ### Supervision

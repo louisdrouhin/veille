@@ -5,7 +5,7 @@ export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 export const GEMINI_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 
-export type GeminiError = "quota" | "auth" | "model" | "blocked" | "timeout" | "unavailable" | "empty" | "failed";
+export type GeminiError = "quota" | "auth" | "model" | "blocked" | "timeout" | "unavailable" | "empty" | "failed" | "invalid";
 export type GeminiResult = { ok: true; text: string; truncated: boolean } | { ok: false; error: GeminiError; status?: number };
 
 export type GeminiRequest = {
@@ -14,6 +14,12 @@ export type GeminiRequest = {
   system: string;
   user: string;
   maxOutputTokens: number;
+  /** Ignored by Gemini 3.6 Flash and newer (docs), still honoured by Flash-Lite. */
+  temperature?: number;
+  /** Ask for a JSON document (responseMimeType: application/json). */
+  json?: boolean;
+  /** thinkingConfig.thinkingLevel (Gemini 3+): "low" keeps the translation fast. */
+  thinkingLevel?: "minimal" | "low" | "medium" | "high";
   fetch?: typeof fetch;
   timeoutMs?: number;
 };
@@ -35,7 +41,12 @@ export async function generateContent(req: GeminiRequest): Promise<GeminiResult>
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: req.system }] },
         contents: [{ role: "user", parts: [{ text: req.user }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: req.maxOutputTokens },
+        generationConfig: {
+          temperature: req.temperature ?? 0.2,
+          maxOutputTokens: req.maxOutputTokens,
+          ...(req.json ? { responseMimeType: "application/json" } : {}),
+          ...(req.thinkingLevel ? { thinkingConfig: { thinkingLevel: req.thinkingLevel.toUpperCase() } } : {}),
+        },
       }),
       signal: AbortSignal.timeout(req.timeoutMs ?? GEMINI_TIMEOUT_MS),
       redirect: "error",
@@ -82,4 +93,5 @@ export const GEMINI_ERROR_MESSAGES: Record<GeminiError, string> = {
   unavailable: "Service Gemini injoignable : réessaie plus tard.",
   empty: "Gemini n'a rien renvoyé : réessaie.",
   failed: "Réponse de Gemini illisible : réessaie.",
+  invalid: "Traduction incomplète ou mal formée renvoyée par Gemini : réessaie.",
 };

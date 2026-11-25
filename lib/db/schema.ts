@@ -150,6 +150,8 @@ export const aiOutputs = pgTable(
     html: text("html").notNull(),
     /** The model stopped at its output limit (shown as « tronqué »). */
     truncated: boolean("truncated").notNull().default(false),
+    /** Version of the output format (lib/ai/service.ts AI_FORMAT): an older one is a cache miss. */
+    format: integer("format").notNull().default(1),
     articleFetchedAt: tsz("article_fetched_at").notNull(),
     createdAt: tsz("created_at").notNull().defaultNow(),
   },

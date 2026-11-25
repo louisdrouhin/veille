@@ -5,7 +5,7 @@ import { ALLOWED_TAGS, htmlTextLength, imageProxyUrl, sanitizeArticleHtml } from
 const BASE = "https://blog.example.org/2025/article";
 const clean = (html: string) => sanitizeArticleHtml(html, BASE);
 
-const ALLOWED_ATTRS: Record<string, string[]> = { a: ["href", "target", "rel"], img: ["src", "alt", "loading"] };
+const ALLOWED_ATTRS: Record<string, string[]> = { a: ["href", "target", "rel"], img: ["src", "alt", "loading"], th: ["colspan", "rowspan"], td: ["colspan", "rowspan"] };
 
 /** Parses the output as a browser would and checks every element and attribute against the policy. */
 function expectSafeDom(html: string) {
@@ -67,7 +67,12 @@ describe("sanitizeArticleHtml — trapped HTML", () => {
 
   it("drops unknown tags but keeps their text", () => {
     expect(clean(`<div><span>Bonjour</span> <u>monde</u></div>`)).toBe("Bonjour monde");
-    expect(clean(`<table><tr><td>cellule</td></tr></table>`)).toBe("cellule");
+  });
+
+  it("keeps tables, with only small integer colspan / rowspan", () => {
+    expect(clean(`<table class="x"><caption>Prix</caption><tr><th scope="col" colspan="2" style="x">a</th><td rowspan="3x" onclick="y">b</td><td colspan="999">c</td></tr></table>`)).toBe(
+      `<table><caption>Prix</caption><tr><th colspan="2">a</th><td>b</td><td>c</td></tr></table>`,
+    );
   });
 
   it("is not fooled by malformed markup", () => {
