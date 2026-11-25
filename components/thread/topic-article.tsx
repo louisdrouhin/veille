@@ -4,7 +4,7 @@ import type { SavedState } from "@/components/lists/saved-state";
 import { SaveButton } from "@/components/lists/save-button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { reloadArticle } from "@/lib/actions/topics";
-import { aiConfig } from "@/lib/ai/config";
+import { currentAiConfig } from "@/lib/secrets/effective";
 import { getStoredAiOutputs } from "@/lib/ai/service";
 import { articleText, detectLanguage } from "@/lib/ai/text";
 import { getDb } from "@/lib/db";
@@ -103,7 +103,7 @@ export async function TopicArticle({ topic, saved }: { topic: TopicRef; saved: S
     );
   }
 
-  const config = aiConfig();
+  const config = await currentAiConfig(getDb());
   let ai: AiProps | null = null;
   if (config) {
     // Results already made (on any device): from the database, never a call to Gemini here.

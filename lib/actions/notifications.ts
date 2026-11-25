@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getDb } from "@/lib/db";
 import { NOTIFY_THRESHOLDS, notificationSettings, pushSubscriptions, type NotifyThreshold } from "@/lib/db/schema";
-import { vapidConfig } from "@/lib/push/config";
+import { currentVapid } from "@/lib/secrets/effective";
 import { areValidKeys, isAllowedEndpoint } from "@/lib/push/endpoint";
 import { DEFAULT_SETTINGS } from "@/lib/push/notify";
 import { sendPush } from "@/lib/push/webpush";
@@ -19,7 +19,7 @@ export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string
 
 export async function subscribePushAction(sub: { endpoint?: unknown; keys?: unknown }): Promise<Result> {
   await requireSession();
-  if (!vapidConfig()) return { ok: false, error: "Notifications non configurées sur le serveur." };
+  if (!(await currentVapid(getDb()))) return { ok: false, error: "Notifications non configurées sur le serveur." };
   if (!isAllowedEndpoint(sub?.endpoint) || !areValidKeys(sub?.keys)) return { ok: false, error: "Activation impossible : service de notification non reconnu." };
   const ua = ((await headers()).get("user-agent") ?? "").slice(0, 200) || null;
   const keys = { p256dh: sub.keys.p256dh, auth: sub.keys.auth };
@@ -45,7 +45,7 @@ export async function unsubscribePushAction(endpoint: unknown): Promise<Result> 
 /** « Envoyer une notification de test » to this device only. */
 export async function sendTestPushAction(endpoint: unknown): Promise<Result> {
   await requireSession();
-  const vapid = vapidConfig();
+  const vapid = await currentVapid(getDb());
   if (!vapid) return { ok: false, error: "Notifications non configurées sur le serveur." };
   if (typeof endpoint !== "string") return { ok: false, error: "Abonnement inconnu." };
   const [sub] = await getDb().select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));

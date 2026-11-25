@@ -111,7 +111,7 @@ conception.
   jamais une redirection (session expirée) ni une erreur. Tous ses caches sont vidés à la déconnexion et à chaque
   affichage de la page de connexion. La CSP ne gagne que `worker-src 'self'` et `manifest-src 'self'`.
 - **Exploitation** : conteneur non-root, images de base épinglées par digest (mises à jour par Dependabot), healthcheck
-  sans donnée utilisateur, secrets uniquement par variables d'environnement, rotation des logs Docker.
+  sans donnée utilisateur, secrets par variables d'environnement ou chiffrés en base (voir [Intégrations](#intégrations-clés-dapi-depuis-linterface)), rotation des logs Docker.
 
 Une faille ? Voir [SECURITY.md](SECURITY.md).
 
@@ -233,10 +233,37 @@ docker compose exec app node dist/reset-password.js --email moi@example.com --pa
 Ensuite : créer des forums et des sources dans **Admin**, puis « Récupérer maintenant » ou attendre le worker
 (toutes les `FETCH_INTERVAL_MINUTES`, 15 par défaut).
 
+### Intégrations (clés d'API depuis l'interface)
+
+**Administration › Intégrations** gère la clé Gemini (et ses deux modèles), la clé NVD et les clés VAPID sans
+toucher au `.env`. Il faut d'abord une clé maîtresse dans le `.env` du serveur :
+
+```sh
+echo "SECRETS_KEY=$(openssl rand -base64 32)" >> .env && docker compose up -d
+```
+
+- **Priorité** : une valeur enregistrée dans l'interface remplace la variable d'environnement ; supprimée, l'app
+  reprend celle du `.env`. La page indique la source (« Interface » / « .env ») et le dernier test de chaque clé.
+- **Chiffrement** : AES-256-GCM avec `SECRETS_KEY`, IV aléatoire par valeur, nom de la clé en donnée associée (un
+  chiffré recopié sur une autre clé ne se déchiffre pas). Garder `SECRETS_KEY` : sans elle, ou avec une autre, les clés
+  enregistrées sont illisibles (signalées comme telles) et l'app revient au `.env`. Sans `SECRETS_KEY`, la page est en
+  lecture seule.
+- **Écriture seule** : une clé n'est jamais renvoyée au navigateur (seulement ses 4 derniers caractères), ni écrite
+  dans les journaux ou les messages d'erreur. Remplacer ou supprimer, jamais relire.
+- **Re-confirmation** : chaque modification demande le mot de passe, ou le code de double authentification quand
+  elle est activée, puis reste permise 5 minutes dans cette session (5 essais par 10 min).
+- **« Tester la clé »** : l'appel le plus petit possible (description des deux modèles Gemini, une CVE connue pour
+  NVD), 5 tests par minute et 30 par jour.
+- **VAPID** : « Reprendre les clés du .env » les copie dans l'interface (mêmes clés : les appareils restent abonnés) ;
+  « Générer les clés » en crée de nouvelles côté serveur (la clé privée n'est jamais affichée) et désabonne tous les
+  appareils.
+- **Journal** : quelle clé, quelle action, quand — jamais la valeur (`settings_log`).
+- Le worker relit ces valeurs à chaque cycle (au plus toutes les 10 s).
+
 ### Résumé et traduction (Gemini)
 
-Optionnel : renseigner `GEMINI_API_KEY` (clé Google AI Studio) dans le `.env` du serveur, puis
-`docker compose up -d`. Sans clé, les boutons « Résumer » et « Traduire en français » sont masqués.
+Optionnel : renseigner la clé Gemini dans **Administration › Intégrations**, ou `GEMINI_API_KEY` (clé Google AI
+Studio) dans le `.env` du serveur, puis `docker compose up -d`. Sans clé, les boutons « Résumer » et « Traduire en français » sont masqués.
 
 - Modèles (stables, offre gratuite) : `gemini-3.5-flash-lite` pour les résumés (`GEMINI_MODEL`),
   `gemini-3.8-flash` pour les traductions (`GEMINI_TRANSLATE_MODEL`), plus fidèle que le Lite.
@@ -265,7 +292,7 @@ Aucune configuration obligatoire : le worker vérifie la stack toutes les 30 min
 
 - **Sources** : flux et JSON des avis du CERT-FR, API CVE 2.0 de NVD (par préfixe CPE), avis de sécurité et versions
   publiées sur GitHub. « Exploitée » vient du catalogue CISA KEV (repris par NVD) ou de l'avis CERT-FR.
-- **Clés facultatives**, dans le `.env` du serveur : `NVD_API_KEY` (50 requêtes / 30 s au lieu de 5, conseillée :
+- **Clés facultatives** : la clé NVD (Administration › Intégrations, ou `NVD_API_KEY` dans le `.env`) (50 requêtes / 30 s au lieu de 5, conseillée :
   la première vérification de Windows Server télécharge des milliers de CVE) et `GITHUB_TOKEN` (jeton en lecture
   seule, 5 000 requêtes / h au lieu de 60).
 - Les textes des CVE et des avis sont des **données non fiables** : affichés en texte brut, et donnés à Gemini avec
@@ -278,7 +305,8 @@ Aucune configuration obligatoire : le worker vérifie la stack toutes les 30 min
 
 ### Notifications
 
-Optionnel : générer une fois les clés VAPID, sur le serveur :
+Optionnel : « Générer les clés » dans **Administration › Intégrations**, ou générer une fois les clés VAPID sur le
+serveur :
 
 ```sh
 docker compose run --rm --no-deps app node dist/vapid-keys.js

@@ -4,6 +4,20 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.1.0 — 25/11/2026
+
+- **Administration › Intégrations** : saisis la clé Gemini (et choisis les modèles des résumés et des traductions)
+  et la clé NVD depuis l'interface, sans toucher au `.env`. Une clé saisie ici remplace celle du `.env` ; la page
+  indique d'où vient chaque clé (« Interface » ou « .env ») et le résultat de son dernier test.
+- Clés chiffrées sur le serveur avec une clé maîtresse `SECRETS_KEY` (à ajouter au `.env` : `openssl rand -base64 32`) ;
+  sans elle, la page reste en lecture seule. Une clé n'est jamais réaffichée : seulement ses 4 derniers caractères.
+- Toute modification demande ton mot de passe, ou le code de double authentification, valable 5 minutes.
+- « Tester la clé » vérifie en un appel qu'elle est acceptée (et que les modèles Gemini existent).
+- Notifications : « Reprendre les clés du .env » (les appareils restent abonnés) ou « Générer les clés » (tous les
+  appareils sont désabonnés, avec avertissement). Un appareil abonné avec d'anciennes clés apparaît désactivé et se
+  réabonne d'un toucher.
+- Journal des modifications : quelle clé, quand — jamais sa valeur.
+
 ## 3.0.0 — 25/11/2026
 
 - **Ma stack** : déclare tes logiciels (Homelab / Travail) et leur version ; Folders les vérifie toutes les 30 min

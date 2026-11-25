@@ -2,7 +2,7 @@
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { aiConfig } from "@/lib/ai/config";
-import { vapidConfig } from "@/lib/push/config";
+import { currentVapid, effectiveEnv } from "@/lib/secrets/effective";
 import { dispatchNotifications } from "@/lib/push/notify";
 import { getDb } from "@/lib/db";
 import { alerts, products, STACK_CONTEXTS, stackItems, type IgnoreReason, type Product, type StackContext, type VersionScheme } from "@/lib/db/schema";
@@ -30,7 +30,11 @@ function failure(err: unknown): { ok: false; error: string } {
   return { ok: false, error: "Enregistrement impossible, réessaie." };
 }
 
-const deps = (): StackDeps => ({ env: process.env, ai: aiConfig() });
+/** Keys and models in use: Admin › Intégrations first, then the .env. */
+async function deps(): Promise<StackDeps> {
+  const env = await effectiveEnv(getDb());
+  return { env, ai: aiConfig(env) };
+}
 
 function cleanVersion(v: unknown): string {
   const s = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
@@ -59,7 +63,7 @@ export async function searchProductsAction(query: string): Promise<CatalogResult
 export async function searchNvdAction(query: string): Promise<ActionResult<{ candidates: CpeCandidate[] }>> {
   await requireSession();
   try {
-    return { ok: true, candidates: await searchCpe(typeof query === "string" ? query : "", deps()) };
+    return { ok: true, candidates: await searchCpe(typeof query === "string" ? query : "", await deps()) };
   } catch (err) {
     if (err instanceof SourceError) return { ok: false, error: "Le dictionnaire NVD ne répond pas : réessaie plus tard, ou ajoute-le en suivi par nom." };
     return failure(err);
@@ -75,7 +79,9 @@ async function ensureChecked(product: Product): Promise<boolean> {
   if (product.nvdSyncedAt || product.githubSyncedAt) return true;
   let job = firstChecks.get(product.id);
   if (!job) {
-    job = syncProduct(getDb(), product, deps(), { force: true })
+    // No await before the set: concurrent requests share one job.
+    job = deps()
+      .then((d) => syncProduct(getDb(), product, d, { force: true }))
       .catch(() => {})
       .finally(() => firstChecks.delete(product.id));
     firstChecks.set(product.id, job);
@@ -214,8 +220,8 @@ export async function removeStackItemAction(itemId: number): Promise<ActionResul
 export async function checkStackNowAction(): Promise<{ status: "done" | "recent" | "running"; failed?: string[] }> {
   await requireSession();
   try {
-    const r = await requestStackCheck(getDb(), deps());
-    if (r.status === "done") await dispatchNotifications(getDb(), { vapid: vapidConfig() }).catch(() => {});
+    const r = await requestStackCheck(getDb(), await deps());
+    if (r.status === "done") await dispatchNotifications(getDb(), { vapid: await currentVapid(getDb()) }).catch(() => {});
     return r.status === "done" ? { status: "done", failed: r.result.failed } : r;
   } catch (err) {
     console.error("[stack] vérification en échec :", (err as Error)?.name ?? "erreur");

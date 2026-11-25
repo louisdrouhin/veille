@@ -3,7 +3,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { aiOutputs, articleContents, topics, type AiKind } from "@/lib/db/schema";
 import { sanitizeArticleHtml } from "@/lib/reader/sanitize";
-import { aiConfig, type AiConfig } from "./config";
+import { currentAiConfig } from "@/lib/secrets/effective";
+import type { AiConfig } from "./config";
 import { GEMINI_ERROR_MESSAGES, generateContent, type GeminiError } from "./gemini";
 import { markdownToHtml } from "./markdown";
 import { articleMessage, newMarkerId, normalizeSummary, segmentsMessage, systemInstruction } from "./prompts";
@@ -44,7 +45,7 @@ export const modelFor = (config: AiConfig, kind: AiKind) => (kind === "summary" 
  * share it) → our own HTML, sanitized → cache.
  */
 export async function generateAi(db: Db, input: { topicId: number; kind: AiKind; userId: string }, deps: Deps = {}): Promise<AiResult> {
-  const config = deps.config === undefined ? aiConfig() : deps.config;
+  const config = deps.config === undefined ? await currentAiConfig(db) : deps.config;
   if (!config) return { ok: false, error: "Résumé et traduction indisponibles : aucune clé Gemini configurée." };
   const model = modelFor(config, input.kind);
 

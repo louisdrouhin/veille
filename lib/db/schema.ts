@@ -16,6 +16,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { LIST_COLORS } from "@/lib/lists/palette";
+import { SETTING_ACTIONS, SETTING_NAMES } from "@/lib/secrets/names";
 import { THEMES } from "@/lib/theme";
 
 const tsz = (name: string) => timestamp(name, { withTimezone: true });
@@ -496,6 +497,47 @@ export const notificationSettings = pgTable(
     check("notification_settings_singleton", sql`${t.id} = 1`),
     check("notification_settings_threshold_check", sql`${t.threshold} in ('critical', 'high', 'medium', 'all')`),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// Admin › Intégrations (lib/secrets)
+// ---------------------------------------------------------------------------
+
+const inList = (list: readonly string[]) => sql.raw(list.map((n) => `'${n}'`).join(", "));
+
+/**
+ * Values set from the interface; they take precedence over the server .env. A secret is in
+ * `encrypted` (AES-256-GCM with SECRETS_KEY), with only its last 4 characters in `hint`; the others
+ * are in `value`. A row may hold only the result of the last « Tester la clé » (key from the .env).
+ */
+export const appSettings = pgTable(
+  "app_settings",
+  {
+    name: text("name", { enum: SETTING_NAMES }).primaryKey(),
+    value: text("value"),
+    encrypted: text("encrypted"),
+    hint: text("hint"),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+    testedAt: tsz("tested_at"),
+    testOk: boolean("test_ok"),
+    testMessage: text("test_message"),
+  },
+  (t) => [
+    check("app_settings_name_check", sql`${t.name} in (${inList(SETTING_NAMES)})`),
+    check("app_settings_one_value", sql`${t.value} is null or ${t.encrypted} is null`),
+  ],
+);
+
+/** Journal of the changes made in Admin › Intégrations: never the value itself. */
+export const settingsLog = pgTable(
+  "settings_log",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name", { enum: SETTING_NAMES }).notNull(),
+    action: text("action", { enum: SETTING_ACTIONS }).notNull(),
+    at: tsz("at").notNull().defaultNow(),
+  },
+  (t) => [index("settings_log_at_idx").on(t.at), check("settings_log_action_check", sql`${t.action} in (${inList(SETTING_ACTIONS)})`)],
 );
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ export const DEFAULT_TRANSLATE_MODEL = "gemini-3.8-flash";
 export type AiConfig = { apiKey: string; model: string; translateModel: string };
 
 // Goes into the URL path: letters, digits, dots and dashes only.
-const MODEL = /^[a-z0-9][a-z0-9.-]{0,63}$/;
+export const MODEL = /^[a-z0-9][a-z0-9.-]{0,63}$/;
 
 /** Null without GEMINI_API_KEY: the buttons are not shown. The key never leaves the server. */
 export function aiConfig(env: Partial<Record<string, string | undefined>> = process.env): AiConfig | null {

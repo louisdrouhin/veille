@@ -32,6 +32,15 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
+/** Whether this subscription was made with this public key (browsers without `options` say yes). */
+function sameKey(sub: PushSubscription, publicKey: string): boolean {
+  const used = sub.options?.applicationServerKey;
+  if (!used) return true;
+  const a = new Uint8Array(used);
+  const b = keyBytes(publicKey);
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
 /** « Sur cet appareil »: subscription of this device, asked only on a tap (iOS requirement). */
 function DevicePanel({ publicKey }: { publicKey: string | null }) {
   const ios = useIsIos();
@@ -52,7 +61,9 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
       let current: string | null = null;
       if (hasPushApi()) {
         const reg = await navigator.serviceWorker.getRegistration();
-        current = (await reg?.pushManager.getSubscription())?.endpoint ?? null;
+        const sub = await reg?.pushManager.getSubscription();
+        // Made with other VAPID keys (regenerated in Admin › Intégrations): no longer valid.
+        current = sub && publicKey && sameKey(sub, publicKey) ? sub.endpoint : null;
       }
       if (!alive) return;
       setPermission(perm);
@@ -62,7 +73,7 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [publicKey]);
 
   const mode = pushAvailability({ configured: !!publicKey, ios, standalone, hasPush, permission });
 
@@ -75,7 +86,12 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
         setPermission(perm);
         if (perm !== "granted") return;
         const reg = await navigator.serviceWorker.ready;
-        const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey!) }));
+        let sub = await reg.pushManager.getSubscription();
+        if (sub && !sameKey(sub, publicKey!)) {
+          await sub.unsubscribe().catch(() => {});
+          sub = null;
+        }
+        sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey!) });
         const res = await subscribePushAction(sub.toJSON());
         if (!res.ok) {
           await sub.unsubscribe().catch(() => {});
@@ -147,7 +163,7 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
             </p>
           </div>
         )}
-        {mode === "unconfigured" && <p className="text-sm text-fg-muted">Ajoute les clés VAPID dans le .env du serveur (voir le README, « Notifications »).</p>}
+        {mode === "unconfigured" && <p className="text-sm text-fg-muted">Génère les clés VAPID dans Administration › Intégrations (ou ajoute-les au .env du serveur).</p>}
         {error && (
           <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-err bg-err-soft p-3 text-base">
             <IconAlertCircle size={18} className="shrink-0 text-err" />
