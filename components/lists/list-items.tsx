@@ -89,13 +89,14 @@ export function ListItems({
           showForum
           menu={{ context: "list", list: { id: listId, name: listName }, onRemove: () => remove(t) }}
           trailing={
-            // Beside the row's link, above its stretched area (z-10): its own target.
+            // Beside the row's link, above its stretched area (z-10): its own target. Touch screens only: with a
+            // mouse, « Retirer » is in the row's ⋯ menu (docs/design/3.2).
             <button
               type="button"
               onClick={() => remove(t)}
               aria-label={`Retirer « ${t.title} » de la liste`}
               title="Retirer de la liste"
-              className="relative z-10 -my-2.5 inline-flex w-12 cursor-pointer items-center justify-center self-stretch text-fg-muted hover:bg-surface-hover hover:text-err md:my-0 md:size-8 md:w-8 md:self-center md:rounded-sm"
+              className="relative z-10 -my-2.5 inline-flex w-12 cursor-pointer items-center justify-center self-stretch text-fg-muted hover:bg-surface-hover hover:text-err md:my-0 md:size-8 md:w-8 md:self-center md:rounded-sm desk:hidden"
             >
               <IconClose size={16} />
             </button>

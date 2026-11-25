@@ -33,9 +33,12 @@ const ROW_BASE =
 
 export const TOPIC_ROW = `${ROW_BASE} ${TOPIC_GRID}`;
 export const TOPIC_ROW_WITH_FORUM = `${ROW_BASE} ${TOPIC_GRID_WITH_FORUM}`;
-/** A favorite list's rows: same columns plus « retirer » (36 px on desktop, 48 px beside the link on mobile). */
+/**
+ * A favorite list's rows: same columns plus « retirer » (36 px from md, 48 px beside the link on mobile). With a mouse
+ * (desk:), « Retirer » is in the row's ⋯ menu: no ✕ column, the room goes back to the titles.
+ */
 export const TOPIC_GRID_IN_LIST =
-  "md:grid-cols-[28px_minmax(0,1fr)_150px_170px_48px_140px_36px] desk:grid-cols-[28px_minmax(0,1fr)_150px_170px_48px_140px_36px_32px]";
+  "md:grid-cols-[28px_minmax(0,1fr)_150px_170px_48px_140px_36px] desk:grid-cols-[28px_minmax(0,1fr)_150px_170px_48px_140px_32px]";
 export const TOPIC_ROW_IN_LIST =
   "relative grid grid-cols-[22px_minmax(0,1fr)_48px] gap-x-2.5 pl-3.5 py-2.5 md:min-h-[38px] md:items-center md:gap-x-3 md:px-4 md:py-0 " +
   `border-t border-line first:border-t-0 odd:bg-surface even:bg-surface-alt ${TOPIC_GRID_IN_LIST}`;
