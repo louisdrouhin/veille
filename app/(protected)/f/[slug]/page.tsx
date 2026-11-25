@@ -5,12 +5,12 @@ import { PageNav } from "@/components/layout/page-nav";
 import { FolderIcon, FolderLegend } from "@/components/topic/folder-icon";
 import { TopicList } from "@/components/topic/topic-list";
 import { TopicListActions } from "@/components/topic/topic-list-actions";
+import { ForumUnreadSummary } from "@/components/topic/unread-counters";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getDb } from "@/lib/db";
 import { forums, sourceFavicons, sources, topics } from "@/lib/db/schema";
 import { faviconUrl } from "@/lib/feeds/favicon";
 import { savedCountOf } from "@/lib/lists/queries";
-import { plural } from "@/lib/format-date";
 import { requireSession } from "@/lib/session";
 
 const PAGE_SIZE = 25;
@@ -60,6 +60,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
       sourceName: sources.name,
       sourceId: topics.sourceId,
       faviconAt: sourceFavicons.fetchedAt,
+      url: topics.url,
       savedCount: savedCountOf(),
     })
     .from(topics)
@@ -70,6 +71,8 @@ export default async function ForumPage({ params, searchParams }: Props) {
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
 
+  // Server time of this render: the unread counters add the read changes made after it (read-topics.tsx).
+  const renderedAt = new Date().getTime();
   const href = (p: number) => (p === 1 ? `/f/${slug}` : `/f/${slug}?page=${p}`);
   const actions = { forumId: forum.id, page, pageCount, href, hasUnread: unread > 0 };
 
@@ -79,16 +82,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
       <header className="mb-3">
         <h1 className="font-cond text-xl font-bold">{forum.name}</h1>
         {forum.description && <p className="text-sm text-fg-muted">{forum.description}</p>}
-        <p className="mt-0.5 text-sm text-fg-muted">
-          {plural(total, "topic")} ·{" "}
-          {unread > 0 ? (
-            <strong className="font-bold text-accent">
-              {unread} non lu{unread > 1 ? "s" : ""}
-            </strong>
-          ) : (
-            "tout est lu"
-          )}
-        </p>
+        <ForumUnreadSummary total={total} unread={unread} renderedAt={renderedAt} slug={slug} />
       </header>
 
       {rows.length === 0 ? (
@@ -106,6 +100,8 @@ export default async function ForumPage({ params, searchParams }: Props) {
               sourceName: r.sourceName,
               faviconSrc: faviconUrl(r.sourceId, r.faviconAt),
               savedCount: r.savedCount,
+              url: r.url,
+              forumSlug: slug,
             }))}
           />
           <TopicListActions {...actions} position="bottom" />

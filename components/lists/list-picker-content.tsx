@@ -121,14 +121,17 @@ export function ListPickerContent({
   status,
   onToggle,
   onCreate,
+  startAdding = false,
 }: {
   lists: PickerList[];
   selected: ReadonlySet<number>;
   status: PickerStatus;
   onToggle: (list: PickerList, on: boolean) => void;
   onCreate: (name: string) => void;
+  /** « Nouvelle liste… » of a topic row's menu: the field is open and focused. */
+  startAdding?: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(startAdding);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

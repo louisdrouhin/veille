@@ -6,7 +6,8 @@ import type { ToastData } from "./toast";
  * Toasts raised in the browser (no server redirect), e.g. « Retiré de Homelab · Annuler ».
  * Shown by <Toaster/> in its usual stack, so they never overlap « Remonter en haut ».
  */
-export type ClientToast = ToastData & { action?: { label: string; onClick: () => void } };
+/** `durationMs`: how long a success stays (5 s by default; errors stay until dismissed). */
+export type ClientToast = ToastData & { action?: { label: string; onClick: () => void }; durationMs?: number };
 
 const listeners = new Set<(toast: ClientToast) => void>();
 

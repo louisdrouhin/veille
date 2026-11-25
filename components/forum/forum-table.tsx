@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CountPill } from "@/components/ui/badge";
+import { ForumUnreadPill } from "@/components/topic/unread-counters";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { TableHead } from "@/components/ui/table-head";
 import type { ForumIconName } from "@/lib/db/schema";
@@ -18,7 +18,7 @@ export type ForumRowData = {
 
 const GRID = "md:grid-cols-[40px_minmax(0,1fr)_80px_88px_280px]";
 
-export function ForumTable({ forums }: { forums: ForumRowData[] }) {
+export function ForumTable({ forums, renderedAt }: { forums: ForumRowData[]; renderedAt?: number }) {
   return (
     <div className="overflow-hidden rounded-md border border-line bg-surface shadow-sm">
       <TableHead
@@ -33,14 +33,14 @@ export function ForumTable({ forums }: { forums: ForumRowData[] }) {
       />
       <ul>
         {forums.map((f) => (
-          <ForumRow key={f.id} forum={f} />
+          <ForumRow key={f.id} forum={f} renderedAt={renderedAt} />
         ))}
       </ul>
     </div>
   );
 }
 
-function ForumRow({ forum: f }: { forum: ForumRowData }) {
+function ForumRow({ forum: f, renderedAt }: { forum: ForumRowData; renderedAt?: number }) {
   const hasUnread = f.unread > 0;
   return (
     <li
@@ -60,7 +60,7 @@ function ForumRow({ forum: f }: { forum: ForumRowData }) {
       </div>
       <span className="hidden text-right font-mono text-sm md:block">{f.total}</span>
       <span className="text-right md:text-center">
-        <CountPill count={f.unread} srLabel="non lus" />
+        <ForumUnreadPill unread={f.unread} renderedAt={renderedAt} slug={f.slug} />
       </span>
       <div className="hidden min-w-0 md:block">
         {f.lastTopic ? (

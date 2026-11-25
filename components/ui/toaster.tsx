@@ -58,13 +58,13 @@ export function Toaster({ children }: { children?: React.ReactNode }) {
 
 function Toast({ toast, onDismiss }: { toast: Item; onDismiss: (id: number) => void }) {
   const isError = toast.kind === "error";
-  const { id } = toast;
+  const { id, durationMs = 5000 } = toast;
 
   useEffect(() => {
     if (isError) return; // errors stay until dismissed
-    const timer = setTimeout(() => onDismiss(id), 5000);
+    const timer = setTimeout(() => onDismiss(id), durationMs);
     return () => clearTimeout(timer);
-  }, [isError, id, onDismiss]);
+  }, [isError, id, durationMs, onDismiss]);
 
   return (
     <div

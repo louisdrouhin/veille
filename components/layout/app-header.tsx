@@ -6,11 +6,12 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { LogoutButton } from "@/components/account/logout-button";
 import { Avatar } from "@/components/account/avatar";
 import { Star } from "@/components/lists/star";
+import { useUnreadCount } from "@/components/topic/read-topics";
 import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, Logo } from "@/components/ui/icons";
 import { runPageRefresh } from "@/lib/page-refresh";
 import { useStandalone } from "@/lib/pwa/client";
 
-export type NavCounts = { unread: number; lists: number; errors: number; stack: { open: number; critical: number } };
+export type NavCounts = { unread: number; lists: number; errors: number; stack: { open: number; critical: number }; renderedAt?: number };
 
 /** « Ma stack, 5 alertes à traiter dont 2 critiques » (docs/design/3.0 § 3). */
 export function stackLabel({ open, critical }: NavCounts["stack"]): string {
@@ -47,8 +48,14 @@ const MENU_ROW =
   "aria-[current=page]:before:left-0 aria-[current=page]:before:w-[3px] aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-bar-accent " +
   "focus-visible:outline-bar-accent";
 
+/** « N non lus » of the menu, kept in step with the read changes of the topic row menu. */
+function UnreadExtra({ unread, renderedAt }: { unread: number; renderedAt?: number }) {
+  const n = useUnreadCount(unread, renderedAt);
+  return n > 0 ? <span className="ml-auto font-mono text-sm text-bar-muted">{n} non lus</span> : null;
+}
+
 function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
-  if (href === "/") return counts.unread > 0 ? <span className="ml-auto font-mono text-sm text-bar-muted">{counts.unread} non lus</span> : null;
+  if (href === "/") return <UnreadExtra unread={counts.unread} renderedAt={counts.renderedAt} />;
   if (href === "/listes") return <span className="ml-auto font-mono text-sm text-bar-muted">{counts.lists}</span>;
   if (href === "/stack")
     return counts.stack.open > 0 ? (

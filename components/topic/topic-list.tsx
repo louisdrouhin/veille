@@ -8,7 +8,7 @@ export function TopicListHead() {
   return (
     <TableHead
       grid={TOPIC_GRID}
-      columns={[{ label: "" }, { label: "Sujet" }, { label: "Source" }, { label: "Nb", align: "right" }, { label: "Dernier msg", align: "right" }]}
+      columns={[{ label: "" }, { label: "Sujet" }, { label: "Source" }, { label: "Nb", align: "right" }, { label: "Dernier msg", align: "right" }, { label: "", className: "hidden desk:block" }]}
     />
   );
 }

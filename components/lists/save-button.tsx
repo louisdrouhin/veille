@@ -1,30 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
-import { createList, toggleTopicInList } from "@/lib/actions/lists";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { PickerList } from "@/lib/lists/queries";
 import { ListPickerContent, type PickerStatus } from "./list-picker-content";
+import { ListPickerPopover, POPOVER_WIDTH } from "./list-picker-popover";
 import { ListSwatch } from "./list-swatch";
-import { rememberSavedState, savedStateOf, type SavedState } from "./saved-state";
+import type { SavedState } from "./saved-state";
 import { Star } from "./star";
-
-type Change = { type: "toggle"; listId: number; on: boolean } | { type: "create"; list: PickerList };
-
-function apply(state: SavedState, change: Change): SavedState {
-  if (change.type === "create") {
-    return { lists: [...state.lists, change.list], selected: [...state.selected, change.list.id] };
-  }
-  const has = state.selected.includes(change.listId);
-  if (has === change.on) return state;
-  return {
-    lists: state.lists.map((l) => (l.id === change.listId ? { ...l, count: Math.max(0, l.count + (change.on ? 1 : -1)) } : l)),
-    selected: change.on ? [...state.selected, change.listId] : state.selected.filter((id) => id !== change.listId),
-  };
-}
+import { useSavedLists } from "./use-saved-lists";
 
 const DESKTOP = "(min-width: 48rem)";
-const POPOVER_WIDTH = 320;
 
 /**
  * « ★ Enregistrer » of the topic page (docs/design/v3 § 3.1-3.4). Opens a bottom sheet (<dialog>,
@@ -45,12 +31,9 @@ export function SaveButton({
   initial: SavedState;
   actions?: React.ReactNode;
 }) {
-  // A page restored from the router cache may predate this visit's changes (see saved-state.ts).
-  const [committed, setCommitted] = useState<SavedState>(() => savedStateOf(topicId) ?? initial);
-  const [state, addOptimistic] = useOptimistic(committed, apply);
-  const [, startTransition] = useTransition();
-  const [mode, setMode] = useState<"sheet" | "popover" | null>(null);
   const [status, setStatus] = useState<PickerStatus>(null);
+  const { state, toggle: toggleList, create: createNamed } = useSavedLists(topicId, initial, setStatus);
+  const [mode, setMode] = useState<"sheet" | "popover" | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDialogElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -59,42 +42,14 @@ export function SaveButton({
   const count = state.selected.length;
   const selected = new Set(state.selected);
 
-  // Functional update: two quick changes in a row each build on the latest committed state.
-  function commit(change: Change) {
-    setCommitted((prev) => {
-      const next = apply(prev, change);
-      rememberSavedState(topicId, next);
-      return next;
-    });
-  }
-
   function toggle(list: PickerList, on: boolean) {
     setStatus(null);
-    startTransition(async () => {
-      addOptimistic({ type: "toggle", listId: list.id, on });
-      const res = await toggleTopicInList(topicId, list.id, on);
-      if (res.ok) {
-        commit({ type: "toggle", listId: list.id, on });
-        setStatus({ kind: "ok", text: on ? `Ajouté à « ${list.name} »` : `Retiré de « ${list.name} »` });
-      } else {
-        setStatus({ kind: "error", text: res.error });
-      }
-    });
+    toggleList(list, on);
   }
 
   function create(name: string) {
     setStatus(null);
-    const temp: PickerList = { id: -Date.now(), name, color: "slate", count: 1 };
-    startTransition(async () => {
-      addOptimistic({ type: "create", list: temp });
-      const res = await createList({ name, topicId });
-      if (res.ok) {
-        commit({ type: "create", list: { ...res.list, count: 1 } });
-        setStatus({ kind: "ok", text: `Ajouté à « ${res.list.name} »` });
-      } else {
-        setStatus({ kind: "error", text: res.error });
-      }
-    });
+    createNamed(name);
   }
 
   function open() {
@@ -201,25 +156,9 @@ export function SaveButton({
       </BottomSheet>
 
       {/* Desktop: popover anchored under the button, left-aligned. */}
-      <div
-        ref={popoverRef}
-        popover="auto"
-        role="dialog"
-        aria-labelledby={`${titleId}-pop`}
-        className="fixed m-0 w-80 overflow-visible rounded-md border border-line bg-surface p-0 text-fg shadow-md [inset:auto]"
-      >
-        <span aria-hidden className="absolute -top-1.5 left-7 size-3 rotate-45 border-t border-l border-line bg-bar-2" />
-        <div className="relative flex h-9 items-center rounded-t-md bg-bar-2 px-3">
-          <h2 id={`${titleId}-pop`} className="font-cond text-sm font-semibold tracking-caps text-bar-fg uppercase">
-            Enregistrer dans…
-          </h2>
-        </div>
-        <div className="flex max-h-[60vh] flex-col">
-          {mode === "popover" && (
-            <ListPickerContent lists={state.lists} selected={selected} status={status} onToggle={toggle} onCreate={create} />
-          )}
-        </div>
-      </div>
+      <ListPickerPopover ref={popoverRef} titleId={`${titleId}-pop`}>
+        {mode === "popover" && <ListPickerContent lists={state.lists} selected={selected} status={status} onToggle={toggle} onCreate={create} />}
+      </ListPickerPopover>
     </div>
   );
 }

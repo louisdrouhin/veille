@@ -4,6 +4,7 @@ import { and, asc, count, eq, max } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { listItems, lists, topics } from "@/lib/db/schema";
 import { cleanListName, isListColor, nextListColor, type ListColor } from "@/lib/lists/palette";
+import { getPickerLists, type PickerList } from "@/lib/lists/queries";
 import { requireSession } from "@/lib/session";
 import { id as validId, ValidationError } from "@/lib/validation";
 
@@ -30,6 +31,16 @@ async function topicExists(topicId: number) {
 async function savedCount(topicId: number): Promise<number> {
   const [row] = await getDb().select({ n: count() }).from(listItems).where(eq(listItems.topicId, topicId));
   return row?.n ?? 0;
+}
+
+/** The lists and those holding the topic, for « Enregistrer dans une liste » of a topic row's menu. */
+export async function getTopicListsAction(topicId: number): Promise<ActionResult<{ lists: PickerList[]; selected: number[] }>> {
+  await requireSession();
+  try {
+    return { ok: true, ...(await getPickerLists(getDb(), validId(topicId))) };
+  } catch (err) {
+    return failure(err);
+  }
 }
 
 /** Adds the topic to the list (`on`) or removes it. Idempotent. */

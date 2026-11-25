@@ -11,6 +11,9 @@ vi.mock("next/link", () => ({
     return createElement("a", rest);
   },
 }));
+// The row's menu calls server actions: not rendered on the server, only imported.
+vi.mock("@/lib/actions/lists", () => ({ getTopicListsAction: vi.fn(), toggleTopicInList: vi.fn(), createList: vi.fn() }));
+vi.mock("@/lib/actions/topics", () => ({ setTopicReadAction: vi.fn() }));
 const { TopicRow } = await import("@/components/topic/topic-row");
 
 const row = (savedCount?: number): string =>

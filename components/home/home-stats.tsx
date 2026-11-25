@@ -1,5 +1,6 @@
 import { formatTime, formatTitle } from "@/lib/format-date";
 import type { HomeStats as Stats } from "@/lib/home";
+import { UnreadStat } from "@/components/topic/unread-counters";
 import { ErrorAlert } from "./error-alert";
 
 const ITEM =
@@ -9,16 +10,13 @@ const LABEL = "text-[11.5px] leading-4 text-fg-muted md:text-sm";
 const VALUE = "font-mono text-xl font-semibold md:text-lg";
 
 /** Summary row: unread · received today · last fetch, plus the sources-in-error alert (docs/design/v2 § 2.1). */
-export function HomeStats({ stats }: { stats: Stats }) {
+export function HomeStats({ stats, renderedAt }: { stats: Stats; renderedAt?: number }) {
   const { unreadTotal, receivedToday, lastFetchAt, errorCount } = stats;
   return (
     <section aria-label="Résumé" className="flex flex-col gap-2">
       <div className="flex items-center gap-6 rounded-md border border-line bg-surface shadow-sm md:min-h-13 md:px-4">
         <dl className="grid flex-1 grid-cols-3 md:flex md:flex-none md:gap-6">
-          <div className={ITEM}>
-            <dt className={LABEL}>non lu{unreadTotal > 1 ? "s" : ""}</dt>
-            <dd className={`${VALUE} ${unreadTotal > 0 ? "text-accent" : "text-fg-read"}`}>{unreadTotal}</dd>
-          </div>
+          <UnreadStat unread={unreadTotal} renderedAt={renderedAt} className={ITEM} labelClass={LABEL} valueClass={VALUE} />
           <div className={ITEM}>
             <dt className={LABEL}>reçu{receivedToday > 1 ? "s" : ""} aujourd&apos;hui</dt>
             <dd className={VALUE}>{receivedToday}</dd>
