@@ -6,7 +6,8 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { LogoutButton } from "@/components/account/logout-button";
 import { Avatar } from "@/components/account/avatar";
 import { Star } from "@/components/lists/star";
-import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, Logo } from "@/components/ui/icons";
+import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, Logo } from "@/components/ui/icons";
+import { runPageRefresh } from "@/lib/page-refresh";
 import { useStandalone } from "@/lib/pwa/client";
 
 export type NavCounts = { unread: number; lists: number; errors: number };
@@ -14,6 +15,7 @@ export type NavCounts = { unread: number; lists: number; errors: number };
 const NAV = [
   { href: "/", label: "Forums", match: (p: string) => p === "/" || p.startsWith("/f/") || p.startsWith("/t/") },
   { href: "/listes", label: "Listes", match: (p: string) => p === "/listes" || p.startsWith("/listes/") },
+  { href: "/stack", label: "Ma stack", match: (p: string) => p === "/stack" || p.startsWith("/stack/") },
   { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin") },
 ] as const;
 
@@ -27,6 +29,7 @@ const MENU_ROW =
 function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   if (href === "/") return counts.unread > 0 ? <span className="ml-auto font-mono text-sm text-bar-muted">{counts.unread} non lus</span> : null;
   if (href === "/listes") return <span className="ml-auto font-mono text-sm text-bar-muted">{counts.lists}</span>;
+  if (href === "/stack") return null;
   if (counts.errors > 0)
     return (
       <span className="ml-auto rounded-full bg-err px-2 text-xs leading-5 font-semibold text-err-fg">
@@ -36,7 +39,7 @@ function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   return null;
 }
 
-const MENU_ICONS = { "/": IconFolder, "/admin": IconSettings } as const;
+const MENU_ICONS = { "/": IconFolder, "/stack": IconShield, "/admin": IconSettings } as const;
 
 const NAV_LINK =
   "rounded-sm px-3 py-[7px] text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg " +
@@ -59,7 +62,12 @@ function RefreshButton({ className }: { className: string }) {
       aria-label="Actualiser"
       title="Actualiser"
       aria-busy={pending}
-      onClick={() => startTransition(() => router.refresh())}
+      onClick={() =>
+        startTransition(async () => {
+          await runPageRefresh();
+          router.refresh();
+        })
+      }
     >
       <IconRefresh size={18} className={pending ? "animate-spin" : undefined} />
     </button>
@@ -107,6 +115,7 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
               aria-current={item.match(pathname) ? "page" : undefined}
             >
               {item.href === "/listes" && <Star size={14} />}
+              {item.href === "/stack" && <IconShield size={15} />}
               {item.label}
             </Link>
           ))}
