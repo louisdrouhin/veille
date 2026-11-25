@@ -36,6 +36,13 @@ Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose de
   3 à 5 puces au-dessus de l'article (avec « À retenir » quand il y a une action à faire), « Traduire » à la place
   de l'article (« Original ») en gardant images, liens, tableaux et code, à la demande, mis en cache et réaffiché
   sans appel sur tous les appareils.
+- **Ma stack** (radar de vulnérabilités) : tu déclares tes logiciels (Homelab / Travail) et leur version ; Folders
+  croise ces versions avec CERT-FR, NVD et GitHub, et crée une alerte quand une faille touche **ta** version.
+  Alertes triées par gravité, détail en français (avis CERT-FR, ou résumé Gemini signalé « Généré par IA »), action
+  recommandée, lien vers le topic Folders du même CVE, « Marquer comme traitée » / « Ignorer » ; bloc sur l'accueil et
+  badge dans la navigation. Comparaison de versions par schéma (semver, `9.8p1`, `8.0 U2`, builds Windows).
+- **Notifications push** des alertes Ma stack (Web Push, iPhone compris dans l'app installée) : gravité minimale,
+  « toujours si exploitée », heures calmes avec envoi groupé à la fin, mode discret sans nom de produit.
 - **Notes perso** sur chaque topic.
 - **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
   les listes de topics. Pages « Listes » (renommer, couleur, ordre par glisser-déposer, suppression) et une page par
@@ -250,6 +257,43 @@ Optionnel : renseigner `GEMINI_API_KEY` (clé Google AI Studio) dans le `.env` d
   (consignes, construction) refait les résultats. Supprimé avec l'article (purge à 90 jours, jamais pour un topic
   présent dans une liste) et refait si l'article est rechargé.
 - Offre gratuite de Gemini : Google peut utiliser le texte envoyé (des articles publics) pour améliorer ses produits.
+
+### Ma stack (radar de vulnérabilités)
+
+Aucune configuration obligatoire : le worker vérifie la stack toutes les 30 min (`STACK_CHECK_INTERVAL_MINUTES`), et
+« tirer pour rafraîchir » sur ses pages relance une vérification (au plus une toutes les 5 min).
+
+- **Sources** : flux et JSON des avis du CERT-FR, API CVE 2.0 de NVD (par préfixe CPE), avis de sécurité et versions
+  publiées sur GitHub. « Exploitée » vient du catalogue CISA KEV (repris par NVD) ou de l'avis CERT-FR.
+- **Clés facultatives**, dans le `.env` du serveur : `NVD_API_KEY` (50 requêtes / 30 s au lieu de 5, conseillée :
+  la première vérification de Windows Server télécharge des milliers de CVE) et `GITHUB_TOKEN` (jeton en lecture
+  seule, 5 000 requêtes / h au lieu de 60).
+- Les textes des CVE et des avis sont des **données non fiables** : affichés en texte brut, et donnés à Gemini avec
+  les mêmes protections que les articles (bloc délimité, réponse JSON en texte brut vérifiée, refusée sinon).
+- Tout passe par `safe-fetch` (adresses publiques uniquement). Les journaux ne contiennent que des nombres et des
+  noms de sources : jamais un produit, une version ni un CVE de la stack. Les services interrogés (NVD, GitHub)
+  voient en revanche quels produits sont suivis.
+- Un faux positif de distribution (correctif rétroporté par Debian, Ubuntu…) s'ignore avec la raison « Corrigé par la
+  distribution (rétroportage) ».
+
+### Notifications
+
+Optionnel : générer une fois les clés VAPID, sur le serveur :
+
+```sh
+docker compose run --rm --no-deps app node dist/vapid-keys.js
+```
+
+Copier les deux lignes affichées (`VAPID_PUBLIC_KEY=…`, `VAPID_PRIVATE_KEY=…`) dans le `.env`, puis
+`docker compose up -d`. Sans ces clés, les notifications sont désactivées. Ne plus changer ces clés ensuite (chaque
+appareil devrait se réabonner). `VAPID_SUBJECT` (`mailto:` ou `https:`) est facultatif quand `BETTER_AUTH_URL` est
+en https.
+
+- Réglages dans **Mon compte › Notifications**. Sur iPhone, les notifications ne fonctionnent que dans l'app
+  installée sur l'écran d'accueil (iOS 16.4 ou plus) ; la permission n'est demandée qu'au toucher de l'interrupteur.
+- Un abonnement n'est accepté que vers un service de push connu, en HTTPS (Apple, Google FCM, Mozilla, Windows) ;
+  l'envoi passe par `safe-fetch`. Messages chiffrés (RFC 8291) et signés VAPID (RFC 8292) avec `node:crypto`, sans
+  dépendance ; les abonnements expirés (404 / 410) sont supprimés.
 
 ### Supervision
 

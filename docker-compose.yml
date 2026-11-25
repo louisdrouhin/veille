@@ -20,6 +20,11 @@ x-app-env: &app-env
   # Ma stack (checked by the worker, and by the app when asked): optional API keys for the quotas.
   NVD_API_KEY: ${NVD_API_KEY:-}
   GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  # Optional: push notifications (Web Push). Empty: off. Keys made once with `node dist/vapid-keys.js`.
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL manquant}
 
 services:
   db:
@@ -50,7 +55,6 @@ services:
         condition: service_healthy
     environment:
       <<: *app-env
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL manquant}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET manquant}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       FETCH_USER_AGENT: ${FETCH_USER_AGENT:-}

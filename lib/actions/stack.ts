@@ -2,6 +2,8 @@
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { aiConfig } from "@/lib/ai/config";
+import { vapidConfig } from "@/lib/push/config";
+import { dispatchNotifications } from "@/lib/push/notify";
 import { getDb } from "@/lib/db";
 import { alerts, products, STACK_CONTEXTS, stackItems, type IgnoreReason, type Product, type StackContext, type VersionScheme } from "@/lib/db/schema";
 import { recomputeAlerts } from "@/lib/stack/alerts";
@@ -213,6 +215,7 @@ export async function checkStackNowAction(): Promise<{ status: "done" | "recent"
   await requireSession();
   try {
     const r = await requestStackCheck(getDb(), deps());
+    if (r.status === "done") await dispatchNotifications(getDb(), { vapid: vapidConfig() }).catch(() => {});
     return r.status === "done" ? { status: "done", failed: r.result.failed } : r;
   } catch (err) {
     console.error("[stack] vérification en échec :", (err as Error)?.name ?? "erreur");

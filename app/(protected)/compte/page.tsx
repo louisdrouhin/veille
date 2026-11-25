@@ -5,7 +5,7 @@ import { Avatar } from "@/components/account/avatar";
 import { LogoutButton } from "@/components/account/logout-button";
 import { ThemePicker } from "@/components/account/theme-picker";
 import { TwoFactorPanel } from "@/components/account/two-factor-panel";
-import { buttonClass } from "@/components/ui/button";
+import { buttonClass, LinkButton } from "@/components/ui/button";
 import { PageNav } from "@/components/layout/page-nav";
 import { Panel } from "@/components/ui/panel";
 import { getDb } from "@/lib/db";
@@ -43,6 +43,14 @@ export default async function AccountPage() {
         <Panel title="Apparence">
           <div className="p-3.5">
             <ThemePicker initial={parseTheme(me?.theme)} />
+          </div>
+        </Panel>
+        <Panel title="Notifications">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5">
+            <p className="text-base text-fg-muted">Alertes Ma stack sur tes appareils, gravité minimale, heures calmes.</p>
+            <LinkButton href="/compte/notifications" size="md">
+              Régler les notifications
+            </LinkButton>
           </div>
         </Panel>
         <TwoFactorPanel enabled={me?.twoFactorEnabled ?? false} />

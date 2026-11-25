@@ -1,13 +1,16 @@
 /**
  * Feed fetching worker: every FETCH_INTERVAL_MINUTES (default 15), fetches
  * every enabled, non-paused source. Runs as its own process / container.
- * Then, every STACK_CHECK_INTERVAL_MINUTES (default 30), the Ma stack check (lib/stack/sync.ts).
+ * Then, every STACK_CHECK_INTERVAL_MINUTES (default 30), the Ma stack check (lib/stack/sync.ts), and
+ * at every cycle its push notifications (lib/push/notify.ts).
  *
  *   node dist/worker.js          loop forever
  *   node dist/worker.js --once   run a single cycle and exit (exit code 1 if the cycle crashed)
  */
 import { aiConfig } from "@/lib/ai/config";
 import { closeDb, getDb } from "@/lib/db";
+import { dispatchNotifications } from "@/lib/push/notify";
+import { vapidConfig } from "@/lib/push/config";
 import { checkIfDue, CHECK_INTERVAL_MIN } from "@/lib/stack/sync";
 import { recordCycle } from "@/lib/worker/heartbeat";
 import { runCycle } from "@/lib/worker/run-cycle";
@@ -56,6 +59,8 @@ async function stackCheck() {
   if (stopping) return;
   try {
     await checkIfDue(getDb(), { env: process.env, ai: aiConfig(), log }, stackInterval);
+    // Every cycle, not only after a check: alerts held during quiet hours go out at their end.
+    await dispatchNotifications(getDb(), { vapid: vapidConfig(), log });
   } catch (err) {
     log(`[stack] Vérification en échec : ${(err as Error)?.name ?? "erreur"}`);
   }

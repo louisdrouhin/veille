@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { basic, html, loadServiceWorker, png, SW_SOURCE } from "./helpers/service-worker-env";
+import { basic, html, loadServiceWorker, ORIGIN, png, SW_SOURCE } from "./helpers/service-worker-env";
 import { color, DARK, LIGHT } from "./helpers/tokens";
 
 const TOPIC_BODY =
@@ -305,5 +305,26 @@ describe("service worker — kept in sync with the app", () => {
       JSON.parse(new RegExp(String.raw`const ${name} = (\{[^}]*\})`).exec(SW_SOURCE)![1]!.replace(/(\w+):/g, '"$1":')) as Record<string, string>;
     expect(object("COLORS")).toEqual(tokens(LIGHT));
     expect(object("COLORS_DARK")).toEqual(tokens(DARK));
+  });
+});
+
+describe("service worker — push notifications (Ma stack)", () => {
+  it("shows the notification of the payload (tag, url), sanitized; a broken payload still shows something", async () => {
+    await sw.push({ title: "Critique · Produit 7.0.12", body: "CVE-2099-1, exploitée. Corrigé en 7.0.16. Touche pour voir l'alerte.", tag: "alert-3", url: "/stack/alertes/3", badge: 2 });
+    expect(sw.self.registration.shown[0]).toMatchObject({ title: "Critique · Produit 7.0.12", options: { tag: "alert-3", data: { url: "/stack/alertes/3" } } });
+    await sw.push("not json");
+    await sw.push({ title: 42, url: "https://evil.example/" });
+    expect(sw.self.registration.shown[1]!.title).toBe("Folders · Ma stack");
+    expect(sw.self.registration.shown[2]!.options.data).toEqual({ url: "/stack/alertes" });
+  });
+
+  it("a tap opens the alert in an open window of ours, or a new one; never another site", async () => {
+    sw.self.clients.windows.push({ url: `${ORIGIN}/`, focused: false });
+    const n = await sw.notificationClick({ url: "/stack/alertes/3" });
+    expect(n.closed).toBe(true);
+    expect(sw.self.clients.windows[0]).toMatchObject({ focused: true, navigatedTo: `${ORIGIN}/stack/alertes/3` });
+    sw.self.clients.windows.length = 0;
+    for (const url of ["//evil.example/x", "https://evil.example/", "/admin", "/stack\\..\\admin", "/stack/../admin"]) await sw.notificationClick({ url });
+    expect(sw.self.clients.opened).toEqual(Array(5).fill(`${ORIGIN}/stack/alertes`));
   });
 });

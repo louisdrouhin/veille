@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && npm run build:scripts",
-    "build:scripts": "esbuild worker=worker/index.ts migrate=scripts/migrate.ts create-user=scripts/create-user.ts reset-password=scripts/reset-password.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "build:scripts": "esbuild worker=worker/index.ts migrate=scripts/migrate.ts create-user=scripts/create-user.ts reset-password=scripts/reset-password.ts vapid-keys=scripts/vapid-keys.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
     "start": "next start",
     "worker": "tsx --env-file-if-exists=.env worker/index.ts",
     "db:generate": "drizzle-kit generate",
