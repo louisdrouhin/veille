@@ -10,6 +10,7 @@ import { OfflinePageCache } from "@/components/pwa/offline-page-cache";
 import { UpdateToast } from "@/components/pwa/update-toast";
 import { AccountThemeSync } from "@/components/theme/theme-sync";
 import { ReadTopicsProvider } from "@/components/topic/read-topics";
+import { TopicMenuProvider } from "@/components/topic/topic-menu";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -28,10 +29,11 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   // Mobile menu counters (unread, lists, sources in error). The layout is kept across navigations:
   // refreshed with the page (BackForwardRefresh, « Actualiser », pull to refresh).
   const [nav, stack] = await Promise.all([getNavCounts(getDb()), countOpenAlerts(getDb())]);
-  const counts = { ...nav, stack };
+  const counts = { ...nav, stack, renderedAt: new Date().getTime() };
 
   return (
     <ReadTopicsProvider>
+      <TopicMenuProvider>
       <AppHeader userName={session.user.name} counts={counts} />
       <div className="safe-x">
         <main className="mx-auto w-full max-w-[1200px] px-2.5 py-4 sm:px-3.5 md:px-5">{children}</main>
@@ -47,6 +49,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       </Suspense>
       <PullToRefresh />
       <AccountThemeSync theme={parseTheme((session.user as { theme?: unknown }).theme)} />
+      </TopicMenuProvider>
     </ReadTopicsProvider>
   );
 }

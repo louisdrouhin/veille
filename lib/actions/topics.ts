@@ -23,6 +23,29 @@ function revalidateReadState(forumSlug: string) {
   revalidatePath("/");
 }
 
+/**
+ * « Marquer comme lu / non lu » of a topic row's menu (docs/design/3.2). The row and the counters
+ * change on the client at once: no revalidatePath (it would purge the router cache, and the page
+ * and its scroll would be lost). `at`: server time of the change, for the counters
+ * (components/topic/read-topics.tsx).
+ */
+export async function setTopicReadAction(topicId: number, read: boolean): Promise<{ ok: true; at: number } | { ok: false; error: string }> {
+  await requireSession();
+  if (!Number.isSafeInteger(topicId) || topicId <= 0 || typeof read !== "boolean") return { ok: false, error: "Topic inconnu." };
+  try {
+    const [row] = await getDb()
+      .update(topics)
+      .set({ readAt: read ? sql`coalesce(${topics.readAt}, now())` : null })
+      .where(eq(topics.id, topicId))
+      .returning({ id: topics.id });
+    if (!row) return { ok: false, error: "Ce topic n'existe plus." };
+    return { ok: true, at: Date.now() };
+  } catch (err) {
+    console.error("[topics] lu / non lu en échec :", (err as Error)?.name ?? "erreur");
+    return { ok: false, error: "Enregistrement impossible, réessaie." };
+  }
+}
+
 /** « Tout marquer comme lu » — applies to the whole forum, not just the current page. */
 export async function markForumRead(formData: FormData) {
   await requireSession();

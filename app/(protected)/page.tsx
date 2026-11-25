@@ -56,14 +56,14 @@ export default async function HomePage() {
         <FeaturedSection items={featured} />
         {/* Ma stack (3.0): above the stats, under « À la une ». */}
         <StackBlock stack={stack} />
-        <HomeStats stats={stats} />
+        <HomeStats stats={stats} renderedAt={now.getTime()} />
         <LatestUnread topics={latest} />
         <section aria-labelledby="forums-title">
           <h2 id="forums-title" className="mb-2 font-cond text-lg font-bold">
             Forums
           </h2>
           {/* A source always belongs to a forum: with sources, there is at least one forum. */}
-          <ForumTable forums={forums} />
+          <ForumTable forums={forums} renderedAt={now.getTime()} />
         </section>
       </div>
     </>

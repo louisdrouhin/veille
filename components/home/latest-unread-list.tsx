@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 import type { TopicRowData } from "@/components/topic/topic-grid";
 import { TopicRow } from "@/components/topic/topic-row";
 
+const HOME_MENU = { context: "home" } as const;
+
 /** Topics shown on mobile before « + N autres non lus »: the forums stay close to the top of the screen. */
 export const MOBILE_VISIBLE = 3;
 
@@ -19,7 +21,7 @@ export function LatestUnreadList({ topics }: { topics: TopicRowData[] }) {
     <>
       <ul id={listId}>
         {topics.map((t, i) => (
-          <TopicRow key={t.id} topic={t} showForum className={!expanded && i >= MOBILE_VISIBLE ? "max-md:hidden" : ""} />
+          <TopicRow key={t.id} topic={t} showForum menu={HOME_MENU} className={!expanded && i >= MOBILE_VISIBLE ? "max-md:hidden" : ""} />
         ))}
       </ul>
       {hidden > 0 && (

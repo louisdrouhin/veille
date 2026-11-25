@@ -24,6 +24,7 @@ export function LatestUnread({ topics }: { topics: TopicRowData[] }) {
               { label: "Source" },
               { label: "Nb", align: "right" },
               { label: "Dernier msg", align: "right" },
+              { label: "", className: "hidden desk:block" },
             ]}
           />
           <LatestUnreadList topics={topics} />

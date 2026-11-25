@@ -87,6 +87,7 @@ export function ListItems({
           key={t.id}
           topic={t}
           showForum
+          menu={{ context: "list", list: { id: listId, name: listName }, onRemove: () => remove(t) }}
           trailing={
             // Beside the row's link, above its stretched area (z-10): its own target.
             <button

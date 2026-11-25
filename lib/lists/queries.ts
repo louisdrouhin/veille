@@ -66,6 +66,7 @@ export async function getListItems(db: Db, listId: number, page: number): Promis
       faviconAt: sourceFavicons.fetchedAt,
       forumName: forums.name,
       forumSlug: forums.slug,
+      url: topics.url,
       addedAt: listItems.addedAt,
       savedCount: savedCountOf(),
     })
@@ -87,6 +88,8 @@ export async function getListItems(db: Db, listId: number, page: number): Promis
     sourceName: r.sourceName,
     faviconSrc: faviconUrl(r.sourceId, r.faviconAt),
     forum: { name: r.forumName, slug: r.forumSlug },
+    forumSlug: r.forumSlug,
+    url: r.url,
     savedCount: r.savedCount,
     addedAt: r.addedAt,
   }));

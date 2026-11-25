@@ -64,6 +64,7 @@ export async function getLatestUnread(db: Db, { limit }: { limit: number }): Pro
       faviconAt: sourceFavicons.fetchedAt,
       forumName: forums.name,
       forumSlug: forums.slug,
+      url: topics.url,
       savedCount: savedCountOf(),
     })
     .from(topics)
@@ -82,6 +83,8 @@ export async function getLatestUnread(db: Db, { limit }: { limit: number }): Pro
     sourceName: r.sourceName,
     faviconSrc: faviconUrl(r.sourceId, r.faviconAt),
     forum: { name: r.forumName, slug: r.forumSlug },
+    forumSlug: r.forumSlug,
+    url: r.url,
     savedCount: r.savedCount,
   }));
 }

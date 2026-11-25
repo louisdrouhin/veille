@@ -4,6 +4,17 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.2.0 — 25/11/2026
+
+- **Menu contextuel** sur les lignes de topic (forums, accueil, listes), sur ordinateur : clic droit, bouton « ⋯ » au
+  survol de la ligne, touche Menu ou Maj+F10. Ouvrir (aussi dans un nouvel onglet), marquer comme lu ou **non lu**,
+  enregistrer dans une ou plusieurs listes d'affilée, ouvrir l'article d'origine, copier le lien de l'article ou le
+  lien Folders, et retirer de la liste (avec Annuler) sur la page d'une liste.
+- Tout s'applique tout de suite, sans recharger la page : la ligne, la ★ et les compteurs « non lus » changent et la
+  page reste où elle était.
+- Raccourcis sur une ligne sélectionnée au clavier : M, E, O, C, Maj+C, Ctrl+Entrée, Suppr (liste).
+- Maj + clic droit garde le menu du navigateur. Rien ne change sur iPhone (appui long d'iOS).
+
 ## 3.1.0 — 25/11/2026
 
 - **Administration › Intégrations** : saisis la clé Gemini (et choisis les modèles des résumés et des traductions)

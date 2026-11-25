@@ -15,6 +15,9 @@ vi.mock("next/link", () => ({
     return createElement("a", rest);
   },
 }));
+// The row's menu calls server actions: not rendered on the server, only imported.
+vi.mock("@/lib/actions/lists", () => ({ getTopicListsAction: vi.fn(), toggleTopicInList: vi.fn(), createList: vi.fn() }));
+vi.mock("@/lib/actions/topics", () => ({ setTopicReadAction: vi.fn() }));
 const { LatestUnreadList, MOBILE_VISIBLE } = await import("@/components/home/latest-unread-list");
 
 const topic = (id: number): TopicRowData => ({
@@ -54,7 +57,8 @@ describe("latest unread topics on mobile", () => {
     expect(render(4).html).toContain("+ 1 autre non lu<");
     for (const n of [1, 2, 3]) {
       const { html, hiddenOnMobile } = render(n);
-      expect(html).not.toContain("<button");
+      // Only the rows' ⋯ buttons (desktop): no « + N autres » disclosure.
+      expect(html).not.toMatch(/<button[^>]*aria-controls/);
       expect(hiddenOnMobile.every((h) => !h)).toBe(true);
     }
   });

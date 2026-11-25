@@ -27,6 +27,10 @@
   }
 }
 
+/* `desk:` = pointeur fin sur écran ≥ md : menu contextuel des lignes de topic (docs/design/3.2).
+   Ni bouton ⋯ ni menu personnalisé au doigt (iPhone, iPad sans souris). */
+@custom-variant desk (@media (min-width: 48rem) and (pointer: fine));
+
 /* ---------- Clair (défaut) ---------- */
 :root,
 :root[data-theme="light"] {
@@ -321,6 +325,11 @@
   --tracking-caps: .07em;  /* en-têtes de colonnes et badges en capitales */
 
   --animate-pulse-soft: pulse-soft 1.4s ease-in-out infinite;
+  /* Ligne enregistrée depuis le menu contextuel : fondu --saved-soft → fond normal (docs/design/3.2 § 5). */
+  --animate-saved-flash: saved-flash 600ms ease-out;
+  @keyframes saved-flash {
+    from { background-color: var(--saved-soft); }
+  }
   @keyframes pulse-soft {
     0%, 100% { opacity: 1; }
     50% { opacity: .45; }

@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import { SavedMark } from "@/components/lists/saved-mark";
 import { useSavedCount } from "@/components/lists/saved-state";
 import { HotBadge } from "@/components/ui/badge";
+import { IconMore } from "@/components/ui/icons";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { SourceAvatar } from "@/components/ui/source-avatar";
 import { plural } from "@/lib/format-date";
 import { FolderIcon, type FolderState } from "./folder-icon";
 import { useReadTopics } from "./read-topics";
+import { DESK_QUERY, rowAccelerator, useTopicMenu, type MenuRequest, type RowMenu } from "./topic-menu";
 import { FORUM_BADGE, TOPIC_ROW, TOPIC_ROW_IN_LIST, TOPIC_ROW_WITH_FORUM, type TopicRowData } from "./topic-grid";
 
 function stateOf(t: TopicRowData): FolderState {
@@ -27,21 +30,56 @@ export function TopicRow({
   showForum = false,
   className = "",
   trailing,
+  menu = FORUM_MENU,
 }: {
   topic: TopicRowData;
   showForum?: boolean;
   className?: string;
   /** Last column, outside the row's link (favorite lists: « retirer »). */
   trailing?: React.ReactNode;
+  /** Context menu of the row (desktop, docs/design/3.2): where it is, and « Retirer » in a list. */
+  menu?: RowMenu;
 }) {
-  const { isRead } = useReadTopics();
-  const t = isRead(topic.id) && !topic.read ? { ...topic, read: true } : topic;
+  const { readOf } = useReadTopics();
+  const { openFor, open, run } = useTopicMenu();
+  const rowRef = useRef<HTMLLIElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  // This visit's change (topic opened, or « Marquer comme lu / non lu ») wins over the server's state.
+  const changed = readOf(topic.id);
+  const t = changed !== undefined && changed !== topic.read ? { ...topic, read: changed } : topic;
+  const menuOpen = openFor === t.id;
   const source = t.sourceName ?? "Source supprimée";
   const forum = showForum ? t.forum : undefined;
   const saved = useSavedCount(t.id, t.savedCount ?? 0);
+  const request = (via: MenuRequest["via"], point: MenuRequest["point"] = null): MenuRequest | null =>
+    rowRef.current ? { topic: t, read: t.read, menu, row: rowRef.current, button: moreRef.current, point, via } : null;
+  const desk = () => window.matchMedia(DESK_QUERY).matches;
+
   return (
     <li
-      className={`${trailing ? TOPIC_ROW_IN_LIST : showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} ${className} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus`}
+      ref={rowRef}
+      data-menu-open={menuOpen ? "" : undefined}
+      // Right click: the menu at the cursor. Shift + right click, or a touch screen: the browser's own menu.
+      onContextMenu={(e) => {
+        if (e.shiftKey || !desk()) return;
+        const r = request("pointer", { x: e.clientX, y: e.clientY });
+        if (!r) return;
+        e.preventDefault();
+        open(r);
+      }}
+      // Shortcuts of a focused row (its link or ⋯): accelerators of the menu, never global.
+      onKeyDown={(e) => {
+        if (!desk() || e.nativeEvent.isComposing || openFor !== null) return;
+        const acc = rowAccelerator(e, menu.context);
+        if (!acc) return;
+        const r = request("keyboard");
+        if (!r) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (acc === "menu") open(r);
+        else run(r, acc);
+      }}
+      className={`group ${trailing ? TOPIC_ROW_IN_LIST : showForum ? TOPIC_ROW_WITH_FORUM : TOPIC_ROW} ${className} hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus data-menu-open:bg-accent-soft data-menu-open:outline-2 data-menu-open:-outline-offset-2 data-menu-open:outline-accent`}
     >
       <FolderIcon state={stateOf(t)} className="pt-px md:pt-0" />
       <div className="flex min-w-0 flex-col gap-1 md:flex-row md:items-center md:gap-2">
@@ -50,6 +88,7 @@ export function TopicRow({
         <Link
           href={`/t/${t.id}`}
           prefetch={false}
+          data-topic-link
           className={`line-clamp-2 text-md no-underline after:absolute after:inset-0 focus-visible:outline-none md:line-clamp-none md:truncate md:text-base ${
             t.read ? "font-normal text-fg-read hover:text-fg-read" : "font-bold text-fg hover:text-fg"
           }`}
@@ -88,9 +127,29 @@ export function TopicRow({
       </span>
       <RowDate topic={t} className="hidden truncate text-right text-sm whitespace-nowrap text-fg-muted md:block" />
       {trailing}
+      {/* ⋯: desktop with a mouse only, column always reserved; invisible at rest but focusable. */}
+      <span className="hidden desk:flex desk:justify-end">
+        <button
+          ref={moreRef}
+          type="button"
+          aria-label={`Actions pour « ${t.title} »`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          title="Actions (clic droit, Maj+F10)"
+          onClick={() => {
+            const r = request("button");
+            if (r) open(r);
+          }}
+          className="relative z-10 inline-flex size-7 cursor-pointer items-center justify-center rounded-sm border border-transparent text-fg-muted opacity-0 group-hover:border-line-strong group-hover:bg-surface group-hover:opacity-100 group-focus-within:opacity-100 hover:text-fg focus-visible:opacity-100 aria-expanded:border-accent aria-expanded:bg-surface aria-expanded:text-accent aria-expanded:opacity-100"
+        >
+          <IconMore size={16} />
+        </button>
+      </span>
     </li>
   );
 }
+
+const FORUM_MENU: RowMenu = { context: "forum" };
 
 /** Last activity, or in a favorite list the date of addition. */
 function RowDate({ topic, className }: { topic: TopicRowData; className?: string }) {
