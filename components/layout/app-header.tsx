@@ -6,6 +6,7 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { LogoutButton } from "@/components/account/logout-button";
 import { Avatar } from "@/components/account/avatar";
 import { Star } from "@/components/lists/star";
+import { HeaderSearch } from "@/components/search/header-search";
 import { useUnreadCount } from "@/components/topic/read-topics";
 import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, Logo } from "@/components/ui/icons";
 import { runPageRefresh } from "@/lib/page-refresh";
@@ -157,6 +158,7 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
+          <HeaderSearch part="desktop" />
           <RefreshButton className={`${REFRESH_CLASS} size-8`} />
           <Link
             href="/compte"
@@ -169,6 +171,8 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
         </div>
 
         <div className="ml-auto flex items-center md:hidden">
+          {/* Search (docs/design/3.3 § 0): left of the shield; magnifier · shield · (refresh) · menu, 44 px each. */}
+          <HeaderSearch part="mobile" />
           {/* Ma stack shortcut, between the logo and the burger: 44 px, badge top right. */}
           <Link
             href="/stack/alertes"

@@ -60,5 +60,5 @@ Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`READM
 - **Notes de design** : `docs/design/<version>/HANDOFF-<version>.md`, `<version>` étant la version de l'app qui
   livre le lot, sans le patch (`3.0/`, puis `3.1/`…). Ne pas renommer les dossiers existants (le code et les tests
   y renvoient) ; tenir à jour la correspondance dans `docs/design/README.md`.
-- Design : tokens uniquement (`docs/design/3.0/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
+- Design : tokens uniquement (`docs/design/3.3/veille-tokens.css`, fusionnés dans `app/globals.css`), aucune couleur
   en dur. Mode sombre par `data-theme` sur `<html>` (cookie `folders-theme`), jamais de script inline (CSP).
