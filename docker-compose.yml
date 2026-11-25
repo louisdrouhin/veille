@@ -20,6 +20,10 @@ x-app-env: &app-env
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   GEMINI_MODEL: ${GEMINI_MODEL:-}
   GEMINI_TRANSLATE_MODEL: ${GEMINI_TRANSLATE_MODEL:-}
+  # « Demande à ta veille »: embeddings model (default gemini-embedding-2) and daily limits (texts, questions).
+  GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-}
+  EMBED_DAILY_LIMIT: ${EMBED_DAILY_LIMIT:-}
+  ASK_DAILY_LIMIT: ${ASK_DAILY_LIMIT:-}
   # Ma stack (checked by the worker, and by the app when asked): optional API keys for the quotas.
   NVD_API_KEY: ${NVD_API_KEY:-}
   GITHUB_TOKEN: ${GITHUB_TOKEN:-}

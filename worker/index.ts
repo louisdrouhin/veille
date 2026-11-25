@@ -12,6 +12,7 @@ import { currentVapid, effectiveEnv } from "@/lib/secrets/effective";
 import { closeDb, getDb } from "@/lib/db";
 import { dispatchNotifications } from "@/lib/push/notify";
 import { checkIfDue, CHECK_INTERVAL_MIN } from "@/lib/stack/sync";
+import { indexPending, refreshArticleTexts } from "@/lib/search/indexer";
 import { recordCycle } from "@/lib/worker/heartbeat";
 import { runCycle } from "@/lib/worker/run-cycle";
 
@@ -45,6 +46,7 @@ async function cycle(): Promise<boolean> {
     const stats = await runCycle(getDb(), { concurrency, log, shouldStop: () => stopping });
     log(`Cycle terminé : ${stats.inserted} topic(s), ${stats.notModified} inchangée(s), ${stats.failed} en erreur`);
     await stackCheck();
+    await searchIndex();
     // Heartbeat read by /api/health (503 after 3 intervals without a completed cycle).
     await recordCycle(getDb(), { startedAt, finishedAt: new Date(), intervalMinutes });
     return true;
@@ -65,6 +67,19 @@ async function stackCheck() {
     await dispatchNotifications(getDb(), { vapid: await currentVapid(getDb()), log });
   } catch (err) {
     log(`[stack] Vérification en échec : ${(err as Error)?.name ?? "erreur"}`);
+  }
+}
+
+/** Search index (docs/design/3.3 § 1): article texts, then embeddings within the daily limit. Never fatal. */
+async function searchIndex() {
+  if (stopping) return;
+  try {
+    await refreshArticleTexts(getDb());
+    const env = await effectiveEnv(getDb());
+    const r = await indexPending(getDb(), { ai: aiConfig(env), env, log, budget: Math.max(1, Number(process.env.EMBED_PER_CYCLE) || 200) });
+    if (r.indexed) log(`[index] ${r.indexed} article(s) indexé(s)`);
+  } catch (err) {
+    log(`[index] Indexation en échec : ${(err as Error)?.name ?? "erreur"}`);
   }
 }
 

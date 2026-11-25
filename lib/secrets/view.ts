@@ -9,6 +9,8 @@ import { DEFAULT_GEMINI_MODEL, DEFAULT_TRANSLATE_MODEL } from "@/lib/ai/config";
 import type { Db } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
 import { isVapidPair } from "@/lib/push/config";
+import { indexProgress } from "@/lib/search/indexer";
+import { dailyLimit, usedToday } from "@/lib/search/usage";
 import { hintOf } from "./crypto";
 import { ENV_OF, type SettingAction, type SettingName } from "./names";
 import { resolveSettings, type Source } from "./store";
@@ -45,7 +47,7 @@ export type ModelState = { name: SettingName; label: string; value: string; sour
 
 export type IntegrationsView = {
   master: "ok" | "missing" | "invalid";
-  gemini: { key: KeyState; models: [ModelState, ModelState] };
+  gemini: { key: KeyState; models: [ModelState, ModelState]; index: { indexed: number; total: number; model: string; today: number; limit: number } };
   nvd: { key: KeyState };
   vapid: { source: Source | null; hint: string | null; unreadable: boolean; envPair: boolean; devices: number };
   journal: { id: number; label: string; action: string; at: string }[];
@@ -77,12 +79,21 @@ export async function integrationsView(db: Db, env: Env = process.env): Promise<
     source: s[name].source ?? "default",
   });
 
-  const [devices, journal] = await Promise.all([db.select({ n: count() }).from(pushSubscriptions), settingsJournal(db)]);
+  const [devices, journal, progress, today] = await Promise.all([
+    db.select({ n: count() }).from(pushSubscriptions),
+    settingsJournal(db),
+    indexProgress(db, r.env),
+    usedToday(db, "embed"),
+  ]);
   const vapidSource = s.vapid_private_key.source === "interface" ? "interface" : isVapidPair(env.VAPID_PUBLIC_KEY?.trim() ?? "", env.VAPID_PRIVATE_KEY?.trim() ?? "") ? "env" : null;
 
   return {
     master: r.master.ok ? "ok" : r.master.reason,
-    gemini: { key: key("gemini_api_key"), models: [model("gemini_model", DEFAULT_GEMINI_MODEL), model("gemini_translate_model", DEFAULT_TRANSLATE_MODEL)] },
+    gemini: {
+      key: key("gemini_api_key"),
+      models: [model("gemini_model", DEFAULT_GEMINI_MODEL), model("gemini_translate_model", DEFAULT_TRANSLATE_MODEL)],
+      index: { ...progress, today, limit: dailyLimit("embed", r.env) },
+    },
     nvd: { key: key("nvd_api_key") },
     vapid: {
       source: vapidSource,

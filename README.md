@@ -285,6 +285,22 @@ Studio) dans le `.env` du serveur, puis `docker compose up -d`. Sans clé, les b
   présent dans une liste) et refait si l'article est rechargé.
 - Offre gratuite de Gemini : Google peut utiliser le texte envoyé (des articles publics) pour améliorer ses produits.
 
+### Demande à ta veille (3.3)
+
+Chaque article est indexé deux fois, par le worker après chaque cycle :
+
+- **Plein texte** (recherche exacte, locale) : titre, chapô, texte de l'article et **notes perso**, en configurations
+  française et anglaise, sans accents (`folders_fold()`, une fonction SQL `IMMUTABLE` : aucune extension).
+- **Par le sens** (embeddings `gemini-embedding-2`, 768 dimensions, multilingue) : titre, chapô et début de l'article
+  (2 000 caractères). Vecteurs en `bytea` et similarité calculée dans l'app : au rythme de ~800 articles par mois, un an
+  tient en 30 Mo et se compare en quelques millisecondes, sans changer l'image PostgreSQL (pas de pgvector). La colonne
+  `model` permet de réindexer avec un autre modèle (`GEMINI_EMBEDDING_MODEL`).
+- **Vie privée** : les notes perso et l'inventaire Ma stack ne partent **jamais** à Gemini (ni en embeddings, ni dans une
+  question). Offre gratuite : Google peut utiliser les textes envoyés (des articles publics) pour améliorer ses produits.
+- **Limites** par jour (heure de Paris), partagées par l'app et le worker : `EMBED_DAILY_LIMIT` textes indexés (1 000) et
+  `ASK_DAILY_LIMIT` questions (50). Le rattrapage de l'existant avance donc par paliers ; sa progression est affichée
+  dans Administration › Intégrations.
+
 ### Ma stack (radar de vulnérabilités)
 
 Aucune configuration obligatoire : le worker vérifie la stack toutes les 30 min (`STACK_CHECK_INTERVAL_MINUTES`), et
