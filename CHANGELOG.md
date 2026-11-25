@@ -4,6 +4,22 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.0.0 — 25/11/2026
+
+- **Ma stack** : déclare tes logiciels (Homelab / Travail) et leur version ; Folders les vérifie toutes les 30 min
+  auprès du CERT-FR, de NVD et de GitHub, et crée une alerte quand une faille touche ta version. Catalogue de 23
+  logiciels courants (Proxmox, Vaultwarden, OpenSSH, FortiOS, Windows Server…), recherche dans le dictionnaire NVD,
+  ou suivi par nom ; contrôle immédiat de la version à l'ajout et à la modification.
+- **Alertes** triées par gravité, avec la version qui corrige, un résumé et une action recommandée en français (avis
+  CERT-FR, ou résumé « Généré par IA »), le topic Folders du même CVE ; « Marquer comme traitée » (avec Annuler),
+  « Ignorer » avec une raison (dont le rétroportage par la distribution). Passer à une version corrigée traite
+  l'alerte.
+- Bloc **Ma stack** sur l'accueil et **badge** dans la navigation (rouge s'il y a une faille critique), raccourci
+  bouclier sur mobile ; pages gardées pour la lecture hors ligne.
+- **Notifications push** (iPhone compris, dans l'app installée) : gravité minimale, « toujours si exploitée »,
+  heures calmes avec envoi groupé à la fin, notifications discrètes sans nom de produit (activées pour le Travail).
+  Réglages dans Mon compte › Notifications.
+
 ## 2.13.0 — 25/11/2026
 
 - **Releases automatiques** : chaque nouvelle version crée son tag et sa Release GitHub, avec ces notes.
