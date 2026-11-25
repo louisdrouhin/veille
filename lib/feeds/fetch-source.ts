@@ -11,7 +11,7 @@ export const PAUSE_DURATION_MS = 60 * 60 * 1000;
 export const MAX_FEED_BYTES = 10 * 1024 * 1024;
 /**
  * Feed content shorter than this (visible text) is treated as a teaser: the
- * reading mode then extracts the page itself instead.
+ * topic page then extracts the article from the page itself instead.
  */
 export const MIN_FEED_ARTICLE_TEXT = 500;
 // `||`, not `??`: docker-compose.yml passes FETCH_USER_AGENT="" when it is not set.

@@ -6,11 +6,12 @@ import { PageNav } from "@/components/layout/page-nav";
 import { AddNoteForm } from "@/components/thread/add-note-form";
 import { Post } from "@/components/thread/post";
 import { MarkTopicRead } from "@/components/topic/mark-topic-read";
-import { ReaderArticle, ReaderArticleSkeleton } from "@/components/thread/reader-article";
-import { SaveButton } from "@/components/lists/save-button";
+import { ArticleFetchedAt, TopicArticle, TopicArticleSkeleton } from "@/components/thread/topic-article";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { getDb } from "@/lib/db";
 import { forums, replies, sourceFavicons, sources, topics, type ReplyType } from "@/lib/db/schema";
 import { faviconUrl } from "@/lib/feeds/favicon";
+import { plural } from "@/lib/format-date";
 import { getPickerLists } from "@/lib/lists/queries";
 import { requireSession } from "@/lib/session";
 
@@ -70,18 +71,23 @@ export default async function TopicPage({ params }: Props) {
           n={1}
           type="topic"
           date={topic.publishedAt}
+          dateSlot={
+            <Suspense fallback={null}>
+              <ArticleFetchedAt topic={topic} />
+            </Suspense>
+          }
           author={{ name: sourceName ?? "Source supprimée", role: "Source", muted: !sourceName, faviconSrc: faviconUrl(topic.sourceId, faviconAt) }}
         >
-          {/* ★ alone (no reading-mode button): right of the title on desktop, under it on the right on mobile. */}
-          <div className="flex flex-col gap-2.5 md:flex-row md:items-start md:gap-4">
-            <h1 className="min-w-0 flex-1 text-lg font-semibold">{topic.title}</h1>
-            <div className="self-end md:self-start">
-              <SaveButton topicId={topic.id} topicTitle={topic.title} initial={saved} />
-            </div>
+          {/* docs/design/v3.1: title, meta line, then the action bar (★ + AI tools) and the article. */}
+          <div className="flex flex-col gap-1">
+            <h1 className="text-lg font-semibold">{topic.title}</h1>
+            <p className="text-sm text-fg-muted">
+              {sourceName ?? "Source supprimée"} · <RelativeTime date={topic.publishedAt} /> · {plural(replyRows.length + 1, "message")}
+            </p>
           </div>
-          {/* Reading mode: the first opening may download the page (up to 10 s), so it is streamed. */}
-          <Suspense fallback={<ReaderArticleSkeleton topic={topic} />}>
-            <ReaderArticle topic={topic} />
+          {/* The first opening may download the page (up to 10 s), so the article is streamed. */}
+          <Suspense fallback={<TopicArticleSkeleton topic={topic} saved={saved} />}>
+            <TopicArticle topic={topic} saved={saved} />
           </Suspense>
         </Post>
 

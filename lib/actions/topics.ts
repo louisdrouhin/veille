@@ -75,7 +75,7 @@ export async function addNote(formData: FormData) {
   redirect(toastUrl(`/t/${topicId}`, { kind: "ok", title: "Note ajoutée." }, `#p${postNumber}`));
 }
 
-/** « Recharger l'article » — downloads and extracts the original page again (reading mode). */
+/** « Recharger l'article » — downloads and extracts the original page again. */
 export async function reloadArticle(formData: FormData) {
   await requireSession();
   const topicId = id(formData.get("topicId"));

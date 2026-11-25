@@ -6,7 +6,7 @@ Consignes pour Claude Code sur ce dépôt. Les infos propres au serveur de dépl
 ## Projet
 
 **Folders** (ex-Veille) : app perso de veille tech présentée comme un forum rétro. Flux RSS/Atom → topics rangés par
-forum thématique, mode lecture, notes perso. Mono-utilisateur, auto-hébergée, installée en PWA sur iPhone.
+forum thématique, article complet dans la page topic, notes perso. Mono-utilisateur, auto-hébergée, installée en PWA sur iPhone.
 
 - Next.js 16 (App Router, `proxy.ts` au lieu de `middleware.ts`), React 19, TypeScript strict, Tailwind v4.
   Avant d'écrire du code Next, lire le guide concerné dans `node_modules/next/dist/docs/` (APIs différentes de la
@@ -18,7 +18,7 @@ forum thématique, mode lecture, notes perso. Mono-utilisateur, auto-hébergée,
 - Docker Compose : `app`, `worker`, `db`, `backup`.
 - Code et identifiants en anglais, interface en français, dates en Europe/Paris.
 
-Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`v1/`, `v2/`, `v3/` : HANDOFF + tokens), `git log --oneline -40`.
+Pour se remettre à niveau : `README.md`, `docs/SPEC.md`, `docs/design/` (`v1/`, `v2/`, `v3/`, `v3.1/` : HANDOFF + tokens), `git log --oneline -40`.
 
 ## Commandes
 

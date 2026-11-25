@@ -22,7 +22,7 @@ export function OfflinePageCache() {
 }
 
 /**
- * Rendered by the topic's reading mode once the article is there (it streams in
+ * Rendered by the topic's article once it is there (it streams in
  * behind a Suspense boundary): the worker then downloads the page with the stored
  * article and its images, instead of starting a second extraction in parallel
  * with the first opening. Renders nothing.

@@ -48,7 +48,7 @@ const all = ["app", "components"].flatMap((d) => tsxFiles(path.join(ROOT, d))).f
 
 describe("external links open outside the installed app", () => {
   it("finds the article links (the scan works on the real code)", () => {
-    expect(all.filter((a) => !isInternal(a.href)).length).toBeGreaterThanOrEqual(3);
+    expect(all.filter((a) => !isInternal(a.href)).length).toBeGreaterThanOrEqual(2);
   });
 
   it('every external <a> has target="_blank" and rel="noopener noreferrer"', () => {

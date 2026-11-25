@@ -153,6 +153,29 @@ export const IconClose = (p: IconProps) => (
     <path d="M4 4l8 8M12 4l-8 8" />
   </Svg>
 );
+/** Four-point sparkle: the mark of generated content (filled: the « Généré par IA » chips). */
+export const IconSparkle = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
+  <Svg {...p}>
+    <path
+      d="M8 1.75c.35 2.9 1.35 3.9 4.25 4.25-2.9.35-3.9 1.35-4.25 4.25C7.65 7.35 6.65 6.35 3.75 6 6.65 5.65 7.65 4.65 8 1.75z"
+      fill={filled ? "currentColor" : "none"}
+    />
+    <path d="M12.5 10.5v3M11 12h3" />
+  </Svg>
+);
+/** « A / 文 »: translate. */
+export const IconTranslate = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M1.75 3.5h6.5M5 2v1.5M3 3.5c.6 2.4 2.1 4.2 4.5 5.3M7 3.5C6.4 5.9 4.9 7.7 2.5 8.8" />
+    <path d="M8.75 14l2.75-6.5L14.25 14M9.6 12h3.8" />
+  </Svg>
+);
+/** Loading indicator in place of an icon (the rotation stops with « reduce motion »). */
+export const IconSpinner = (p: IconProps) => (
+  <Svg {...p} className={`animate-spin motion-reduce:animate-none ${p.className ?? ""}`}>
+    <path d="M8 2a6 6 0 1 0 6 6" />
+  </Svg>
+);
 export const IconMenu = (p: IconProps) => (
   <Svg {...p}>
     <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
