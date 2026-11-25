@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Logiciels · Ma stack" };
 export const dynamic = "force-dynamic";
 
 /** Ma stack › Logiciels (docs/design/3.0 § 4.1). */
-export default async function SoftwarePage() {
+export default async function SoftwarePage({ searchParams }: { searchParams: Promise<{ modifier?: string }> }) {
   await requireSession();
   const db = getDb();
   const [rows, check, counts] = await Promise.all([getSoftware(db), getCheckSummary(db), countOpenAlerts(db)]);
@@ -27,7 +27,7 @@ export default async function SoftwarePage() {
           failed={check.failed}
           sources={check.sources}
         />
-        <SoftwareView rows={rows} />
+        <SoftwareView rows={rows} initialEdit={Number((await searchParams).modifier) || null} />
       </div>
     </div>
   );

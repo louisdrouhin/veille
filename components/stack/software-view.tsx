@@ -64,10 +64,11 @@ export function StatusChip({ row }: { row: SoftwareRow }) {
  * counts, one row per software (mobile: 60 px, the whole row opens the edit sheet; desktop: a table
  * with Modifier / Retirer). Rows come sorted from the server (lib/stack/queries.ts).
  */
-export function SoftwareView({ rows }: { rows: SoftwareRow[] }) {
+export function SoftwareView({ rows, initialEdit = null }: { rows: SoftwareRow[]; initialEdit?: number | null }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<number | null>(null);
+  // « J'ai mis à jour : changer ma version » of an alert opens the sheet of its software.
+  const [editing, setEditing] = useState<number | null>(rows.some((r) => r.id === initialEdit) ? initialEdit : null);
   const shown = rows.filter((r) => filter === "all" || r.context === filter);
   const count = (f: Filter) => (f === "all" ? rows.length : rows.filter((r) => r.context === f).length);
   const edited = rows.find((r) => r.id === editing) ?? null;

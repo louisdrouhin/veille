@@ -82,3 +82,10 @@ export function previewMessage(version: string, p: VersionPreview, productName: 
       : `${nWord(p.vulns.length, "faille")}, dont ${ofWorst.length} ${severityWord(worst, ofWorst.length)}${exploited}`;
   return `${head} pour la ${v}.${fix ? ` Corrigé en ${fix}.` : ""}${update}${fixes}`;
 }
+
+export const SOURCE_KIND_LABEL: Record<"certfr" | "nvd" | "github" | "vendor", string> = {
+  certfr: "Avis CERT-FR",
+  nvd: "NVD",
+  github: "Avis GitHub",
+  vendor: "Avis de l'éditeur",
+};

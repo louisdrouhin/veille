@@ -5,16 +5,21 @@ import {
   alerts,
   products,
   stackItems,
+  topics,
   vulnerabilities,
   vulnerabilityProducts,
+  type AlertState,
+  type DoneReason,
+  type IgnoreReason,
   type Product,
   type Severity,
   type StackContext,
   type VersionScheme,
+  type VulnSource,
 } from "@/lib/db/schema";
-import { severityRank, worstSeverity, type VersionPreview } from "./labels";
+import { homeTitle, severityRank, worstSeverity, type VersionPreview } from "./labels";
 import { getStackStatus, SOURCE_LABELS } from "./sync";
-import { compareVersions, isAffected, nearestFix, parseVersion } from "./versions";
+import { compareVersions, isAffected, nearestFix, parseVersion, sortVersionsDesc } from "./versions";
 
 export type SoftwareStatus = "vulnerable" | "update" | "ok" | "unknown" | "pending" | "untracked";
 
@@ -198,4 +203,159 @@ export async function countOpenAlerts(db: Db): Promise<{ open: number; critical:
     .innerJoin(stackItems, eq(stackItems.id, alerts.stackItemId))
     .where(and(inArray(alerts.state, ["new", "seen"]), isNull(stackItems.removedAt)));
   return { open: rows.length, critical: rows.filter((r) => r.severity === "critical").length };
+}
+
+// ---------------------------------------------------------------------------------------- alerts
+
+export const ALERT_FILTERS = { "a-traiter": ["new", "seen"], traitees: ["done"], ignorees: ["ignored"] } as const;
+export type AlertFilter = keyof typeof ALERT_FILTERS;
+export const parseAlertFilter = (v: unknown): AlertFilter => (typeof v === "string" && v in ALERT_FILTERS ? (v as AlertFilter) : "a-traiter");
+
+export type AlertCard = {
+  id: number;
+  state: AlertState;
+  title: string;
+  severity: Severity;
+  cvss: number | null;
+  exploited: boolean;
+  product: string;
+  version: string;
+  context: StackContext;
+  fix: string | null;
+  publishedAt: Date;
+  doneAt: Date | null;
+  doneReason: DoneReason | null;
+  ignoredReason: IgnoreReason | null;
+};
+
+/** Title shown for an alert: the French one, else « CVE-… dans Produit ». */
+export const alertTitle = (v: { titleFr: string | null; ref: string }, product: string) => v.titleFr ?? `${v.ref} dans ${product}`;
+
+/**
+ * Alerts of a filter. « À traiter »: severity (worst first), then most recent; the others: most
+ * recently handled first.
+ */
+export async function getAlerts(db: Db, filter: AlertFilter): Promise<AlertCard[]> {
+  const rows = await db
+    .select({ a: alerts, v: vulnerabilities, item: stackItems, product: products, fixed: vulnerabilityProducts.fixedVersions })
+    .from(alerts)
+    .innerJoin(vulnerabilities, eq(vulnerabilities.id, alerts.vulnerabilityId))
+    .innerJoin(stackItems, eq(stackItems.id, alerts.stackItemId))
+    .innerJoin(products, eq(products.id, stackItems.productId))
+    .leftJoin(vulnerabilityProducts, and(eq(vulnerabilityProducts.vulnerabilityId, vulnerabilities.id), eq(vulnerabilityProducts.productId, products.id)))
+    .where(inArray(alerts.state, [...ALERT_FILTERS[filter]]))
+    .limit(300);
+  const cards = rows.map(
+    (r): AlertCard => ({
+      id: r.a.id,
+      state: r.a.state,
+      title: alertTitle(r.v, r.product.name),
+      severity: r.v.severity,
+      cvss: r.v.cvss,
+      exploited: r.v.exploited,
+      product: r.product.name,
+      version: r.item.version,
+      context: r.item.context,
+      fix: nearestFix(r.item.version, r.fixed ?? [], r.product.versionScheme),
+      publishedAt: r.v.publishedAt,
+      doneAt: r.a.doneAt,
+      doneReason: r.a.doneReason,
+      ignoredReason: r.a.ignoredReason,
+    }),
+  );
+  const handled = (c: AlertCard) => (c.doneAt ?? c.publishedAt).getTime();
+  return cards.sort((a, b) =>
+    filter === "a-traiter"
+      ? severityRank(a.severity) - severityRank(b.severity) || b.publishedAt.getTime() - a.publishedAt.getTime() || b.id - a.id
+      : handled(b) - handled(a) || b.id - a.id,
+  );
+}
+
+export type AlertDetail = AlertCard & {
+  ref: string;
+  cveId: string | null;
+  itemId: number;
+  itemRemoved: boolean;
+  summary: string | null;
+  summaryLang: "fr" | "en";
+  textSource: "certfr" | "ai" | null;
+  actions: string[];
+  fixedVersions: string[];
+  updatedAt: Date;
+  ignoredNote: string | null;
+  sources: VulnSource[];
+  topic: { id: number; title: string } | null;
+};
+
+export async function getAlertDetail(db: Db, id: number): Promise<AlertDetail | null> {
+  const [r] = await db
+    .select({ a: alerts, v: vulnerabilities, item: stackItems, product: products, fixed: vulnerabilityProducts.fixedVersions, topicTitle: topics.title })
+    .from(alerts)
+    .innerJoin(vulnerabilities, eq(vulnerabilities.id, alerts.vulnerabilityId))
+    .innerJoin(stackItems, eq(stackItems.id, alerts.stackItemId))
+    .innerJoin(products, eq(products.id, stackItems.productId))
+    .leftJoin(vulnerabilityProducts, and(eq(vulnerabilityProducts.vulnerabilityId, vulnerabilities.id), eq(vulnerabilityProducts.productId, products.id)))
+    .leftJoin(topics, eq(topics.id, vulnerabilities.topicId))
+    .where(eq(alerts.id, id));
+  if (!r) return null;
+  const scheme = r.product.versionScheme;
+  const fix = nearestFix(r.item.version, r.fixed ?? [], scheme);
+  const update = fix ? [`Mettre à jour ${r.product.name} vers la ${fix} ou une version ultérieure.`] : [];
+  return {
+    id: r.a.id,
+    state: r.a.state,
+    title: alertTitle(r.v, r.product.name),
+    severity: r.v.severity,
+    cvss: r.v.cvss,
+    exploited: r.v.exploited,
+    product: r.product.name,
+    version: r.item.version,
+    context: r.item.context,
+    fix,
+    publishedAt: r.v.publishedAt,
+    doneAt: r.a.doneAt,
+    doneReason: r.a.doneReason,
+    ignoredReason: r.a.ignoredReason,
+    ignoredNote: r.a.ignoredNote,
+    ref: r.v.ref,
+    cveId: r.v.cveId,
+    itemId: r.item.id,
+    itemRemoved: r.item.removedAt !== null,
+    summary: r.v.summaryFr ?? (r.v.descriptionEn || null),
+    summaryLang: r.v.summaryFr ? "fr" : "en",
+    textSource: r.v.textSource,
+    actions: [...update, ...r.v.actionsFr.filter((a) => !update.includes(a))],
+    fixedVersions: sortVersionsDesc(r.fixed ?? [], scheme).reverse(),
+    updatedAt: r.v.updatedAt,
+    sources: r.v.sources,
+    topic: r.v.topicId && r.topicTitle ? { id: r.v.topicId, title: r.topicTitle } : null,
+  };
+}
+
+/** Opening an alert: `new` → `seen`. */
+export async function markAlertSeen(db: Db, id: number): Promise<void> {
+  await db.update(alerts).set({ state: "seen", updatedAt: new Date() }).where(and(eq(alerts.id, id), eq(alerts.state, "new")));
+}
+
+export type HomeStack = { severity: Severity; title: string; products: string; count: number };
+
+/** Home block (§ 4.6): worst severity of the alerts to handle; null when none (or empty stack). */
+export async function getHomeStack(db: Db): Promise<HomeStack | null> {
+  const open = await getAlerts(db, "a-traiter");
+  if (open.length === 0) return null;
+  const worst = open[0]!.severity;
+  const ofWorst = open.filter((a) => a.severity === worst);
+  const names = [...new Set(ofWorst.map((a) => `${a.product} ${a.version}`))];
+  return {
+    severity: worst,
+    count: open.length,
+    title: homeTitle(ofWorst.length, worst),
+    products: names.slice(0, 3).join(", ") + (names.length > 3 ? "…" : ""),
+  };
+}
+
+/** « Aucune faille connue ne touche tes 14 logiciels »: software matched automatically. */
+export async function countTrackedSoftware(db: Db): Promise<number> {
+  const rows = await db.select({ id: stackItems.id }).from(stackItems).where(and(isNull(stackItems.removedAt)));
+  return rows.length;
 }

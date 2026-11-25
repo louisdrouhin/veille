@@ -5,8 +5,10 @@
  * topic read, and those full prefetches carry no header the server could tell apart.
  * With the default ("auto") no page was rendered, but the only safe setting is `false`.
  *
- * This test parses every component and fails if any <Link> pointing to /t/… does not
- * say prefetch={false}.
+ * Same for an alert of Ma stack (3.0): opening /stack/alertes/[id] marks it seen.
+ *
+ * This test parses every component and fails if any <Link> pointing to /t/… or to
+ * /stack/alertes/… does not say prefetch={false}.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -41,7 +43,7 @@ function topicLinks(file: string, code = readFileSync(file, "utf8")): TopicLink[
           : ts.isJsxExpression(href)
             ? (href.expression?.getText(source) ?? "")
             : "";
-      if (/^[`"']?\/t\//.test(hrefText)) {
+      if (/^[`"']?\/(?:t|stack\/alertes)\//.test(hrefText)) {
         const prefetch = attr("prefetch")?.initializer;
         const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
         found.push({
@@ -62,6 +64,10 @@ describe("links to a topic page never prefetch it (prefetching would mark it rea
   it("finds the topic list's links (the scan works on the real code)", () => {
     expect(links.map((l) => l.where)).toContainEqual(expect.stringMatching(/^components[\\/]topic[\\/]topic-row\.tsx:\d+$/));
     expect(links.map((l) => l.where)).toContainEqual(expect.stringMatching(/^components[\\/]home[\\/]featured\.tsx:\d+$/));
+    // Ma stack: the Folders topic of an alert, the alert cards, « Voir l'alerte » of the edit sheet.
+    for (const f of ["alert-detail", "alert-list", "edit-sheet"]) {
+      expect(links.map((l) => l.where)).toContainEqual(expect.stringMatching(new RegExp(`^components[\\\\/]stack[\\\\/]${f}\\.tsx:\\d+$`)));
+    }
   });
 
   it("every <Link> to /t/… has prefetch={false}", () => {
@@ -77,6 +83,8 @@ describe("links to a topic page never prefetch it (prefetching would mark it rea
     expect(probe(['const a = <Link', '  className="x"', "  onClick={(e) => go(e)}", '  href={"/t/" + id}', ">x</Link>;"].join("\n"))).toEqual([null]);
     // Not topic links: ignored.
     expect(probe('const a = <Link href="/f/securite">x</Link>;')).toEqual([]);
+    expect(probe("const a = <Link href={`/stack/alertes/${id}`}>x</Link>;")).toEqual([null]);
+    expect(probe('const a = <Link href="/stack/alertes?etat=traitees">x</Link>;')).toEqual([]);
     expect(probe("const a = <Link href={`/admin?edit=${id}`}>x</Link>;")).toEqual([]);
   });
 });

@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { aiConfig } from "@/lib/ai/config";
 import { getDb } from "@/lib/db";
-import { alerts, products, STACK_CONTEXTS, stackItems, type Product, type StackContext, type VersionScheme } from "@/lib/db/schema";
+import { alerts, products, STACK_CONTEXTS, stackItems, type IgnoreReason, type Product, type StackContext, type VersionScheme } from "@/lib/db/schema";
 import { recomputeAlerts } from "@/lib/stack/alerts";
 import type { VersionPreview } from "@/lib/stack/labels";
 import { previewVersion, searchCatalog, type CatalogResult } from "@/lib/stack/queries";
@@ -217,5 +217,61 @@ export async function checkStackNowAction(): Promise<{ status: "done" | "recent"
   } catch (err) {
     console.error("[stack] vérification en échec :", (err as Error)?.name ?? "erreur");
     return { status: "done", failed: ["nvd", "github", "certfr"] };
+  }
+}
+
+// ---------------------------------------------------------------------------------------- alerts
+
+const IGNORE: readonly IgnoreReason[] = ["not_exposed", "not_concerned", "backport", "other"];
+
+/** « Marquer comme traitée ». Returns the previous state, for « Annuler ». */
+export async function markAlertDoneAction(alertId: number): Promise<ActionResult<{ previous: "new" | "seen"; doneAt: string }>> {
+  await requireSession();
+  try {
+    const id = validId(alertId);
+    const db = getDb();
+    const [a] = await db.select({ state: alerts.state }).from(alerts).where(eq(alerts.id, id));
+    if (!a || (a.state !== "new" && a.state !== "seen")) throw new ValidationError("Cette alerte n'est plus à traiter.");
+    const now = new Date();
+    await db.update(alerts).set({ state: "done", doneReason: "manual", doneAt: now, updatedAt: now }).where(eq(alerts.id, id));
+    return { ok: true, previous: a.state, doneAt: now.toISOString() };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/** « Rouvrir », « Annuler »: back to « à traiter » (seen). */
+export async function reopenAlertAction(alertId: number): Promise<ActionResult> {
+  await requireSession();
+  try {
+    const id = validId(alertId);
+    await getDb()
+      .update(alerts)
+      .set({ state: "seen", doneReason: null, doneAt: null, ignoredReason: null, ignoredNote: null, updatedAt: new Date() })
+      .where(and(eq(alerts.id, id), inArray(alerts.state, ["done", "ignored"])));
+    return { ok: true };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/** « Ignorer… » with a reason (« autre » needs a word). */
+export async function ignoreAlertAction(input: { id: number; reason: IgnoreReason; note?: string }): Promise<ActionResult> {
+  await requireSession();
+  try {
+    const id = validId(input.id);
+    if (!IGNORE.includes(input.reason)) throw new ValidationError("Raison invalide.");
+    const note = cleanOptional(input.note, 200, "Précision");
+    if (input.reason === "other" && !note) throw new ValidationError("Précise la raison.");
+    const now = new Date();
+    const done = await getDb()
+      .update(alerts)
+      .set({ state: "ignored", ignoredReason: input.reason, ignoredNote: note, doneAt: now, updatedAt: now })
+      .where(and(eq(alerts.id, id), inArray(alerts.state, ["new", "seen"])))
+      .returning({ id: alerts.id });
+    if (done.length === 0) throw new ValidationError("Cette alerte n'est plus à traiter.");
+    return { ok: true };
+  } catch (err) {
+    return failure(err);
   }
 }
