@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { aiOutputs, articleContents, topics, type AiKind } from "@/lib/db/schema";
 import { sanitizeArticleHtml } from "@/lib/reader/sanitize";
@@ -60,6 +60,7 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
     .from(aiOutputs)
     .where(and(eq(aiOutputs.topicId, input.topicId), eq(aiOutputs.kind, input.kind), eq(aiOutputs.model, model)));
   if (cached && cached.format === AI_FORMAT[input.kind] && cached.articleFetchedAt.getTime() === row.fetchedAt.getTime()) {
+    console.info(`[ai] ${input.kind} topic ${input.topicId}: cache (${model})`);
     return { ok: true, cached: true, html: cached.html, truncated: cached.truncated, model: cached.model, inputCut: false };
   }
 
@@ -79,12 +80,14 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
 
   const article: Article = { title: row.title, url: row.url, html: row.html };
   const job = (async (): Promise<AiResult> => {
+    const started = Date.now();
     const res = input.kind === "summary" ? await summarize(config, article, full, deps) : await translate(config, article, deps);
     if (!res.ok) {
       // Kind, topic and error only: never the key nor the article.
       console.error(`[ai] ${input.kind} topic ${input.topicId}: ${res.error}${res.detail ? ` (${res.detail})` : ""}`);
       return { ok: false, error: GEMINI_ERROR_MESSAGES[res.error] };
     }
+    console.info(`[ai] ${input.kind} topic ${input.topicId}: generated (${model}, ${Date.now() - started} ms)`);
     const values = {
       topicId: input.topicId,
       kind: input.kind,
@@ -109,6 +112,25 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
   } finally {
     inFlight.delete(key);
   }
+}
+
+export type StoredAiOutputs = Partial<Record<AiKind, AiOutput>>;
+
+/**
+ * The results already stored for this version of the article (current models and format), for
+ * the server render of the topic page: shown without any call to Gemini, on every device.
+ */
+export async function getStoredAiOutputs(db: Db, topicId: number, articleFetchedAt: Date, config: AiConfig): Promise<StoredAiOutputs> {
+  const rows = await db
+    .select()
+    .from(aiOutputs)
+    .where(and(eq(aiOutputs.topicId, topicId), inArray(aiOutputs.model, [config.model, config.translateModel])));
+  const out: StoredAiOutputs = {};
+  for (const r of rows) {
+    if (r.model !== modelFor(config, r.kind) || r.format !== AI_FORMAT[r.kind] || r.articleFetchedAt.getTime() !== articleFetchedAt.getTime()) continue;
+    out[r.kind] = { html: r.html, truncated: r.truncated, model: r.model, inputCut: false };
+  }
+  return out;
 }
 
 type Produced = { ok: true; html: string; truncated: boolean; inputCut: boolean } | { ok: false; error: GeminiError; detail?: string };

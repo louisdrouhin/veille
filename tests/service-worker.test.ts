@@ -201,6 +201,17 @@ describe("service worker — offline reading of opened topics", () => {
     expect(sw.caches.paths("veille-images")).toHaveLength(3);
   });
 
+  it("after a summary or a translation (force), the topic is downloaded again even if saved a moment ago", async () => {
+    await sw.navigate("/t/42");
+    const calls = () => sw.network.calls.filter((c) => c === "/t/42").length;
+    const before = calls();
+    await sw.message({ type: "cache-page", url: "/t/42", force: true });
+    expect(calls()).toBe(before + 1);
+    // Only a real `true` forces it.
+    await sw.message({ type: "cache-page", url: "/t/42", force: "yes" });
+    expect(calls()).toBe(before + 1);
+  });
+
   it("offline, a cache-page message keeps the copy already saved", async () => {
     await sw.message({ type: "cache-page", url: "/t/42" });
     sw.network.online = false;

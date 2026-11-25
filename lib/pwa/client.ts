@@ -100,9 +100,9 @@ export async function promptInstall(): Promise<void> {
 // ---------------------------------------------------------------- caches
 
 /** Asks the worker to save a page (and a topic's images) for offline reading. */
-export function cachePageForOffline(url: string): void {
+export function cachePageForOffline(url: string, { force = false } = {}): void {
   if (!hasServiceWorker()) return;
-  navigator.serviceWorker.controller?.postMessage({ type: "cache-page", url });
+  navigator.serviceWorker.controller?.postMessage({ type: "cache-page", url, force });
 }
 
 /** Deletes every cache of the worker (logout, login page): nothing read stays on the device. */
