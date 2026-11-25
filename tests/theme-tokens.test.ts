@@ -12,8 +12,8 @@ const ROOT = path.join(import.meta.dirname, "..");
 const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
 
 describe("design tokens v2", () => {
-  it("match docs/design/3.0/veille-tokens.css (v2 + favorite lists + severities), light and dark, in both directions", () => {
-    const doc = read("docs", "design", "3.0", "veille-tokens.css");
+  it("match docs/design/3.3/veille-tokens.css (v2 + favorite lists + severities + highlight), light and dark, in both directions", () => {
+    const doc = read("docs", "design", "3.3", "veille-tokens.css");
     for (const [selector, tokens] of [
       [':root,\n:root[data-theme="light"] {', LIGHT],
       [':root[data-theme="dark"] {', DARK],
@@ -52,6 +52,18 @@ describe("design tokens v2", () => {
     }
     expect([LIGHT["sev-high"], LIGHT["sev-medium"], LIGHT["sev-low"]]).toEqual(["#A54A0A", "#7A5F00", "#4F5C68"]);
     expect([DARK["sev-high"], DARK["sev-medium"], DARK["sev-low"]]).toEqual(["#F2A465", "#D8B84C", "#A9B4BE"]);
+  });
+
+  it("3.3 highlight tokens: values of the design note, in the three blocks, exposed to Tailwind, AA", () => {
+    expect([LIGHT["mark-bg"], LIGHT["mark-fg"]]).toEqual(["#FCE7A2", "#1B1A17"]);
+    expect([DARK["mark-bg"], DARK["mark-fg"]]).toEqual(["#5A4710", "#FFF6DE"]);
+    expect([SYSTEM_DARK["mark-bg"], SYSTEM_DARK["mark-fg"]]).toEqual([DARK["mark-bg"], DARK["mark-fg"]]);
+    expect(GLOBALS_CSS).toContain("--color-mark: var(--mark-bg);");
+    expect(GLOBALS_CSS).toContain("--color-mark-fg: var(--mark-fg);");
+    // § 7: 14,2:1 light, 8,3:1 dark; muted text on the light highlight 5,7:1.
+    expect(contrast(LIGHT["mark-fg"]!, LIGHT["mark-bg"]!)).toBeGreaterThan(14);
+    expect(contrast(DARK["mark-fg"]!, DARK["mark-bg"]!)).toBeGreaterThan(8);
+    expect(contrast(LIGHT["fg-muted"] ?? LIGHT["text-muted"]!, LIGHT["mark-bg"]!)).toBeGreaterThan(4.5);
   });
 
   it("severity colors: ≥ 5:1 on their soft background and on every surface, in both themes", () => {

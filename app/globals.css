@@ -1,6 +1,6 @@
 /* =========================================================================
    Folders — design tokens v2 (Tailwind CSS v4, Next.js 16)
-   Source : docs/design/3.0/veille-tokens.css (v2 + listes de favoris + gravités ; ne pas diverger sur les couleurs).
+   Source : docs/design/3.3/veille-tokens.css (v2 + listes de favoris + gravités + surlignage ; ne pas diverger sur les couleurs).
 
    Thème : attribut data-theme sur <html>, rendu côté serveur depuis le cookie
    folders-theme (app/layout.tsx, lib/theme.ts) :
@@ -93,6 +93,9 @@
   --sev-medium-soft: #FAF2D3;
   --sev-low: #4F5C68;
   --sev-low-soft: #EBEEF1;
+  /* 3.3 : surlignage des termes trouvés (<mark>), distinct de l'étoile --saved. */
+  --mark-bg: #FCE7A2;
+  --mark-fg: #1B1A17;
 
   color-scheme: light;
 }
@@ -158,6 +161,9 @@
   --sev-medium-soft: #2C2510;
   --sev-low: #A9B4BE;
   --sev-low-soft: #22272B;
+  /* 3.3 : surlignage des termes trouvés (<mark>), distinct de l'étoile --saved. */
+  --mark-bg: #5A4710;
+  --mark-fg: #FFF6DE;
 
   color-scheme: dark;
 }
@@ -226,6 +232,9 @@
     --sev-medium-soft: #2C2510;
     --sev-low: #A9B4BE;
     --sev-low-soft: #22272B;
+    /* 3.3 : surlignage des termes trouvés (<mark>), distinct de l'étoile --saved. */
+    --mark-bg: #5A4710;
+    --mark-fg: #FFF6DE;
 
     color-scheme: dark;
   }
@@ -296,6 +305,8 @@
   --color-sev-medium-soft: var(--sev-medium-soft);
   --color-sev-low: var(--sev-low);
   --color-sev-low-soft: var(--sev-low-soft);
+  --color-mark: var(--mark-bg);
+  --color-mark-fg: var(--mark-fg);
 
   --shadow-sm: var(--elev-sm);
   --shadow-md: var(--elev-md);
