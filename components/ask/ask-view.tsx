@@ -417,7 +417,7 @@ function NothingFound({ q, scope, keywords, hadSources }: { q: string; scope: As
             Rechercher « {keywords} »
           </Link>
         )}
-        <Link href="/admin#sources" className="inline-flex h-11 items-center rounded-sm border border-line-strong px-3.5 text-base font-semibold text-fg no-underline md:h-9">
+        <Link href="/parametres/sources" className="inline-flex h-11 items-center rounded-sm border border-line-strong px-3.5 text-base font-semibold text-fg no-underline md:h-9">
           Ajouter une source
         </Link>
       </div>

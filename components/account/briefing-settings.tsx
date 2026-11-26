@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { testBriefingAction, updateBriefingSettingsAction } from "@/lib/actions/briefing";
 import type { BriefingDays, BriefingLength, BriefingPreview } from "@/lib/briefing/types";
 import { showToast } from "@/lib/toast-client";
+import { SaveError, SavedHint, useSave } from "@/components/settings/saved";
 
 export type BriefingSettingsView = {
   enabled: boolean;
@@ -67,28 +68,40 @@ function NotificationPreview({ preview }: { preview: BriefingPreview }) {
 }
 
 /**
- * « Briefing du matin » settings (docs/design/3.4 § 7), first section of Mon compte › Notifications; saved on change.
+ * « Briefing du matin » settings (docs/design/3.4 § 7), first section of Paramètres › Notifications; saved on change.
  * Mes services: the forums are chosen here (pre-filled with « Mes services » when it exists), never guessed.
  */
-export function BriefingSettingsPanel({ initial, forums, next: initialNext }: { initial: BriefingSettingsView; forums: { id: number; name: string }[]; next: string | null }) {
+export function BriefingSettingsPanel({
+  initial,
+  forums,
+  next: initialNext,
+  title = "Briefing du matin",
+}: {
+  initial: BriefingSettingsView;
+  forums: { id: number; name: string }[];
+  next: string | null;
+  title?: string;
+}) {
   const [s, setS] = useState(initial);
   const [next, setNext] = useState(initialNext);
   const [busy, start] = useTransition();
   const [testing, startTest] = useTransition();
   const ids = { on: useId(), time: useId(), help: useId(), focus: useId() };
 
+  // Applied at once, « ✓ Enregistré » inline; back to the previous value on failure (docs/design/3.5 § 4).
+  const { state: saved, save: run } = useSave();
   const save = (patch: Patch) => {
     const before = s;
     setS((prev) => ({ ...prev, ...patch }));
     start(async () => {
-      const res = await updateBriefingSettingsAction(patch).catch(() => ({ ok: false as const, error: "Connexion au serveur impossible." }));
-      if (!res.ok) {
-        setS(before);
-        return showToast({ kind: "error", title: "Briefing :", msg: res.error });
-      }
-      setS((prev) => ({ ...prev, enabled: res.enabled }));
-      setNext(res.next);
-      if (res.message) showToast({ kind: "error", title: res.message });
+      await run(async () => {
+        const res = await updateBriefingSettingsAction(patch);
+        if (!res.ok) return res;
+        setS((prev) => ({ ...prev, enabled: res.enabled }));
+        setNext(res.next);
+        if (res.message) showToast({ kind: "error", title: res.message });
+        return { ok: true };
+      }, () => setS(before));
     });
   };
 
@@ -107,8 +120,12 @@ export function BriefingSettingsPanel({ initial, forums, next: initialNext }: { 
 
   const servicesOn = s.sectionServices;
   return (
-    <Panel id="briefing" title="Briefing du matin">
+    <Panel id="briefing" title={title}>
       <div className="grid gap-4 p-3.5">
+        <div aria-live="off" className="-mb-2 flex min-h-5 justify-end">
+          <SavedHint state={saved} />
+        </div>
+        <SaveError state={saved} />
         <div className="flex items-center gap-3">
           <IconSun size={18} className="shrink-0 text-fg-muted" />
           <p className="min-w-0 flex-1">

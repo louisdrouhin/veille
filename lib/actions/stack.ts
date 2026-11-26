@@ -30,7 +30,7 @@ function failure(err: unknown): { ok: false; error: string } {
   return { ok: false, error: "Enregistrement impossible, réessaie." };
 }
 
-/** Keys and models in use: Admin › Intégrations first, then the .env. */
+/** Keys and models in use: Paramètres › Intégrations first, then the .env. */
 async function deps(): Promise<StackDeps> {
   const env = await effectiveEnv(getDb());
   return { env, ai: aiConfig(env) };

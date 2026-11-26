@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition } from "react";
 import { buttonClass } from "@/components/ui/button";
@@ -12,7 +13,6 @@ import {
   reconfirmAction,
   removeSettingAction,
   saveKeyAction,
-  saveMergeThresholdAction,
   saveModelsAction,
   testKeyAction,
   type Result,
@@ -29,9 +29,9 @@ const LABEL = "flex min-w-0 flex-col gap-1 text-xs font-semibold text-fg-muted";
 type Run = <T extends object>(fn: () => Promise<Result<T>>, onOk?: (r: T) => void) => void;
 
 /**
- * Admin › Intégrations. The keys are write-only: the server only sends their source, their last 4
+ * Paramètres › Intégrations. The keys are write-only: the server only sends their source, their last 4
  * characters and their last test. Every change asks for the password (or the 2FA code) when the
- * last confirmation is more than 5 minutes old.
+ * last confirmation is more than 10 minutes old.
  */
 export function IntegrationsPanel({ view, grantUntil, proof }: { view: IntegrationsView; grantUntil: number | null; proof: "password" | "code" }) {
   const router = useRouter();
@@ -91,12 +91,30 @@ export function IntegrationsPanel({ view, grantUntil, proof }: { view: Integrati
         )
       )}
 
+      {/* A refused key first (docs/design/3.5 § 7), until it is replaced or tested again. */}
+      {[view.gemini.key, view.nvd.key]
+        .filter((k) => k.test && !k.test.ok)
+        .map((k) => (
+          <div key={k.name} role="alert" className="flex items-start gap-2.5 rounded-md border border-err bg-err-soft p-3.5 text-base">
+            <IconAlert size={18} className="mt-0.5 shrink-0 text-err" />
+            <p>
+              <strong className="text-err">La {k.label.toLowerCase()} a été refusée</strong> lors du dernier test ({k.test!.message}). Remplace-la ou teste-la à nouveau.
+            </p>
+          </div>
+        ))}
+
       <div className="flex flex-wrap items-start gap-5">
-        <Panel id="gemini" title="Gemini · résumé et traduction" className="w-full min-w-0 min-[1000px]:flex-[1_1_440px]">
+        <Panel id="gemini" title="Gemini · fournisseur IA" className="w-full min-w-0 min-[1000px]:flex-[1_1_440px]">
           <KeyRow state={view.gemini.key} readOnly={readOnly} busy={busy} run={run} help="Clé Google AI Studio (aistudio.google.com › Get API key)." />
           <ModelsForm models={view.gemini.models} readOnly={readOnly} busy={busy} run={run} />
-          <IndexLine index={view.gemini.index} />
-          <MergeForm merge={view.gemini.merge} readOnly={readOnly} busy={busy} run={run} />
+          <p className="border-t border-line px-3.5 py-3 text-sm text-fg-muted">
+            Embeddings (recherche par le sens) : <span className="font-mono text-fg">{view.gemini.index.model}</span>, réglé dans le .env du serveur. Le changer impose de
+            réindexer. Seuil de regroupement, limites et index :{" "}
+            <Link href="/parametres/recherche-ia" className="font-semibold">
+              Recherche et IA
+            </Link>
+            .
+          </p>
         </Panel>
         <Panel id="nvd" title="NVD · vulnérabilités" className="w-full min-w-0 min-[1000px]:flex-[1_1_440px]">
           <KeyRow
@@ -390,7 +408,7 @@ function VapidPanel({ vapid, readOnly, busy, run }: { vapid: IntegrationsView["v
             <IconAlert size={18} className="mt-px shrink-0 text-warn" />
             <p>
               {confirm === "generate"
-                ? `Tous les appareils sont désabonnés (${devices}) : il faudra réactiver les notifications sur chacun, dans Mon compte › Notifications.`
+                ? `Tous les appareils sont désabonnés (${devices}) : il faudra réactiver les notifications sur chacun, dans Paramètres › Notifications.`
                 : "Les appareils abonnés avec les clés de l'interface ne recevront plus rien si celles du .env sont différentes : il faudra les réabonner."}
             </p>
           </div>
@@ -423,67 +441,6 @@ function VapidPanel({ vapid, readOnly, busy, run }: { vapid: IntegrationsView["v
         </div>
       </Sheet>
     </Panel>
-  );
-}
-
-/** « Demande à ta veille »: how much of the corpus has a meaning vector (docs/design/3.3 § 1). */
-function IndexLine({ index }: { index: IntegrationsView["gemini"]["index"] }) {
-  const pct = index.total ? Math.floor((index.indexed / index.total) * 100) : 100;
-  return (
-    <div className="flex flex-col gap-1 border-t border-line p-3.5 text-sm">
-      <p>
-        <span className="font-semibold">Index de recherche</span> · {index.indexed} / {index.total} article{index.total > 1 ? "s" : ""} ({pct} %),
-        modèle <code className="font-mono">{index.model}</code>
-      </p>
-      <p className="text-fg-muted">
-        Aujourd&apos;hui : {index.today} / {index.limit} textes envoyés. Seuls le titre, le chapô et le début des articles partent à Gemini, jamais
-        tes notes.
-      </p>
-    </div>
-  );
-}
-
-/** « À la une » (docs/design/3.3 § 2): from which similarity a new article joins a topic of the last 72 h. */
-function MergeForm({ merge, readOnly, busy, run }: { merge: IntegrationsView["gemini"]["merge"]; readOnly: boolean; busy: boolean; run: Run }) {
-  const initial = merge.source === "interface" ? merge.value.toFixed(2).replace(".", ",") : "";
-  const [value, setValue] = useState(initial);
-  const id = useId();
-  const helpId = useId();
-  return (
-    <form
-      className="flex flex-col gap-1.5 border-t border-line p-3.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(
-          () => saveMergeThresholdAction(value),
-          () => showToast({ kind: "ok", title: "Seuil de regroupement enregistré." }),
-        );
-      }}
-    >
-      <label htmlFor={id} className={LABEL}>
-        <span className="flex items-center gap-2">
-          Seuil de regroupement des doublons <SourceBadge source={merge.source} />
-        </span>
-      </label>
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          id={id}
-          inputMode="decimal"
-          className={`${FIELD} w-28 font-mono`}
-          value={value}
-          placeholder={merge.value.toFixed(2).replace(".", ",")}
-          onChange={(e) => setValue(e.target.value)}
-          aria-describedby={helpId}
-          disabled={readOnly}
-        />
-        <button type="submit" className={buttonClass("secondary")} disabled={readOnly || busy || value.trim() === initial}>
-          Enregistrer
-        </button>
-      </div>
-      <p id={helpId} className="text-sm text-fg-muted">
-        Entre 0,50 et 0,99. Plus haut : moins de regroupements, seulement les articles presque identiques. Vide : {merge.fallback.toFixed(2).replace(".", ",")} par défaut.
-      </p>
-    </form>
   );
 }
 
@@ -538,7 +495,7 @@ function ReconfirmSheet({ open, proof, onClose, onConfirmed }: { open: boolean; 
       title="Confirme ton identité"
     >
       <form onSubmit={submit} className="flex flex-col gap-3 px-4 pt-1 text-base">
-        <p className="text-fg-muted">Pour modifier les clés, {proof === "code" ? "saisis le code de ton application d'authentification" : "saisis ton mot de passe"}. Valable 5 minutes.</p>
+        <p className="text-fg-muted">Pour modifier les clés, {proof === "code" ? "saisis le code de ton application d'authentification" : "saisis ton mot de passe"}. Valable 10 minutes.</p>
         {error && (
           <div id={errorId} role="alert" className="flex items-start gap-2 rounded-sm border border-err bg-err-soft p-2.5 text-err">
             <IconAlertCircle size={18} className="mt-px shrink-0" />

@@ -1,7 +1,7 @@
 import { formatFull, formatTitle } from "@/lib/format-date";
 
 /**
- * Version of the running app, for Mon compte › À propos. The values are inlined at build by
+ * Version of the running app, for Paramètres › À propos. The values are inlined at build by
  * next.config.ts (lib/build-info.ts): nothing comes from git or the environment at runtime.
  * Each `process.env.X` is written out in full so that the bundler can replace it.
  */

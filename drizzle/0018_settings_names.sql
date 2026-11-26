@@ -1,0 +1,2 @@
+ALTER TABLE "app_settings" DROP CONSTRAINT "app_settings_name_check";--> statement-breakpoint
+ALTER TABLE "app_settings" ADD CONSTRAINT "app_settings_name_check" CHECK ("app_settings"."name" in ('gemini_api_key', 'gemini_model', 'gemini_translate_model', 'nvd_api_key', 'vapid_public_key', 'vapid_private_key', 'merge_threshold', 'merge_window_hours', 'embed_daily_limit', 'ask_daily_limit'));

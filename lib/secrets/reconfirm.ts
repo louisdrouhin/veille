@@ -1,6 +1,6 @@
 /**
- * Admin › Intégrations: every change asks again for the password, or the 2FA code when it is on,
- * and is then allowed for 5 minutes in this session only. In memory (single app instance, like the
+ * Paramètres › Intégrations: every change asks again for the password, or the 2FA code when it is on,
+ * and is then allowed for 10 minutes in this session only (Sécurité and Intégrations). In memory (single app instance, like the
  * other limits): a restart asks again. Attempts are limited (5 per 10 min) against guessing.
  */
 import { symmetricDecrypt, verifyPassword } from "better-auth/crypto";
@@ -10,7 +10,7 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { account, twoFactor, user } from "@/lib/db/schema";
 
-export const RECONFIRM_MS = 5 * 60_000;
+export const RECONFIRM_MS = 10 * 60_000;
 export const ATTEMPTS = { windowMs: 10 * 60_000, max: 5 } as const;
 
 const grants = new Map<string, number>();

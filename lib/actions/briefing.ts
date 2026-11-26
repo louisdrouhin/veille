@@ -81,7 +81,7 @@ export async function testBriefingAction(): Promise<Result<{ day: string; device
   const db = getDb();
   try {
     const deps = { ai: await currentAiConfig(db), vapid: await currentVapid(db), log: console.info };
-    if (!deps.vapid) return { ok: false, error: "Notifications non configurées : génère les clés VAPID dans Administration › Intégrations." };
+    if (!deps.vapid) return { ok: false, error: "Notifications non configurées : génère les clés VAPID dans Paramètres › Intégrations." };
     const { briefing, created } = await makeNow(db, "test", deps);
     const empty = isEmptyBriefing(briefing.content);
     // A new one was sent when made (unless « Rien de neuf »); an existing one is sent again.

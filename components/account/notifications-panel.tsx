@@ -12,6 +12,7 @@ import type { NotifyThreshold } from "@/lib/db/schema";
 import { useIsIos, useStandalone } from "@/lib/pwa/client";
 import { pushAvailability } from "@/lib/pwa/platform";
 import { showToast } from "@/lib/toast-client";
+import { SaveError, SavedHint, useSave } from "@/components/settings/saved";
 
 export type Settings = Required<SettingsInput>;
 
@@ -46,7 +47,7 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
       if (hasPushApi()) {
         const reg = await navigator.serviceWorker.getRegistration();
         const sub = await reg?.pushManager.getSubscription();
-        // Made with other VAPID keys (regenerated in Admin › Intégrations): no longer valid.
+        // Made with other VAPID keys (regenerated in Paramètres › Intégrations): no longer valid.
         current = sub && publicKey && sameKey(sub, publicKey) ? sub.endpoint : null;
       }
       if (!alive) return;
@@ -130,7 +131,7 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
             </p>
           </div>
         )}
-        {mode === "unconfigured" && <p className="text-sm text-fg-muted">Génère les clés VAPID dans Administration › Intégrations (ou ajoute-les au .env du serveur).</p>}
+        {mode === "unconfigured" && <p className="text-sm text-fg-muted">Génère les clés VAPID dans Paramètres › Intégrations (ou ajoute-les au .env du serveur).</p>}
         {error && (
           <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-err bg-err-soft p-3 text-base">
             <IconAlertCircle size={18} className="shrink-0 text-err" />
@@ -156,23 +157,31 @@ function RulesPanel({ initial }: { initial: Settings }) {
   const [, start] = useTransition();
   const name = useId();
   const ids = { exploited: useId(), quiet: useId(), homelab: useId(), work: useId(), discreet: useId(), from: useId(), to: useId() };
+  // Applied at once, « ✓ Enregistré » inline; back to the previous value on failure (docs/design/3.5 § 4).
+  const { state: saved, save: run } = useSave();
   const save = useCallback(
     (patch: SettingsInput) => {
-      setS((prev) => ({ ...prev, ...patch }));
+      let before: Settings | null = null;
+      setS((prev) => {
+        before = prev;
+        return { ...prev, ...patch };
+      });
       start(async () => {
-        const res = await updateNotificationSettingsAction(patch);
-        if (!res.ok) showToast({ kind: "error", title: res.error });
+        await run(() => updateNotificationSettingsAction(patch), () => before && setS(before));
       });
     },
-    [start],
+    [start, run],
   );
 
   return (
     <>
       <Panel title="Ce qui déclenche une notification">
         <div className="grid gap-3 p-3.5">
+          <SaveError state={saved} />
           <fieldset>
-            <legend className="mb-1.5 text-sm font-semibold">Gravité minimale</legend>
+            <legend className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+              Gravité minimale <SavedHint state={saved} />
+            </legend>
             <div role="radiogroup" className="grid gap-0.5">
               {THRESHOLDS.map((t) => (
                 <label key={t.key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-1 hover:bg-surface-hover">

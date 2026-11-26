@@ -6,7 +6,7 @@ export function ErrorAlert({ errorCount, className = "" }: { errorCount: number;
   if (errorCount === 0) return null;
   return (
     <Link
-      href="/admin#sources"
+      href="/parametres/sources?filtre=erreur"
       className={`flex min-h-11 items-center gap-2 rounded-md border border-err bg-err-soft px-3 text-sm text-err no-underline hover:text-err hover:underline md:min-h-9 ${className}`}
     >
       <span aria-hidden className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-err text-err-fg">

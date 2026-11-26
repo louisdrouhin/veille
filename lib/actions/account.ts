@@ -9,7 +9,7 @@ import { requireSession } from "@/lib/session";
 import { isThemePreference, THEME_COOKIE, themeCookieOptions, type ThemePreference } from "@/lib/theme";
 
 /**
- * Mon compte › Apparence. Saved on the account (same choice on every device; « system » follows
+ * Paramètres › Apparence. Saved on the account (same choice on every device; « system » follows
  * each one) and mirrored in the folders-theme cookie read by the root layout. The client has
  * already switched <html data-theme>; revalidating the root layout drops the router cache, so
  * pages rendered with the old theme are not shown again.

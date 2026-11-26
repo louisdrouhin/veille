@@ -12,8 +12,8 @@ import { generateVapid, importVapidFromEnv, recordTest, removeSetting, saveSetti
 import { requireSession } from "@/lib/session";
 
 /*
- * Admin › Intégrations. Every action re-checks the session; every change also needs a confirmation
- * of the password (or the 2FA code) made less than 5 minutes ago in this session, and SECRETS_KEY.
+ * Paramètres › Intégrations. Every action re-checks the session; every change also needs a confirmation
+ * of the password (or the 2FA code) made less than 10 minutes ago in this session (shared with Sécurité), and SECRETS_KEY.
  * Values are never returned, logged, or put in an error message: errors are logged by name only.
  */
 
@@ -35,7 +35,7 @@ async function forChange(): Promise<{ ok: true; db: ReturnType<typeof getDb>; ke
 }
 
 const done = () => {
-  revalidatePath("/admin/integrations");
+  revalidatePath("/parametres/integrations");
   // Gemini buttons, notifications page: read on the next render.
   revalidatePath("/", "layout");
 };
@@ -175,7 +175,7 @@ export async function testKeyAction(name: unknown): Promise<Result<{ test: { ok:
     }
     const at = new Date();
     await recordTest(db, name, result, at);
-    revalidatePath("/admin/integrations");
+    revalidatePath("/parametres/integrations");
     return { ok: true, test: { ...result, at: at.toISOString() } };
   });
 }

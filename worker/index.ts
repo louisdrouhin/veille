@@ -62,7 +62,7 @@ async function cycle(): Promise<boolean> {
 async function stackCheck() {
   if (stopping) return;
   try {
-    // Keys of Admin › Intégrations first, then the .env (re-read at most every 10 s).
+    // Keys of Paramètres › Intégrations first, then the .env (re-read at most every 10 s).
     const env = await effectiveEnv(getDb());
     await checkIfDue(getDb(), { env, ai: aiConfig(env), log }, stackInterval);
     // Every cycle, not only after a check: alerts held during quiet hours go out at their end.

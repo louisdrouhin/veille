@@ -1,5 +1,5 @@
 /**
- * Encryption of the keys set in Admin › Intégrations: AES-256-GCM with the master key SECRETS_KEY
+ * Encryption of the keys set in Paramètres › Intégrations: AES-256-GCM with the master key SECRETS_KEY
  * (32 random bytes in base64, server .env only: `openssl rand -base64 32`). Each value has its own
  * random 12-byte IV, and its name as additional data, so a ciphertext copied onto another name does
  * not decrypt. Stored as `v1.<iv>.<tag>.<ciphertext>` (base64url).

@@ -1,5 +1,5 @@
 /**
- * Theme preference (Mon compte › Apparence) and the token colors needed outside CSS
+ * Theme preference (Paramètres › Apparence) and the token colors needed outside CSS
  * (manifest, <meta name="theme-color">, the service worker's offline page).
  * Same values as app/globals.css (checked by tests/pwa-manifest.test.ts and tests/theme-tokens.test.ts).
  */
@@ -15,6 +15,7 @@ export const THEME_DARK = { bar: "#1C3039" } as const;
 export const THEMES = ["system", "light", "dark"] as const;
 export type ThemePreference = (typeof THEMES)[number];
 export const DEFAULT_THEME: ThemePreference = "system";
+export const THEME_LABEL: Record<ThemePreference, string> = { system: "Système", light: "Clair", dark: "Sombre" };
 
 /**
  * Mirror of the account's preference, read by the root layout to render <html data-theme>

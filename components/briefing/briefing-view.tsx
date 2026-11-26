@@ -277,7 +277,7 @@ function BriefingAside({ current, recent, settingsSummary }: { current: string; 
           Réglages
         </h2>
         <p className="text-fg-muted">{settingsSummary}</p>
-        <Link href="/compte/notifications#briefing" className="mt-1 inline-block font-semibold">
+        <Link href="/parametres/briefing" className="mt-1 inline-block font-semibold">
           Modifier
         </Link>
       </section>

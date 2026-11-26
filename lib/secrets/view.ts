@@ -1,5 +1,5 @@
 /**
- * What Admin › Intégrations sends to the browser: for each key, where it comes from, its last 4
+ * What Paramètres › Intégrations sends to the browser: for each key, where it comes from, its last 4
  * characters and its last test — never the value (tests/integrations.test.ts checks the whole
  * object against the plaintext).
  */
@@ -25,6 +25,9 @@ export const LABELS: Record<SettingName, string> = {
   vapid_public_key: "Clé publique VAPID",
   vapid_private_key: "Clé privée VAPID",
   merge_threshold: "Seuil de regroupement des doublons",
+  merge_window_hours: "Fenêtre de regroupement",
+  embed_daily_limit: "Limite quotidienne d'indexation",
+  ask_daily_limit: "Limite quotidienne de questions",
 };
 
 export const ACTION_LABELS: Record<SettingAction, string> = {

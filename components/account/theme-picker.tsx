@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { applyTheme } from "@/components/theme/theme-sync";
 import { IconCheck } from "@/components/ui/icons";
+import { SavedHint, useSave } from "@/components/settings/saved";
 import { setTheme } from "@/lib/actions/account";
 import type { ThemePreference } from "@/lib/theme";
 
@@ -71,7 +72,7 @@ function hint(value: ThemePreference, systemDark: boolean | null): string {
 }
 
 /**
- * Mon compte › Apparence. A change applies at once (<html data-theme>), then is saved on the
+ * Paramètres › Apparence. A change applies at once (<html data-theme>), then is saved on the
  * account by the setTheme action. No « Enregistrer » button.
  */
 export function ThemePicker({ initial }: { initial: ThemePreference }) {
@@ -80,14 +81,15 @@ export function ThemePicker({ initial }: { initial: ThemePreference }) {
   const [, startTransition] = useTransition();
   const systemDark = useSystemDark();
 
+  const { state: savedState, save } = useSave();
   function choose(next: ThemePreference) {
     const previous = value;
     setValue(next);
     setError(false);
     applyTheme(next);
     startTransition(async () => {
-      const saved = await setTheme(next).catch(() => ({ ok: false }));
-      if (saved.ok) return;
+      const ok = await save(async () => ((await setTheme(next).catch(() => ({ ok: false }))).ok ? { ok: true } : { ok: false, error: "Thème non enregistré : réessaie." }));
+      if (ok) return;
       setValue(previous);
       applyTheme(previous);
       setError(true);
@@ -96,7 +98,9 @@ export function ThemePicker({ initial }: { initial: ThemePreference }) {
 
   return (
     <fieldset className="flex flex-col gap-2.5">
-      <legend className="mb-2.5 text-[15px] font-semibold">Thème</legend>
+      <legend className="mb-2.5 flex items-center gap-2 text-[15px] font-semibold">
+        Thème <SavedHint state={savedState} />
+      </legend>
       <div className="grid grid-cols-3 gap-2 md:gap-3">
         {OPTIONS.map((o) => {
           const checked = value === o.value;

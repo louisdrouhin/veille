@@ -231,7 +231,7 @@ describe("re-confirmation", () => {
     expect(await state.db.select().from(schema.appSettings)).toEqual([]);
   });
 
-  it("lasts 5 minutes, in this session only", async () => {
+  it("lasts 10 minutes (Sécurité and Intégrations), in this session only", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-25T18:00:00Z"));
     const r = await confirm();
@@ -243,7 +243,9 @@ describe("re-confirmation", () => {
     expect(await actions.saveKeyAction("nvd_api_key", NVD)).toMatchObject({ reconfirm: true });
     state.sessionId = mine;
 
-    vi.setSystemTime(new Date("2026-11-25T18:05:01Z"));
+    vi.setSystemTime(new Date("2026-11-25T18:09:59Z"));
+    expect(await actions.saveKeyAction("nvd_api_key", NVD)).toEqual({ ok: true });
+    vi.setSystemTime(new Date("2026-11-25T18:10:01Z"));
     expect(await actions.saveKeyAction("nvd_api_key", NVD)).toMatchObject({ ok: false, reconfirm: true });
   });
 

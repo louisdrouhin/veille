@@ -39,6 +39,46 @@ export const IconChevronRight = (p: IconProps) => (
     <path d="M6 3.5L10.5 8 6 12.5" />
   </Svg>
 );
+/** Paramètres (docs/design/3.5): Profil, Sécurité, Apparence, Raccourcis, Intégrations, À propos. */
+export const IconUser = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="5.5" r="2.75" />
+    <path d="M2.75 14c.6-2.6 2.7-4.25 5.25-4.25S12.65 11.4 13.25 14" />
+  </Svg>
+);
+export const IconLock = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="7" width="10" height="7" rx="1.5" />
+    <path d="M5.25 7V5a2.75 2.75 0 015.5 0v2" />
+  </Svg>
+);
+export const IconPalette = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 1.75a6.25 6.25 0 100 12.5c.9 0 1.3-.6 1.1-1.3-.25-.85.3-1.7 1.2-1.7h1.4a2.8 2.8 0 002.8-2.8C14.5 4.6 11.6 1.75 8 1.75z" />
+    <circle cx="5" cy="7.25" r=".6" />
+    <circle cx="7.25" cy="4.75" r=".6" />
+    <circle cx="10.5" cy="5.25" r=".6" />
+  </Svg>
+);
+export const IconKeyboard = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="1.5" y="4" width="13" height="8" rx="1.5" />
+    <path d="M4 6.75h.01M6.5 6.75h.01M9 6.75h.01M11.5 6.75h.01M5 9.5h6" />
+  </Svg>
+);
+export const IconKey = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="5.25" cy="10.75" r="2.75" />
+    <path d="M7.2 8.8l6.05-6.05M11 5l1.75 1.75M9.5 6.5l1.25 1.25" />
+  </Svg>
+);
+export const IconInfo = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="6.25" />
+    <path d="M8 7.25v3.75M8 5h.01" />
+  </Svg>
+);
+
 /** Briefing du matin (docs/design/3.4). */
 export const IconSun = (p: IconProps) => (
   <Svg {...p}>
