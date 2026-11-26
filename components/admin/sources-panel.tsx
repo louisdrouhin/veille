@@ -18,7 +18,20 @@ const LABEL = "flex min-w-0 flex-col gap-1 text-xs font-semibold text-fg-muted";
 
 export type AdminSource = Source & { forumName: string };
 
-export function SourcesPanel({ sources, forums, editing, now }: { sources: AdminSource[]; forums: Forum[]; editing?: AdminSource; now: Date }) {
+export function SourcesPanel({
+  sources,
+  forums,
+  editing,
+  now,
+  filteredEmpty,
+}: {
+  sources: AdminSource[];
+  forums: Forum[];
+  editing?: AdminSource;
+  now: Date;
+  /** A filter of Paramètres › Sources is on and matches nothing: its own message, not « Aucune source configurée ». */
+  filteredEmpty?: string;
+}) {
   return (
     <Panel
       id="sources"
@@ -36,7 +49,9 @@ export function SourcesPanel({ sources, forums, editing, now }: { sources: Admin
         <p className="px-3.5 py-4 text-sm text-fg-muted">Crée d&apos;abord un forum pour y ranger tes sources.</p>
       ) : (
         <>
-          {sources.length === 0 ? (
+          {sources.length === 0 && filteredEmpty ? (
+            <p className="px-3.5 py-4 text-base text-fg-muted">{filteredEmpty}</p>
+          ) : sources.length === 0 ? (
             <div className="p-3.5">
               <EmptyState
                 icon={<IconRss size={40} strokeWidth={1.2} />}

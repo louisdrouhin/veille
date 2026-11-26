@@ -66,7 +66,8 @@ function rememberOrigin(link: HTMLAnchorElement) {
   const row = link.closest<HTMLElement>("[data-topic-row]");
   if (!row) return;
   const ids = rowsOnPage().map((r) => Number(r.dataset.topicRow)).filter((n) => n > 0);
-  const page = document.title.replace(/ · Folders$/, "");
+  // The page's h1 (« Accueil », a forum, a list), else its title.
+  const page = document.querySelector("main h1")?.textContent?.trim() || document.title.replace(/ · Folders$/, "");
   const section = row.closest("section")?.querySelector("h2")?.textContent?.trim();
   const origin: Origin = { path: window.location.pathname + window.location.search, label: section && section !== page ? `${page} · ${section}` : page, ids, lastId: Number(row.dataset.topicRow) };
   try {
@@ -228,6 +229,9 @@ export function ShortcutsProvider() {
       if (row) {
         selectedRow()?.removeAttribute("data-kbd-selected");
         row.setAttribute("data-kbd-selected", "");
+        // Back on the list: the last topic seen in view (the browser's back also restores the scroll).
+        const r = row.getBoundingClientRect();
+        if (r.top < 80 || r.bottom > window.innerHeight) row.scrollIntoView({ block: "center" });
       }
     }, 0);
     return () => clearTimeout(t);

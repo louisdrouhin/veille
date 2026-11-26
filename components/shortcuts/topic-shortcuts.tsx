@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useReadTopics } from "@/components/topic/read-topics";
 import { setTopicReadAction } from "@/lib/actions/topics";
-import { ORIGIN_KEY, parseOrigin, positionIn, type Origin } from "@/lib/shortcuts";
+import { isTyping, ORIGIN_KEY, parseOrigin, positionIn, type Origin } from "@/lib/shortcuts";
 import { showToast } from "@/lib/toast-client";
 import { ignoreKey } from "./shortcuts";
 
@@ -25,6 +25,8 @@ function save(origin: Origin) {
     /* ignored */
   }
 }
+
+const isTypingTarget = (e: KeyboardEvent) => isTyping(e.target as Element | null);
 
 const KBD = "inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-line-strong bg-surface-alt px-1 font-mono text-[11px]";
 
@@ -86,9 +88,21 @@ export function TopicShortcuts({ topicId, url, forumSlug }: { topicId: number; u
         );
       }
     };
+    // « u » / Échap (docs/design/3.5 § 6): back to the list it was opened from (not the forum), on the last topic seen.
+    // Capture phase: before the « Retour » button, which then sees the event handled (defaultPrevented).
+    const onBack = (e: KeyboardEvent) => {
+      if (!e.isTrusted || !origin || !pos || (e.key !== "u" && e.key !== "Escape")) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e) || document.querySelector("dialog[open], [role='menu'], [aria-expanded='true']")) return;
+      e.preventDefault();
+      router.push(origin.path);
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [pos, router, url, topicId, forumSlug, readOf, setRead]);
+    window.addEventListener("keydown", onBack, true);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onBack, true);
+    };
+  }, [origin, pos, router, url, topicId, forumSlug, readOf, setRead]);
 
   if (!origin || !pos) return null;
   return (
