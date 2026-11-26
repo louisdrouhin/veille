@@ -11,7 +11,7 @@ import { sendPush } from "@/lib/push/webpush";
 import { requireSession } from "@/lib/session";
 
 /*
- * Mon compte › Notifications (docs/design/3.0 § 5). Every action re-checks the session. A
+ * Paramètres › Notifications (docs/design/3.0 § 5). Every action re-checks the session. A
  * subscription is only stored for an HTTPS endpoint of a known push service (lib/push/endpoint.ts).
  */
 
@@ -52,7 +52,7 @@ export async function sendTestPushAction(endpoint: unknown): Promise<Result> {
   if (!sub) return { ok: false, error: "Cet appareil n'est plus abonné : réactive les notifications." };
   const r = await sendPush(
     { endpoint: sub.endpoint, keys: sub.keys },
-    { title: "Folders · Notification de test", body: "Les alertes Ma stack arriveront ici.", tag: "test", url: "/compte/notifications", badge: 0 },
+    { title: "Folders · Notification de test", body: "Les alertes Ma stack arriveront ici.", tag: "test", url: "/parametres/notifications", badge: 0 },
     vapid,
     { urgency: "normal", ttl: 600 },
   );

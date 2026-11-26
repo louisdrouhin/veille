@@ -1,5 +1,5 @@
 /**
- * Admin › Intégrations, write side. Every change goes in the journal (settings_log: which value,
+ * Paramètres › Intégrations, write side. Every change goes in the journal (settings_log: which value,
  * what, when — never the value) and drops the cached settings. A new value resets its test result.
  */
 import { desc, inArray } from "drizzle-orm";

@@ -38,8 +38,13 @@ export function createAuth(db: Db, env: AuthEnv) {
       },
     }),
     user: {
-      // Mon compte › Apparence. input: false — only the setTheme action (lib/actions/account.ts) writes it.
-      additionalFields: { theme: { type: "string", required: false, defaultValue: "system", input: false } },
+      // Paramètres › Apparence. input: false — only the setTheme action (lib/actions/account.ts) writes it.
+      additionalFields: {
+        theme: { type: "string", required: false, defaultValue: "system", input: false },
+        // Paramètres › Profil (docs/design/3.5 § 5): written by lib/actions/profile.ts only.
+        firstName: { type: "string", required: false, defaultValue: "", input: false },
+        lastName: { type: "string", required: false, defaultValue: "", input: false },
+      },
     },
     hooks: {
       // Every new session (password step, then the 2FA step) mirrors the account's theme in the

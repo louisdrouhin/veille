@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { Panel } from "@/components/ui/panel";
 import { appInfo, type AppInfo } from "@/lib/app-info";
 
-/** Mon compte › « À propos »: version, commit (link to GitHub) and build date, set at build. */
+/** Paramètres › À propos: version, commit (link to GitHub) and build date, set at build. */
 export function AboutPanel({ info = appInfo() }: { info?: AppInfo }) {
   return (
     <Panel title="À propos">
@@ -34,10 +33,6 @@ export function AboutPanel({ info = appInfo() }: { info?: AppInfo }) {
             )}
           </dd>
         </dl>
-        {/* /compte/… is never cached offline (lib/pwa/service-worker.js); a plain link, no prefetch. */}
-        <Link href="/compte/nouveautes" prefetch={false} className="inline-flex h-11 items-center text-base font-semibold md:h-auto">
-          Nouveautés
-        </Link>
       </div>
     </Panel>
   );

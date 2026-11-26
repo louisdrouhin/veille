@@ -12,7 +12,8 @@ import { requireSession } from "@/lib/session";
 import { toastUrl, type ToastData } from "@/lib/toast";
 import { httpUrl, id, isUniqueViolation, slugify, str, ValidationError } from "@/lib/validation";
 
-const ADMIN = "/admin";
+/** Paramètres › Forums or Sources (docs/design/3.5 § 1), by the anchor of the block that was changed. */
+const pageOf = (anchor: string) => (anchor.startsWith("#forum") ? "/parametres/forums" : "/parametres/sources");
 
 class ActionError extends Error {
   constructor(
@@ -25,7 +26,7 @@ class ActionError extends Error {
 }
 
 /**
- * Runs an admin mutation: checks the session, then redirects to /admin with a
+ * Runs an admin mutation: checks the session, then redirects to its settings page with a
  * toast. `redirect()` is called outside the try/catch on purpose (it throws).
  */
 async function adminAction(anchor: string, run: () => Promise<Omit<ToastData, "kind">>): Promise<never> {
@@ -42,7 +43,7 @@ async function adminAction(anchor: string, run: () => Promise<Omit<ToastData, "k
       toast = { kind: "error", title: "Erreur inattendue.", msg: "Voir les logs du serveur." };
     }
   }
-  redirect(toastUrl(ADMIN, toast, anchor));
+  redirect(toastUrl(pageOf(anchor), toast, anchor));
 }
 
 function revalidateAll() {

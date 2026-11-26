@@ -156,7 +156,7 @@ describe("setup wizard over HTTP (built app, real PostgreSQL)", () => {
     const login = await get("/login");
     expect(new URL(login.headers.get("location")!, base).pathname).toBe("/setup");
     // A (forged) cookie gets past the proxy: the protected layout itself redirects.
-    for (const p of ["/", "/admin", "/f/x", "/t/1"]) {
+    for (const p of ["/", "/parametres/forums", "/f/x", "/t/1"]) {
       const res = await get(p, "better-auth.session_token=forged.value");
       expect([p, res.status, new URL(res.headers.get("location") ?? "/", base).pathname]).toEqual([p, 307, "/setup"]);
     }

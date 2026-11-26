@@ -45,7 +45,7 @@ export default async function HomePage() {
           icon={<IconRss size={40} strokeWidth={1.2} />}
           title="Aucune source configurée"
           action={
-            <LinkButton href="/admin#sources" variant="primary">
+            <LinkButton href="/parametres/sources#source-form" variant="primary">
               <IconPlus size={14} /> Ajouter une source
             </LinkButton>
           }

@@ -186,7 +186,7 @@ export function BriefingFooter({
       </div>
       <p className="text-sm text-fg-muted">
         {next ? `Prochain briefing ${next}` : "Briefing désactivé"} ·{" "}
-        <Link href="/compte/notifications#briefing" className="font-semibold">
+        <Link href="/parametres/briefing" className="font-semibold">
           Réglages
         </Link>
       </p>

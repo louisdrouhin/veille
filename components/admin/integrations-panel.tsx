@@ -29,9 +29,9 @@ const LABEL = "flex min-w-0 flex-col gap-1 text-xs font-semibold text-fg-muted";
 type Run = <T extends object>(fn: () => Promise<Result<T>>, onOk?: (r: T) => void) => void;
 
 /**
- * Admin › Intégrations. The keys are write-only: the server only sends their source, their last 4
+ * Paramètres › Intégrations. The keys are write-only: the server only sends their source, their last 4
  * characters and their last test. Every change asks for the password (or the 2FA code) when the
- * last confirmation is more than 5 minutes old.
+ * last confirmation is more than 10 minutes old.
  */
 export function IntegrationsPanel({ view, grantUntil, proof }: { view: IntegrationsView; grantUntil: number | null; proof: "password" | "code" }) {
   const router = useRouter();
@@ -390,7 +390,7 @@ function VapidPanel({ vapid, readOnly, busy, run }: { vapid: IntegrationsView["v
             <IconAlert size={18} className="mt-px shrink-0 text-warn" />
             <p>
               {confirm === "generate"
-                ? `Tous les appareils sont désabonnés (${devices}) : il faudra réactiver les notifications sur chacun, dans Mon compte › Notifications.`
+                ? `Tous les appareils sont désabonnés (${devices}) : il faudra réactiver les notifications sur chacun, dans Paramètres › Notifications.`
                 : "Les appareils abonnés avec les clés de l'interface ne recevront plus rien si celles du .env sont différentes : il faudra les réabonner."}
             </p>
           </div>
@@ -538,7 +538,7 @@ function ReconfirmSheet({ open, proof, onClose, onConfirmed }: { open: boolean; 
       title="Confirme ton identité"
     >
       <form onSubmit={submit} className="flex flex-col gap-3 px-4 pt-1 text-base">
-        <p className="text-fg-muted">Pour modifier les clés, {proof === "code" ? "saisis le code de ton application d'authentification" : "saisis ton mot de passe"}. Valable 5 minutes.</p>
+        <p className="text-fg-muted">Pour modifier les clés, {proof === "code" ? "saisis le code de ton application d'authentification" : "saisis ton mot de passe"}. Valable 10 minutes.</p>
         {error && (
           <div id={errorId} role="alert" className="flex items-start gap-2 rounded-sm border border-err bg-err-soft p-2.5 text-err">
             <IconAlertCircle size={18} className="mt-px shrink-0" />

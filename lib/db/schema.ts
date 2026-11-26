@@ -699,7 +699,7 @@ export const briefings = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Admin › Intégrations (lib/secrets)
+// Paramètres › Intégrations (lib/secrets)
 // ---------------------------------------------------------------------------
 
 const inList = (list: readonly string[]) => sql.raw(list.map((n) => `'${n}'`).join(", "));
@@ -727,7 +727,7 @@ export const appSettings = pgTable(
   ],
 );
 
-/** Journal of the changes made in Admin › Intégrations: never the value itself. */
+/** Journal of the changes made in Paramètres › Intégrations: never the value itself. */
 export const settingsLog = pgTable(
   "settings_log",
   {
@@ -752,12 +752,41 @@ export const user = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
-    /** Mon compte › Apparence (lib/theme.ts). Declared to Better Auth as an additional field (lib/auth.ts). */
+    /** Paramètres › Apparence (lib/theme.ts). Declared to Better Auth as an additional field (lib/auth.ts). */
     theme: text("theme", { enum: THEMES }).notNull().default("system"),
+    /**
+     * Paramètres › Profil (docs/design/3.5 § 5): shown everywhere as « Prénom Nom ». `name` stays the identifier
+     * (read-only); migration 0017 split it into these two (« louis.drouhin » → « Louis », « Drouhin »).
+     */
+    firstName: text("first_name").notNull().default(""),
+    lastName: text("last_name").notNull().default(""),
     createdAt: tsz("created_at").notNull().defaultNow(),
     updatedAt: tsz("updated_at").notNull().defaultNow(),
   },
-  (t) => [check("user_theme_check", sql`${t.theme} in ('system', 'light', 'dark')`)],
+  (t) => [
+    check("user_theme_check", sql`${t.theme} in ('system', 'light', 'dark')`),
+    check("user_first_name_check", sql`length(${t.firstName}) <= 50`),
+    check("user_last_name_check", sql`length(${t.lastName}) <= 50`),
+  ],
+);
+
+/**
+ * Profile picture (docs/design/3.5 § 5): cropped and re-encoded in the browser (canvas: no metadata), checked again
+ * by the server (real format from the bytes, no EXIF/XMP, size and dimensions), served by an authenticated route.
+ * 512 px square and a 64 px version. One row per user.
+ */
+export const userPhotos = pgTable(
+  "user_photos",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    mime: text("mime").notNull(),
+    large: bytea("large").notNull(),
+    small: bytea("small").notNull(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [check("user_photos_mime_check", sql`${t.mime} in ('image/jpeg', 'image/webp')`)],
 );
 
 /** Better Auth two-factor plugin: TOTP secret and backup codes (both encrypted with BETTER_AUTH_SECRET). */

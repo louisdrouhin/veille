@@ -1,5 +1,5 @@
 /**
- * Build metadata (version, commit, date) for Mon compte › À propos. Used by next.config.ts only,
+ * Build metadata (version, commit, date) for Paramètres › À propos. Used by next.config.ts only,
  * at build time; the app reads the inlined values through lib/app-info.ts.
  */
 import { execFileSync } from "node:child_process";
@@ -22,7 +22,7 @@ export function buildCommit(env: Partial<Record<string, string | undefined>> = p
 }
 
 /**
- * Version shown in Mon compte › À propos (lib/app-info.ts). Inlined into the bundle at build
+ * Version shown in Paramètres › À propos (lib/app-info.ts). Inlined into the bundle at build
  * (`env` below): nothing is read at runtime. Under `next dev`, commit and date are « dev ».
  */
 export function buildInfoEnv(phase: string, env: Partial<Record<string, string | undefined>> = process.env, now = new Date(), cwd = process.cwd()) {

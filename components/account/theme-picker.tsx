@@ -71,7 +71,7 @@ function hint(value: ThemePreference, systemDark: boolean | null): string {
 }
 
 /**
- * Mon compte › Apparence. A change applies at once (<html data-theme>), then is saved on the
+ * Paramètres › Apparence. A change applies at once (<html data-theme>), then is saved on the
  * account by the setTheme action. No « Enregistrer » button.
  */
 export function ThemePicker({ initial }: { initial: ThemePreference }) {

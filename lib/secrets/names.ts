@@ -1,5 +1,5 @@
 /**
- * Admin › Intégrations: the values that can be set from the interface instead of the server .env.
+ * Paramètres › Intégrations: the values that can be set from the interface instead of the server .env.
  * Secrets are stored encrypted (lib/secrets/crypto.ts); the others (models, VAPID public key) in clear.
  */
 export const SETTING_NAMES = [
