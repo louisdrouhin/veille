@@ -54,14 +54,25 @@ export function encryptPayload(
   return Buffer.concat([salt, rs, Buffer.from([asPublic.length]), asPublic, record]);
 }
 
-/** « vapid t=<jwt>, k=<public key> » for the endpoint's origin, valid 12 h. */
+/**
+ * A P-256 scalar as exactly 32 bytes. ecdh.getPrivateKey() drops leading zero bytes: about one key in 256 came out
+ * with 31 bytes, was refused as a VAPID pair, and push stayed off with no explanation. Shorter values are padded on
+ * the left (same number); anything longer than 32 bytes is not a P-256 key.
+ */
+export function scalar32(bytes: Buffer): Buffer | null {
+  if (bytes.length > 32 || bytes.length < 16) return null;
+  return bytes.length === 32 ? bytes : Buffer.concat([Buffer.alloc(32 - bytes.length), bytes]);
+}
+
+/** « vapid t=<jwt>, k=<public key> » for the endpoint's origin, valid 12 h. Signature: r ‖ s, 32 bytes each (P1363). */
 export function vapidAuthorization(endpoint: string, vapid: Vapid, now = Date.now()): string {
   const aud = new URL(endpoint).origin;
   const header = b64url(Buffer.from(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const claims = b64url(Buffer.from(JSON.stringify({ aud, exp: Math.floor(now / 1000) + 12 * 3600, sub: vapid.subject })));
   const pub = fromB64url(vapid.publicKey);
   const key = createPrivateKey({
-    key: { kty: "EC", crv: "P-256", d: vapid.privateKey, x: b64url(pub.subarray(1, 33)), y: b64url(pub.subarray(33, 65)) },
+    // JWK « d » must be exactly 32 bytes (a key stored before 3.4 may have 31).
+    key: { kty: "EC", crv: "P-256", d: b64url(scalar32(fromB64url(vapid.privateKey)) ?? fromB64url(vapid.privateKey)), x: b64url(pub.subarray(1, 33)), y: b64url(pub.subarray(33, 65)) },
     format: "jwk",
   });
   const signature = sign("sha256", Buffer.from(`${header}.${claims}`), { key, dsaEncoding: "ieee-p1363" });
@@ -72,7 +83,16 @@ export function vapidAuthorization(endpoint: string, vapid: Vapid, now = Date.no
 export function generateVapidKeys(): { publicKey: string; privateKey: string } {
   const ecdh = createECDH("prime256v1");
   ecdh.generateKeys();
-  return { publicKey: b64url(ecdh.getPublicKey()), privateKey: b64url(ecdh.getPrivateKey()) };
+  return vapidKeysFrom(ecdh.getPrivateKey());
+}
+
+/** The pair of a private scalar, always 65 + 32 bytes (also for a scalar starting with 0x00). */
+export function vapidKeysFrom(privateKey: Buffer): { publicKey: string; privateKey: string } {
+  const d = scalar32(privateKey);
+  if (!d) throw new Error("not a P-256 private key");
+  const ecdh = createECDH("prime256v1");
+  ecdh.setPrivateKey(d);
+  return { publicKey: b64url(ecdh.getPublicKey()), privateKey: b64url(d) };
 }
 
 export type PushResult = "ok" | "gone" | "refused" | "failed";

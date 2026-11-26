@@ -22,6 +22,8 @@ celles de la mise en production.
 - Correctif : « À la une » ne retient que les sujets repris par au moins deux sources distinctes (plus de
   « 1 sources »).
 - Le briefing passe avant l'indexation de fond pour le quota Gemini.
+- Correctif : environ une paire de clés de notification sur 256 générées dans Administration › Intégrations était
+  inutilisable (clé privée commençant par un zéro) ; les notifications restaient désactivées sans explication.
 
 ## 3.3.4 — 26/11/2026
 
