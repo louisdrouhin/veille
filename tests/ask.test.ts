@@ -192,9 +192,10 @@ describe("the streamed route", () => {
   });
 
   it("model down: an error, the articles found still sent; daily limit", async () => {
-    fakeGemini({ status: 503 });
+    fakeGemini({ status: 404 });
     const down = await events("OpenSSH faille ?");
     expect(down.map((e) => e.type)).toEqual(["meta", "sources", "error"]);
+    expect(down.at(-1)).toMatchObject({ message: expect.stringContaining("introuvable") });
     expect((down[1]!.sources as unknown[]).length).toBeGreaterThan(0);
     vi.stubEnv("ASK_DAILY_LIMIT", "0");
     fakeGemini(["x [1]"]);
@@ -224,6 +225,14 @@ describe("Gemini's SSE stream", () => {
     const err = [];
     for await (const e of streamContent({ apiKey: "k", model: "m", system: "s", user: "u", maxOutputTokens: 10, fetch: (async () => new Response("", { status: 429 })) as unknown as typeof fetch })) err.push(e);
     expect(err).toEqual([{ error: "quota", status: 429 }]);
+    // An overloaded model is asked again before the stream starts.
+    const replies = [new Response("{}", { status: 503 }), new Response(sse)];
+    const again = [];
+    for await (const e of streamContent({ apiKey: "k", model: "m", system: "s", user: "u", maxOutputTokens: 10, retryDelaysMs: [0], fetch: (async () => replies.shift()) as unknown as typeof fetch })) again.push(e);
+    expect(again.at(-1)).toEqual({ done: true, truncated: true });
+    const busy = [];
+    for await (const e of streamContent({ apiKey: "k", model: "m", system: "s", user: "u", maxOutputTokens: 10, retryDelaysMs: [], fetch: (async () => new Response("{}", { status: 503 })) as unknown as typeof fetch })) busy.push(e);
+    expect(busy).toEqual([{ error: "overloaded", status: 503 }]);
   });
 });
 

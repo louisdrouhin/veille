@@ -45,7 +45,8 @@ export async function resolveSettings(db: Db, env: Env = process.env, now = Date
   const hit = cache.get(db);
   let rows = hit && now - hit.at < CACHE_MS ? hit.rows : null;
   if (!rows) {
-    rows = db.select().from(appSettings).orderBy(asc(appSettings.name));
+    // A real promise: a Drizzle query is a thenable that runs again at every await (the cache would be useless).
+    rows = Promise.resolve(db.select().from(appSettings).orderBy(asc(appSettings.name)));
     const pending = rows;
     pending.catch(() => {
       if (cache.get(db)?.rows === pending) cache.delete(db);

@@ -4,6 +4,12 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.3.2 — 26/11/2026
+
+- Correctif : quand le modèle Gemini est surchargé chez Google (« high demand »), la traduction et les questions
+  réessaient d'elles-mêmes avant d'abandonner, au lieu d'afficher « Service Gemini injoignable ».
+- Messages d'erreur exacts : quota atteint, clé refusée, modèle introuvable, modèle surchargé, erreur réseau.
+
 ## 3.3.1 — 26/11/2026
 
 - Correctif : sans limite réglée dans le `.env`, l'indexation et les questions étaient bloquées (limite lue à 0 au
