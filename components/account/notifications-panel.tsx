@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { IconAlertCircle, IconBell, IconShare } from "@/components/ui/icons";
 import { Panel } from "@/components/ui/panel";
 import { Switch } from "@/components/ui/switch";
-import { sendTestPushAction, subscribePushAction, unsubscribePushAction, updateNotificationSettingsAction, type SettingsInput } from "@/lib/actions/notifications";
+import { sendTestPushAction, unsubscribePushAction, updateNotificationSettingsAction, type SettingsInput } from "@/lib/actions/notifications";
+import { hasPushApi, sameKey, subscribeThisDevice } from "@/lib/pwa/push-subscribe";
 import type { NotifyThreshold } from "@/lib/db/schema";
 import { useIsIos, useStandalone } from "@/lib/pwa/client";
 import { pushAvailability } from "@/lib/pwa/platform";
@@ -21,25 +22,8 @@ const THRESHOLDS: { key: NotifyThreshold; label: string; badge: "critical" | "hi
   { key: "all", label: "Toutes", badge: "low" },
 ];
 
-const hasPushApi = () => typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 const permissionNow = () => (typeof Notification === "undefined" ? null : Notification.permission);
 const noop = () => () => {};
-
-function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
-  const s = atob(base64url.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(base64url.length / 4) * 4, "="));
-  const out = new Uint8Array(new ArrayBuffer(s.length));
-  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
-  return out;
-}
-
-/** Whether this subscription was made with this public key (browsers without `options` say yes). */
-function sameKey(sub: PushSubscription, publicKey: string): boolean {
-  const used = sub.options?.applicationServerKey;
-  if (!used) return true;
-  const a = new Uint8Array(used);
-  const b = keyBytes(publicKey);
-  return a.length === b.length && a.every((x, i) => x === b[i]);
-}
 
 /** « Sur cet appareil »: subscription of this device, asked only on a tap (iOS requirement). */
 function DevicePanel({ publicKey }: { publicKey: string | null }) {
@@ -80,28 +64,11 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
   const enable = () =>
     start(async () => {
       setError(null);
-      try {
-        // Asked here, inside the tap: iOS refuses a permission request made at load time.
-        const perm = await Notification.requestPermission();
-        setPermission(perm);
-        if (perm !== "granted") return;
-        const reg = await navigator.serviceWorker.ready;
-        let sub = await reg.pushManager.getSubscription();
-        if (sub && !sameKey(sub, publicKey!)) {
-          await sub.unsubscribe().catch(() => {});
-          sub = null;
-        }
-        sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey!) });
-        const res = await subscribePushAction(sub.toJSON());
-        if (!res.ok) {
-          await sub.unsubscribe().catch(() => {});
-          setError(res.error);
-          return;
-        }
-        setEndpoint(sub.endpoint);
-      } catch {
-        setError("Activation impossible sur cet appareil.");
-      }
+      // Asked here, inside the tap: iOS refuses a permission request made at load time.
+      const res = await subscribeThisDevice(publicKey!);
+      setPermission(res.permission);
+      if (res.ok) setEndpoint(res.endpoint);
+      else if (res.error) setError(res.error);
     });
 
   const disable = () =>
@@ -288,7 +255,7 @@ function RulesPanel({ initial }: { initial: Settings }) {
 
 export function NotificationsSettings({ publicKey, settings }: { publicKey: string | null; settings: Settings }) {
   return (
-    <div className="grid max-w-[720px] gap-4">
+    <div className="grid gap-4">
       <DevicePanel publicKey={publicKey} />
       <RulesPanel initial={settings} />
     </div>

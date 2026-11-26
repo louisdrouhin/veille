@@ -8,11 +8,20 @@ import { Avatar } from "@/components/account/avatar";
 import { Star } from "@/components/lists/star";
 import { HeaderSearch } from "@/components/search/header-search";
 import { useUnreadCount } from "@/components/topic/read-topics";
-import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, Logo } from "@/components/ui/icons";
+import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, IconSun, Logo } from "@/components/ui/icons";
+import { useBriefingSeen } from "@/lib/briefing/seen-client";
 import { runPageRefresh } from "@/lib/page-refresh";
 import { useStandalone } from "@/lib/pwa/client";
 
-export type NavCounts = { unread: number; lists: number; errors: number; stack: { open: number; critical: number }; renderedAt?: number };
+export type NavCounts = {
+  unread: number;
+  lists: number;
+  errors: number;
+  stack: { open: number; critical: number };
+  /** Briefing du matin (3.4 § 5): today's briefing ready and not read yet. */
+  briefing?: { unread: boolean; day: string | null };
+  renderedAt?: number;
+};
 
 /** « Ma stack, 5 alertes à traiter dont 2 critiques » (docs/design/3.0 § 3). */
 export function stackLabel({ open, critical }: NavCounts["stack"]): string {
@@ -37,6 +46,8 @@ function StackBadge({ counts, className = "" }: { counts: NavCounts["stack"]; cl
 
 const NAV = [
   { href: "/", label: "Forums", match: (p: string) => p === "/" || p.startsWith("/f/") || p.startsWith("/t/") },
+  // Opening /briefing marks it read: never prefetched (see the links below).
+  { href: "/briefing", label: "Briefing", match: (p: string) => p === "/briefing" || p.startsWith("/briefing/") },
   { href: "/listes", label: "Listes", match: (p: string) => p === "/listes" || p.startsWith("/listes/") },
   { href: "/stack", label: "Ma stack", match: (p: string) => p === "/stack" || p.startsWith("/stack/") },
   { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin") },
@@ -58,6 +69,8 @@ function UnreadExtra({ unread, renderedAt }: { unread: number; renderedAt?: numb
 function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   if (href === "/") return <UnreadExtra unread={counts.unread} renderedAt={counts.renderedAt} />;
   if (href === "/listes") return <span className="ml-auto font-mono text-sm text-bar-muted">{counts.lists}</span>;
+  if (href === "/briefing")
+    return counts.briefing?.unread ? <span className="ml-auto rounded-full bg-bar-accent px-2 text-xs leading-5 font-semibold text-bar">nouveau</span> : null;
   if (href === "/stack")
     return counts.stack.open > 0 ? (
       <span className={`ml-auto rounded-full px-2 text-xs leading-5 font-semibold ${counts.stack.critical ? "bg-sev-critical text-sev-critical-fg" : "bg-bar-accent text-bar"}`}>
@@ -73,7 +86,9 @@ function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   return null;
 }
 
-const MENU_ICONS = { "/": IconFolder, "/stack": IconShield, "/admin": IconSettings } as const;
+const MENU_ICONS = { "/": IconFolder, "/briefing": IconSun, "/stack": IconShield, "/admin": IconSettings } as const;
+
+const briefingLabel = (counts: NavCounts) => (counts.briefing?.unread ? "Briefing, nouveau briefing non lu" : undefined);
 
 const NAV_LINK =
   "rounded-sm px-3 py-[7px] text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg " +
@@ -111,8 +126,11 @@ function RefreshButton({ className }: { className: string }) {
 const REFRESH_CLASS =
   "inline-flex cursor-pointer items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 disabled:opacity-70";
 
-export function AppHeader({ userName, counts }: { userName: string; counts: NavCounts }) {
+export function AppHeader({ userName, counts: rendered }: { userName: string; counts: NavCounts }) {
   const pathname = usePathname();
+  // Today's briefing opened during this visit: no more « nouveau ».
+  const seen = useBriefingSeen(rendered.briefing?.day);
+  const counts: NavCounts = seen && rendered.briefing ? { ...rendered, briefing: { ...rendered.briefing, unread: false } } : rendered;
   const [open, setOpen] = useState(false);
   const menuId = useId();
 
@@ -145,14 +163,16 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
             <Link
               key={item.href}
               href={item.href}
+              prefetch={item.href === "/briefing" ? false : undefined}
               className={`${NAV_LINK} inline-flex items-center gap-1.5`}
               aria-current={item.match(pathname) ? "page" : undefined}
-              aria-label={item.href === "/stack" ? stackLabel(counts.stack) : undefined}
+              aria-label={item.href === "/stack" ? stackLabel(counts.stack) : item.href === "/briefing" ? briefingLabel(counts) : undefined}
             >
               {item.href === "/listes" && <Star size={14} />}
               {item.href === "/stack" && <IconShield size={15} />}
               {item.label}
               {item.href === "/stack" && <StackBadge counts={counts.stack} />}
+              {item.href === "/briefing" && counts.briefing?.unread && <span aria-hidden className="size-2 rounded-full bg-bar-accent" />}
             </Link>
           ))}
         </nav>
@@ -205,9 +225,10 @@ export function AppHeader({ userName, counts }: { userName: string; counts: NavC
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={item.href === "/briefing" ? false : undefined}
                 className={MENU_ROW}
                 aria-current={item.match(pathname) ? "page" : undefined}
-                aria-label={item.href === "/stack" ? stackLabel(counts.stack) : undefined}
+                aria-label={item.href === "/stack" ? stackLabel(counts.stack) : item.href === "/briefing" ? briefingLabel(counts) : undefined}
               >
                 {Icon ? <Icon size={20} className="text-bar-muted" /> : <Star size={20} className="text-bar-muted" />}
                 {item.label}

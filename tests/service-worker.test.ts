@@ -114,6 +114,18 @@ describe("service worker — pages (network-first)", () => {
     for (const p of ["/stack/logiciels/3", "/stack/autre", "/stacks"]) expect((await sw.navigate(p))!.status).toBe(503);
   });
 
+  it("Briefing du matin (3.4): /briefing, a strictly valid day and the history (7 / 30 days) are kept; nothing else", async () => {
+    for (const p of ["/briefing", "/briefing/2026-11-26", "/briefing/historique"]) sw.network.routes.set(p, () => html("Briefing · Folders", p));
+    for (const p of ["/briefing?toast=ok", "/briefing/2026-11-26?x=1", "/briefing/historique?jours=30&evil=1", "/briefing/historique?jours=../x"]) await sw.navigate(p);
+    expect(sw.caches.paths("veille-pages").sort()).toEqual(["/briefing", "/briefing/2026-11-26", "/briefing/historique", "/briefing/historique?jours=30"]);
+    for (const p of ["/briefing/2026-02-30", "/briefing/2026-13-01", "/briefing/26-11-2026", "/briefing/2026-11-26/x", "/briefing/2019-01-01", "/briefings", "/briefing/autre"]) {
+      sw.network.routes.set(p, () => html(p));
+      await sw.navigate(p);
+      await sw.message({ type: "cache-page", url: p });
+    }
+    expect(sw.caches.paths("veille-pages")).toHaveLength(4);
+  });
+
   it("never caches a redirect (expired session → /login), an error or a non-HTML response", async () => {
     sw.network.routes.set("/t/1", () => basic("", { status: 200, redirected: true, headers: { "content-type": "text/html" } }));
     sw.network.routes.set("/t/2", () => basic("", { status: 500, headers: { "content-type": "text/html" } }));
@@ -326,5 +338,22 @@ describe("service worker — push notifications (Ma stack)", () => {
     sw.self.clients.windows.length = 0;
     for (const url of ["//evil.example/x", "https://evil.example/", "/admin", "/stack\\..\\admin", "/stack/../admin"]) await sw.notificationClick({ url });
     expect(sw.self.clients.opened).toEqual(Array(5).fill(`${ORIGIN}/stack/alertes`));
+  });
+
+  it("the morning briefing's notification opens /briefing/AAAA-MM-JJ, rebuilt from a strictly valid date", async () => {
+    await sw.push({ title: "Briefing · 1 faille critique sur ta stack", body: "x", tag: "briefing-2026-11-26", url: "/briefing/2026-11-26", badge: 1 });
+    expect(sw.self.registration.shown[0]).toMatchObject({ options: { tag: "briefing-2026-11-26", data: { url: "/briefing/2026-11-26" } } });
+    await sw.notificationClick({ url: "/briefing/2026-11-26" });
+    for (const url of ["/briefing/2026-02-30", "/briefing/2026-11-26/../../admin", "/briefing/2026-11-26?x=//evil.example", "/briefing\\..\\admin"]) await sw.notificationClick({ url });
+    await sw.notificationClick({ url: "/briefing/historique" });
+    expect(sw.self.clients.opened).toEqual([
+      `${ORIGIN}/briefing/2026-11-26`,
+      `${ORIGIN}/briefing`,
+      `${ORIGIN}/briefing`,
+      `${ORIGIN}/briefing/2026-11-26`,
+      // A backslash is not a briefing path: the default page of the notifications.
+      `${ORIGIN}/stack/alertes`,
+      `${ORIGIN}/briefing/historique`,
+    ]);
   });
 });
