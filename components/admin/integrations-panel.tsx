@@ -12,6 +12,7 @@ import {
   reconfirmAction,
   removeSettingAction,
   saveKeyAction,
+  saveMergeThresholdAction,
   saveModelsAction,
   testKeyAction,
   type Result,
@@ -95,6 +96,7 @@ export function IntegrationsPanel({ view, grantUntil, proof }: { view: Integrati
           <KeyRow state={view.gemini.key} readOnly={readOnly} busy={busy} run={run} help="Clé Google AI Studio (aistudio.google.com › Get API key)." />
           <ModelsForm models={view.gemini.models} readOnly={readOnly} busy={busy} run={run} />
           <IndexLine index={view.gemini.index} />
+          <MergeForm merge={view.gemini.merge} readOnly={readOnly} busy={busy} run={run} />
         </Panel>
         <Panel id="nvd" title="NVD · vulnérabilités" className="w-full min-w-0 min-[1000px]:flex-[1_1_440px]">
           <KeyRow
@@ -438,6 +440,50 @@ function IndexLine({ index }: { index: IntegrationsView["gemini"]["index"] }) {
         tes notes.
       </p>
     </div>
+  );
+}
+
+/** « À la une » (docs/design/3.3 § 2): from which similarity a new article joins a topic of the last 72 h. */
+function MergeForm({ merge, readOnly, busy, run }: { merge: IntegrationsView["gemini"]["merge"]; readOnly: boolean; busy: boolean; run: Run }) {
+  const initial = merge.source === "interface" ? merge.value.toFixed(2).replace(".", ",") : "";
+  const [value, setValue] = useState(initial);
+  const id = useId();
+  const helpId = useId();
+  return (
+    <form
+      className="flex flex-col gap-1.5 border-t border-line p-3.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        run(
+          () => saveMergeThresholdAction(value),
+          () => showToast({ kind: "ok", title: "Seuil de regroupement enregistré." }),
+        );
+      }}
+    >
+      <label htmlFor={id} className={LABEL}>
+        <span className="flex items-center gap-2">
+          Seuil de regroupement des doublons <SourceBadge source={merge.source} />
+        </span>
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          id={id}
+          inputMode="decimal"
+          className={`${FIELD} w-28 font-mono`}
+          value={value}
+          placeholder={merge.value.toFixed(2).replace(".", ",")}
+          onChange={(e) => setValue(e.target.value)}
+          aria-describedby={helpId}
+          disabled={readOnly}
+        />
+        <button type="submit" className={buttonClass("secondary")} disabled={readOnly || busy || value.trim() === initial}>
+          Enregistrer
+        </button>
+      </div>
+      <p id={helpId} className="text-sm text-fg-muted">
+        Entre 0,50 et 0,99. Plus haut : moins de regroupements, seulement les articles presque identiques. Vide : {merge.fallback.toFixed(2).replace(".", ",")} par défaut.
+      </p>
+    </form>
   );
 }
 

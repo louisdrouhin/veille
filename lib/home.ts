@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, max, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNotNull, isNull, lte, max, notInArray, or, sql } from "drizzle-orm";
 import type { TopicRowData } from "@/components/topic/topic-grid";
 import type { ForumRowData } from "@/components/forum/forum-table";
 import type { Db } from "@/lib/db";
@@ -52,7 +52,7 @@ export async function getHomeStats(db: Db, now: Date = new Date()): Promise<Home
 }
 
 /** Unread topics of every forum, newest publication first. */
-export async function getLatestUnread(db: Db, { limit }: { limit: number }): Promise<TopicRowData[]> {
+export async function getLatestUnread(db: Db, { limit, exclude = [] }: { limit: number; exclude?: number[] }): Promise<TopicRowData[]> {
   const rows = await db
     .select({
       id: topics.id,
@@ -71,7 +71,8 @@ export async function getLatestUnread(db: Db, { limit }: { limit: number }): Pro
     .innerJoin(forums, eq(forums.id, topics.forumId))
     .leftJoin(sources, eq(sources.id, topics.sourceId))
     .leftJoin(sourceFavicons, and(eq(sourceFavicons.sourceId, topics.sourceId), isNotNull(sourceFavicons.data)))
-    .where(isNull(topics.readAt))
+    // A topic « À la une » is not shown twice (docs/design/3.3 § 2).
+    .where(and(isNull(topics.readAt), exclude.length ? notInArray(topics.id, exclude) : undefined))
     .orderBy(desc(topics.publishedAt), desc(topics.id))
     .limit(limit);
   return rows.map((r) => ({
@@ -133,11 +134,13 @@ export type FeaturedTopic = {
   /** The topic's own source, then the sources that picked it up (replies of type `source`). */
   sourceNames: string[];
   savedCount: number;
+  read: boolean;
+  lastActivityAt: Date;
 };
 
 /**
- * « À la une » (behind FEATURED_ENABLED): unread topics picked up by other sources, the most
- * picked up first. Meaningful once multi-source merging creates `source` replies.
+ * « À la une » (docs/design/3.3 § 2): topics with 2 sources or more (merged duplicates: replies of type
+ * `source`) and some activity since `since` (48 h), the most picked up first, then the most recent.
  */
 export async function getFeatured(db: Db, { limit, since }: { limit: number; since: Date }): Promise<FeaturedTopic[]> {
   const reposts = sql<number>`count(${replies.id})`.mapWith(Number);
@@ -150,15 +153,17 @@ export async function getFeatured(db: Db, { limit, since }: { limit: number; sin
       sourceName: sources.name,
       authors: sql<string[]>`array_agg(${replies.author} order by ${replies.createdAt})`,
       reposts,
+      readAt: topics.readAt,
+      lastActivityAt: topics.lastActivityAt,
       savedCount: savedCountOf(),
     })
     .from(topics)
     .innerJoin(forums, eq(forums.id, topics.forumId))
     .innerJoin(replies, and(eq(replies.topicId, topics.id), eq(replies.type, "source")))
     .leftJoin(sources, eq(sources.id, topics.sourceId))
-    .where(and(isNull(topics.readAt), gte(topics.lastActivityAt, since)))
+    .where(gte(topics.lastActivityAt, since))
     .groupBy(topics.id, forums.id, sources.id)
-    .orderBy(desc(reposts), desc(topics.lastActivityAt))
+    .orderBy(desc(reposts), desc(topics.lastActivityAt), desc(topics.id))
     .limit(limit);
   return rows.map((r) => ({
     id: r.id,
@@ -166,5 +171,7 @@ export async function getFeatured(db: Db, { limit, since }: { limit: number; sin
     forum: { name: r.forumName, slug: r.forumSlug },
     sourceNames: [...new Set([r.sourceName ?? "Source supprimée", ...r.authors])],
     savedCount: r.savedCount,
+    read: r.readAt !== null,
+    lastActivityAt: r.lastActivityAt,
   }));
 }

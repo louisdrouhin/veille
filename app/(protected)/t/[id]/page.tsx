@@ -5,6 +5,9 @@ import { Suspense } from "react";
 import { PageNav } from "@/components/layout/page-nav";
 import { AddNoteForm } from "@/components/thread/add-note-form";
 import { Post } from "@/components/thread/post";
+import { RelatedTopics } from "@/components/thread/related-topics";
+import { RepriseMenu } from "@/components/thread/reprise";
+import { SourcesBlock, type SourceLine } from "@/components/thread/sources-block";
 import { MarkTopicRead } from "@/components/topic/mark-topic-read";
 import { ArticleFetchedAt, TopicArticle, TopicArticleSkeleton } from "@/components/thread/topic-article";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -19,7 +22,7 @@ type Props = { params: Promise<{ id: string }> };
 
 const REPLY_ROLE: Record<ReplyType, string> = {
   note: "Toi",
-  source: "Source",
+  source: "Reprise",
   comment: "Commentaire",
 };
 
@@ -54,9 +57,23 @@ export default async function TopicPage({ params }: Props) {
     await db.update(topics).set({ readAt: new Date() }).where(and(eq(topics.id, topic.id), isNull(topics.readAt)));
   }
   const [replyRows, saved] = await Promise.all([
-    db.select().from(replies).where(eq(replies.topicId, topic.id)).orderBy(asc(replies.createdAt), asc(replies.id)),
+    db
+      .select({ reply: replies, faviconAt: sourceFavicons.fetchedAt })
+      .from(replies)
+      .leftJoin(sourceFavicons, and(eq(sourceFavicons.sourceId, replies.sourceId), isNotNull(sourceFavicons.data)))
+      .where(eq(replies.topicId, topic.id))
+      .orderBy(asc(replies.createdAt), asc(replies.id)),
     getPickerLists(db, topic.id),
   ]);
+
+  // « Sources · N » of a merged topic (docs/design/3.3 § 2): the first source, then each reprise.
+  const sourceLines: SourceLine[] = [
+    { n: 1, name: sourceName ?? "Source supprimée", faviconSrc: faviconUrl(topic.sourceId, faviconAt), url: topic.url, at: topic.publishedAt },
+    ...replyRows.flatMap(({ reply: r, faviconAt: fa }, i) =>
+      r.type === "source" && r.url ? [{ n: i + 2, name: r.author, faviconSrc: faviconUrl(r.sourceId, fa), url: r.url, at: r.createdAt }] : [],
+    ),
+  ];
+  const merged = sourceLines.length > 1;
 
   return (
     <>
@@ -66,7 +83,8 @@ export default async function TopicPage({ params }: Props) {
         back={{ href: `/f/${forum.slug}`, mode: "parent" }}
       />
 
-      <div className="flex flex-col gap-3">
+      <div className={merged ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:gap-4" : ""}>
+      <div className="flex min-w-0 flex-col gap-3">
         <Post
           n={1}
           type="topic"
@@ -89,26 +107,61 @@ export default async function TopicPage({ params }: Props) {
           <Suspense fallback={<TopicArticleSkeleton topic={topic} saved={saved} />}>
             <TopicArticle topic={topic} saved={saved} />
           </Suspense>
+          {/* Mobile: the sources under the action bar; desktop: the sticky column. */}
+          <SourcesBlock sources={sourceLines} className="md:hidden" />
         </Post>
 
-        {replyRows.map((r, i) => (
-          <Post
-            key={r.id}
-            n={i + 2}
-            type={r.type}
-            date={r.createdAt}
-            author={{ name: r.author, role: REPLY_ROLE[r.type] }}
-          >
-            <p className="text-md break-words whitespace-pre-line">{r.content}</p>
-            {r.url && (
-              <a href={r.url} target="_blank" rel="noopener noreferrer" className="self-start text-sm">
-                Voir l&apos;article <span aria-hidden="true">↗</span>
-              </a>
-            )}
-          </Post>
-        ))}
+        {replyRows.map(({ reply: r, faviconAt: fa }, i) =>
+          r.type === "source" && r.url ? (
+            <Post
+              key={r.id}
+              n={i + 2}
+              type="source"
+              date={r.createdAt}
+              author={{ name: r.author, role: REPLY_ROLE.source, faviconSrc: faviconUrl(r.sourceId, fa) }}
+              headerAction={<RepriseMenu replyId={r.id} url={r.url} source={r.author} />}
+            >
+              <p className="text-sm text-fg-muted">
+                Repris par{" "}
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="font-semibold">
+                  {r.author} <span aria-hidden="true">↗</span>
+                  <span className="sr-only"> (nouvel onglet)</span>
+                </a>
+              </p>
+              <p className="flex items-start gap-2 text-md font-semibold">
+                <span lang={r.lang && r.lang !== "fr" ? r.lang : undefined}>{r.title}</span>
+                {r.lang && r.lang !== "fr" && (
+                  <span className="mt-0.5 rounded-sm border border-line-strong px-1 font-cond text-2xs font-bold text-fg-muted uppercase">{r.lang}</span>
+                )}
+              </p>
+              {r.content && (
+                <p lang={r.lang && r.lang !== "fr" ? r.lang : undefined} className="line-clamp-3 text-base break-words text-fg-muted">
+                  {r.content}
+                </p>
+              )}
+            </Post>
+          ) : (
+            <Post key={r.id} n={i + 2} type={r.type} date={r.createdAt} author={{ name: r.author, role: REPLY_ROLE[r.type] }}>
+              <p className="text-md break-words whitespace-pre-line">{r.content}</p>
+              {r.url && (
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="self-start text-sm">
+                  Voir l&apos;article <span aria-hidden="true">↗</span>
+                </a>
+              )}
+            </Post>
+          ),
+        )}
 
         <AddNoteForm topicId={topic.id} />
+        <Suspense fallback={null}>
+          <RelatedTopics topicId={topic.id} />
+        </Suspense>
+      </div>
+      {merged && (
+        <aside aria-label="Sources du topic" className="sticky top-[calc(3.25rem+1px+env(safe-area-inset-top)+16px)] hidden md:block">
+          <SourcesBlock sources={sourceLines} />
+        </aside>
+      )}
       </div>
     </>
   );

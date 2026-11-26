@@ -2,7 +2,15 @@
  * Admin › Intégrations: the values that can be set from the interface instead of the server .env.
  * Secrets are stored encrypted (lib/secrets/crypto.ts); the others (models, VAPID public key) in clear.
  */
-export const SETTING_NAMES = ["gemini_api_key", "gemini_model", "gemini_translate_model", "nvd_api_key", "vapid_public_key", "vapid_private_key"] as const;
+export const SETTING_NAMES = [
+  "gemini_api_key",
+  "gemini_model",
+  "gemini_translate_model",
+  "nvd_api_key",
+  "vapid_public_key",
+  "vapid_private_key",
+  "merge_threshold",
+] as const;
 export type SettingName = (typeof SETTING_NAMES)[number];
 
 export const SECRET_NAMES = ["gemini_api_key", "nvd_api_key", "vapid_private_key"] as const satisfies readonly SettingName[];
@@ -16,6 +24,7 @@ export const ENV_OF: Record<SettingName, string> = {
   nvd_api_key: "NVD_API_KEY",
   vapid_public_key: "VAPID_PUBLIC_KEY",
   vapid_private_key: "VAPID_PRIVATE_KEY",
+  merge_threshold: "MERGE_THRESHOLD",
 };
 
 /** Journal of the changes: which value, what was done, when (never the value). */

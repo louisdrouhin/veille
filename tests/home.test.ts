@@ -139,8 +139,8 @@ describe("getForumsWithCounts", () => {
   });
 });
 
-describe("getFeatured (behind FEATURED_ENABLED)", () => {
-  it("unread topics picked up by other sources, the most picked up first", async () => {
+describe("getFeatured", () => {
+  it("topics picked up by other sources (read or not), the most picked up first, then the most recent", async () => {
     const once = await topic({ title: "once", lastActivityAt: at("2026-11-23T08:00:00Z") });
     const twice = await topic({ title: "twice", lastActivityAt: at("2026-11-23T07:00:00Z") });
     const read = await topic({ title: "read", lastActivityAt: at("2026-11-23T08:00:00Z"), readAt: NOW });
@@ -153,10 +153,13 @@ describe("getFeatured (behind FEATURED_ENABLED)", () => {
       { topicId: read, type: "source", author: "LWN", content: "" },
     ]);
     const rows = await getFeatured(db, { limit: 3, since: at("2026-11-21T00:00:00Z") });
-    expect(rows.map((r) => [r.title, r.sourceNames])).toEqual([
-      ["twice", ["CERT-FR", "LWN", "HN"]],
-      ["once", ["CERT-FR", "LWN"]],
+    expect(rows.map((r) => [r.title, r.sourceNames, r.read])).toEqual([
+      ["twice", ["CERT-FR", "LWN", "HN"], false],
+      ["read", ["CERT-FR", "LWN"], true],
+      ["once", ["CERT-FR", "LWN"], false],
     ]);
+    // « Derniers non lus » leaves them out.
+    expect((await getLatestUnread(db, { limit: 8, exclude: rows.map((r) => r.id) })).map((t) => t.title)).toEqual(["alone"]);
   });
 });
 
