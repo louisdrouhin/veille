@@ -107,6 +107,24 @@ export async function saveModelsAction(input: { model?: unknown; translateModel?
   });
 }
 
+/** Fusion of duplicates (docs/design/3.3 § 2): similarity from which a new article joins a topic. Empty: default. */
+export async function saveMergeThresholdAction(value: unknown): Promise<Result> {
+  if (typeof value !== "string") return { ok: false, error: "Valeur inconnue." };
+  const c = await forChange();
+  if (!c.ok) return c;
+  const v = value.trim().replace(",", ".");
+  if (v) {
+    const invalid = validateSetting("merge_threshold", v);
+    if (invalid) return { ok: false, error: invalid };
+  }
+  return guarded("enregistrement du seuil de regroupement", async () => {
+    if (v) await saveSetting(c.db, c.key, "merge_threshold", v);
+    else await removeSetting(c.db, "merge_threshold");
+    done();
+    return { ok: true };
+  });
+}
+
 export async function removeSettingAction(name: unknown): Promise<Result> {
   if (!isSettingName(name)) return { ok: false, error: "Valeur inconnue." };
   const c = await forChange();

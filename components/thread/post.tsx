@@ -58,8 +58,11 @@ export function Post({
   author,
   date,
   dateSlot,
+  headerAction,
   children,
 }: {
+  /** After the date, right of the header: a reprise's ⋯ menu (docs/design/3.3 § 2). */
+  headerAction?: React.ReactNode;
   n: number;
   type: PostType;
   author: PostAuthorData;
@@ -85,14 +88,17 @@ export function Post({
           </a>
           <PostTypeBadge type={type} />
         </div>
-        {dateSlot !== undefined ? (
-          dateSlot
-        ) : (
-          <time dateTime={date.toISOString()} title={formatTitle(date)}>
-            <span className="hidden md:inline">{formatFull(date)}</span>
-            <span className="md:hidden">{formatShort(date)}</span>
-          </time>
-        )}
+        <div className="flex items-center gap-1">
+          {dateSlot !== undefined ? (
+            dateSlot
+          ) : (
+            <time dateTime={date.toISOString()} title={formatTitle(date)}>
+              <span className="hidden md:inline">{formatFull(date)}</span>
+              <span className="md:hidden">{formatShort(date)}</span>
+            </time>
+          )}
+          {headerAction}
+        </div>
       </div>
       <div className="flex flex-wrap">
         <PostAuthor type={type} author={author} />

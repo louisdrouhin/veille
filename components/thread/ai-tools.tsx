@@ -70,7 +70,9 @@ export function AiTools({
   onSummary,
   onTranslation,
   summaryRef,
+  sourceCount = 1,
 }: {
+  sourceCount?: number;
   summary: ToolState;
   translation: ToolState;
   canTranslate: boolean;
@@ -86,7 +88,8 @@ export function AiTools({
         buttonRef={summaryRef}
         state={summary}
         icon={<IconSparkle size={16} />}
-        rest={{ short: "Résumer", full: "Résumer" }}
+        // Mobile keeps « Résumer » (no room); the panel says how many sources it covers.
+        rest={{ short: "Résumer", full: sourceCount > 1 ? `Résumer les ${sourceCount} sources` : "Résumer" }}
         active={{ short: "Masquer", full: "Masquer le résumé" }}
         activeLabel="Masquer le résumé"
         onClick={onSummary}
@@ -132,14 +135,15 @@ function Skeleton({ lines }: { lines: number[] }) {
 }
 
 /** The summary under the bar (§ 4): loading (skeleton) or shown, with ✕. */
-export function AiSummaryPanel({ output, onClose }: { output: AiOutput | null; onClose: () => void }) {
+export function AiSummaryPanel({ output, onClose, sourceCount = 1 }: { output: AiOutput | null; onClose: () => void; sourceCount?: number }) {
   const titleId = "ai-summary-title";
   const loading = output === null;
   return (
     <section aria-labelledby={titleId} aria-busy={loading} className="overflow-hidden rounded-md border border-line-strong bg-surface">
       <div className="flex min-h-10 items-center gap-2 border-b border-line bg-surface-alt pl-3.5">
         <h2 id={titleId} className="font-cond text-[12.5px] font-bold tracking-caps uppercase">
-          Résumé{loading && <span className="font-medium text-fg-muted normal-case"> · Génération…</span>}
+          {sourceCount > 1 ? `Résumé de ${sourceCount} sources` : "Résumé"}
+          {loading && <span className="font-medium text-fg-muted normal-case"> · Génération…</span>}
         </h2>
         {!loading && <GeneratedChip model={output.model} />}
         {!loading && (

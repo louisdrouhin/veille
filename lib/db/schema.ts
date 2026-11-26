@@ -112,6 +112,11 @@ export const topics = pgTable(
     searchTsv: tsvector("search_tsv").generatedAlwaysAs(
       (): SQL => sql`${searchVector("A", sql`title`)} || ${searchVector("B", sql`excerpt`)}`,
     ),
+    /**
+     * Fusion of duplicates (docs/design/3.3 § 2): null until the worker has compared this new topic with
+     * those of the last 72 hours (then it is either kept, or turned into a « reprise » of an older topic).
+     */
+    mergeCheckedAt: tsz("merge_checked_at"),
   },
   (t) => [
     index("topics_search_idx").using("gin", t.searchTsv),
@@ -206,6 +211,11 @@ export const replies = pgTable(
     content: text("content").notNull(),
     url: text("url"),
     createdAt: tsz("created_at").notNull().defaultNow(),
+    /** A « reprise » (type source, docs/design/3.3 § 2): its own title, source, URL (never fetched again) and language. */
+    title: text("title"),
+    sourceId: integer("source_id").references(() => sources.id, { onDelete: "set null" }),
+    normalizedUrl: text("normalized_url").unique(),
+    lang: text("lang"),
     /** Personal notes only: in the local exact search, never sent to a model (docs/design/3.3, privacy). */
     searchTsv: tsvector("search_tsv").generatedAlwaysAs((): SQL => sql`case when type = 'note' then ${searchVector("C", sql`content`)} end`),
   },
@@ -236,6 +246,33 @@ export const articleEmbeddings = pgTable(
     indexedAt: tsz("indexed_at").notNull().defaultNow(),
   },
   (t) => [check("article_embeddings_dim_check", sql`${t.dim} > 0 and octet_length(${t.vector}) = ${t.dim} * 4`)],
+);
+
+/** The meaning vector of a « reprise » (moved from article_embeddings when the article is merged, and back). */
+export const replyEmbeddings = pgTable(
+  "reply_embeddings",
+  {
+    replyId: integer("reply_id")
+      .primaryKey()
+      .references(() => replies.id, { onDelete: "cascade" }),
+    model: text("model").notNull(),
+    dim: integer("dim").notNull(),
+    vector: bytea("vector").notNull(),
+  },
+  (t) => [check("reply_embeddings_dim_check", sql`${t.dim} > 0 and octet_length(${t.vector}) = ${t.dim} * 4`)],
+);
+
+/** « Séparer »: this article is never merged into this topic again. */
+export const mergeBlocks = pgTable(
+  "merge_blocks",
+  {
+    topicId: integer("topic_id")
+      .notNull()
+      .references(() => topics.id, { onDelete: "cascade" }),
+    normalizedUrl: text("normalized_url").notNull(),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.topicId, t.normalizedUrl] })],
 );
 
 export const AI_USAGE_KINDS = ["embed", "ask"] as const;

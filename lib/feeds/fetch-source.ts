@@ -1,6 +1,7 @@
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { sources, topics, type Source } from "@/lib/db/schema";
+import { knownReprises } from "@/lib/merge/fusion";
 import { storeFeedArticles } from "@/lib/reader/store";
 import { htmlTextLength, sanitizeArticleHtml } from "@/lib/reader/sanitize";
 import { parseFeed, type FeedEntry } from "./parse";
@@ -95,6 +96,9 @@ export async function fetchSource(
     // to avoid flooding the forum with a backlog of old posts.
     const firstImport = source.lastFetchedAt === null;
     let inserted = 0;
+    // Articles already merged into another topic (« reprises », docs/design/3.3 § 2) are not new topics.
+    const reprises = await knownReprises(db, entries.map((e) => e.normalizedUrl));
+    if (reprises.size) entries = entries.filter((e) => !reprises.has(e.normalizedUrl));
     if (entries.length) {
       const rows = await db
         .insert(topics)

@@ -13,7 +13,8 @@ import { getFeatured, getForumsWithCounts, getHomeStats, getLatestUnread } from 
 import { requireSession } from "@/lib/session";
 import { getHomeStack } from "@/lib/stack/queries";
 
-const FEATURED_WINDOW_MS = 3 * 24 * 3_600_000;
+/** « À la une »: activity in the last 48 hours (docs/design/3.3 § 2). */
+const FEATURED_WINDOW_MS = 48 * 3_600_000;
 
 /** Home (docs/design/v2 § 2): À la une · Ma stack (3.0) · summary · latest unread · forums, same order on mobile and desktop. */
 export default async function HomePage() {
@@ -21,11 +22,12 @@ export default async function HomePage() {
   const db = getDb();
   const now = new Date();
 
-  const [stats, latest, forums, featured, stack] = await Promise.all([
+  const featured = FEATURED_ENABLED ? await getFeatured(db, { limit: 10, since: new Date(now.getTime() - FEATURED_WINDOW_MS) }) : [];
+  const [stats, latest, forums, stack] = await Promise.all([
     getHomeStats(db, now),
-    getLatestUnread(db, { limit: 8 }),
+    // No topic twice: those « À la une » are left out of « Derniers non lus ».
+    getLatestUnread(db, { limit: 8, exclude: featured.map((f) => f.id) }),
     getForumsWithCounts(db),
-    FEATURED_ENABLED ? getFeatured(db, { limit: 3, since: new Date(now.getTime() - FEATURED_WINDOW_MS) }) : [],
     getHomeStack(db),
   ]);
 
