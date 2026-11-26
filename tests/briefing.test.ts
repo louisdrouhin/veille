@@ -48,7 +48,7 @@ function net(reply?: Net["reply"]) {
   const n: Net = { gemini: [], pushes: [], reply: reply ?? ((data) => Object.fromEntries(Object.entries(data).map(([k, v]) => [k, `Résumé : ${v.titre.slice(0, 30)}.`]))) };
   const fetchImpl = (async (u: string | URL, init?: RequestInit) => {
     const url = String(u);
-    if (url.includes("generativelanguage.googleapis.com")) {
+    if (new URL(url).hostname === "generativelanguage.googleapis.com") {
       const body = String(init?.body);
       n.gemini.push({ url, body });
       const user = (JSON.parse(body) as { contents: { parts: { text: string }[] }[] }).contents[0]!.parts[0]!.text;
