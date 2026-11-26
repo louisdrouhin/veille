@@ -301,6 +301,17 @@ Chaque article est indexé deux fois, par le worker après chaque cycle :
   `ASK_DAILY_LIMIT` questions (50). Le rattrapage de l'existant avance donc par paliers ; sa progression est affichée
   dans Administration › Intégrations.
 
+- **Recherche** (`/recherche`, champ dans l'en-tête, `/` ou Ctrl+K) : correspondances exactes (surlignées, notes
+  incluses) puis « proches par le sens » ; filtres forum, période, source, listes, notes dans l'URL.
+- **Fusion des doublons** : un article proche (au sens des embeddings) d'un topic arrivé dans les 72 h en devient une
+  reprise ; seuil réglable dans Administration › Intégrations (0,87 par défaut) ; « Séparer » dans le menu ⋯ d'une
+  reprise. « À la une » : topics à 2 sources ou plus actifs dans les 48 h. « Sujets proches » en bas de chaque topic.
+- **Questions** (`/demander`) : réponse rédigée par Gemini **uniquement** à partir d'extraits d'articles de la veille
+  (jamais une note), en streaming, avec un renvoi `[n]` contrôlé côté serveur après chaque affirmation ; sans source
+  valide, « Rien trouvé dans ta veille ». Rien n'est envoyé au modèle sans geste explicite (Entrée sur « Demander »,
+  un clic) : une URL partagée ou rechargée redemande. Historique des 20 dernières questions, effaçable ; réponses en
+  cache 6 h, refaites à chaque nouvel article ou reprise.
+
 ### Ma stack (radar de vulnérabilités)
 
 Aucune configuration obligatoire : le worker vérifie la stack toutes les 30 min (`STACK_CHECK_INTERVAL_MINUTES`), et

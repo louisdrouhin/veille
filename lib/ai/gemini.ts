@@ -96,3 +96,95 @@ export const GEMINI_ERROR_MESSAGES: Record<GeminiError, string> = {
   failed: "Réponse de Gemini illisible : réessaie.",
   invalid: "Traduction incomplète ou mal formée renvoyée par Gemini : réessaie.",
 };
+
+export type StreamEvent = { text: string } | { done: true; truncated: boolean } | { error: GeminiError; status?: number };
+
+/**
+ * streamGenerateContent (SSE): the text as it comes, for « Demande à ta veille » (docs/design/3.3 § 4.5).
+ * `signal` stops it (« Arrêter »); the caller keeps the whole text to check it once complete.
+ */
+export async function* streamContent(req: Omit<GeminiRequest, "json" | "timeoutMs"> & { signal?: AbortSignal; timeoutMs?: number }): AsyncGenerator<StreamEvent> {
+  const doFetch = req.fetch ?? fetch;
+  let res: Response;
+  try {
+    const timeout = AbortSignal.timeout(req.timeoutMs ?? 60_000);
+    res = await doFetch(`${GEMINI_API}/models/${encodeURIComponent(req.model)}:streamGenerateContent?alt=sse`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": req.apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: req.system }] },
+        contents: [{ role: "user", parts: [{ text: req.user }] }],
+        generationConfig: {
+          temperature: req.temperature ?? 0.2,
+          maxOutputTokens: req.maxOutputTokens,
+          ...(req.thinkingLevel ? { thinkingConfig: { thinkingLevel: req.thinkingLevel.toUpperCase() } } : {}),
+        },
+      }),
+      signal: req.signal ? AbortSignal.any([req.signal, timeout]) : timeout,
+      redirect: "error",
+      cache: "no-store",
+    });
+  } catch (err) {
+    const name = (err as Error)?.name;
+    yield { error: name === "TimeoutError" || name === "AbortError" ? "timeout" : "unavailable" };
+    return;
+  }
+  if (!res.ok || !res.body) {
+    const s = res.status;
+    await res.body?.cancel().catch(() => {});
+    yield { error: s === 429 ? "quota" : s === 401 || s === 403 || s === 400 ? "auth" : s === 404 ? "model" : s >= 500 ? "unavailable" : "failed", status: s };
+    return;
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  let size = 0;
+  let truncated = false;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > MAX_RESPONSE_BYTES * 4) {
+        yield { error: "failed" };
+        return;
+      }
+      buffer += value;
+      let cut: number;
+      while ((cut = buffer.indexOf("\n\n")) >= 0) {
+        const event = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        const data = event
+          .split("\n")
+          .filter((l) => l.startsWith("data:"))
+          .map((l) => l.slice(5).trim())
+          .join("");
+        if (!data) continue;
+        let chunk: GeminiResponse;
+        try {
+          chunk = JSON.parse(data) as GeminiResponse;
+        } catch {
+          continue;
+        }
+        if (chunk.promptFeedback?.blockReason) {
+          yield { error: "blocked" };
+          return;
+        }
+        const cand = chunk.candidates?.[0];
+        if (cand?.finishReason && BLOCKED.has(cand.finishReason)) {
+          yield { error: "blocked" };
+          return;
+        }
+        if (cand?.finishReason === "MAX_TOKENS") truncated = true;
+        const text = (cand?.content?.parts ?? []).filter((p) => !p.thought && typeof p.text === "string").map((p) => p.text).join("");
+        if (text) yield { text };
+      }
+    }
+  } catch (err) {
+    const name = (err as Error)?.name;
+    yield { error: name === "TimeoutError" || name === "AbortError" ? "timeout" : "unavailable" };
+    return;
+  } finally {
+    reader.releaseLock();
+  }
+  yield { done: true, truncated };
+}
