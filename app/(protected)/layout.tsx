@@ -11,6 +11,7 @@ import { UpdateToast } from "@/components/pwa/update-toast";
 import { AccountThemeSync } from "@/components/theme/theme-sync";
 import { ReadTopicsProvider } from "@/components/topic/read-topics";
 import { TopicMenuProvider } from "@/components/topic/topic-menu";
+import { ShortcutsProvider } from "@/components/shortcuts/shortcuts";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
 import { briefingNav } from "@/lib/briefing/queries";
@@ -46,6 +47,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           <UpdateToast />
         </Toaster>
         <NavigationTracker />
+        <ShortcutsProvider />
         <OfflinePageCache />
         <BackForwardRefresh />
       </Suspense>

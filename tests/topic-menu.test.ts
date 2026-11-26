@@ -52,7 +52,9 @@ describe("shortcuts", () => {
     expect(rowAccelerator(key("Enter", { ctrlKey: true }), "forum")).toBe("newTab");
     expect(rowAccelerator(key("Enter", { metaKey: true }), "forum")).toBe("newTab");
     expect(rowAccelerator(key("m"), "forum")).toBe("toggleRead");
-    expect(rowAccelerator(key("e"), "forum")).toBe("lists");
+    expect(rowAccelerator(key("s"), "forum")).toBe("lists");
+    // « E » before 3.5: now « S », as the global shortcut.
+    expect(rowAccelerator(key("e"), "forum")).toBeNull();
     expect(rowAccelerator(key("o"), "forum")).toBe("article");
     expect(rowAccelerator(key("c"), "forum")).toBe("copyArticle");
     expect(rowAccelerator(key("C", { shiftKey: true }), "forum")).toBe("copyFolders");

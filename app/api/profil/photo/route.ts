@@ -38,6 +38,10 @@ export async function GET(request: Request) {
   const [row] = await getDb().select().from(userPhotos).where(eq(userPhotos.userId, userId));
   if (!row) return new Response(null, { status: 404, headers: { ...HEADERS, "Cache-Control": "private, no-store" } });
   const body = size === "large" ? row.large : row.small;
+  // Never a long cache for something that is not one of our pictures: a broken answer must not stick for a year.
+  if (!body?.length || (row.mime !== "image/jpeg" && row.mime !== "image/webp")) {
+    return new Response(null, { status: 404, headers: { ...HEADERS, "Cache-Control": "private, no-store" } });
+  }
   return new Response(new Uint8Array(body), {
     headers: {
       ...HEADERS,

@@ -117,6 +117,9 @@ export function SaveButton({
         <button
           ref={buttonRef}
           type="button"
+          // « s » on the topic page (components/shortcuts/topic-shortcuts.tsx).
+          data-save-button
+          aria-keyshortcuts="s"
           aria-haspopup="dialog"
           aria-expanded={mode !== null}
           aria-label={label}

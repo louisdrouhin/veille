@@ -38,7 +38,13 @@ export default async function SourcesSettingsPage({ searchParams }: Props) {
     <SettingsPage page="sources" title="Sources" description="Les flux RSS et Atom récupérés par Folders, rangés par forum." wide>
       <SourceFilters current={filter} counts={{ all: all.length, erreur: errors.length, desactivees: disabled.length }} />
       {filter !== "desactivees" && <SourceErrors sources={errors} />}
-      <SourcesPanel sources={list} forums={forumRows} editing={all.find((s) => s.id === editId)} now={now} />
+      <SourcesPanel
+        sources={list}
+        forums={forumRows}
+        editing={all.find((s) => s.id === editId)}
+        now={now}
+        filteredEmpty={filter === "erreur" ? "Aucune source en erreur : tout est récupéré normalement." : filter === "desactivees" ? "Aucune source désactivée." : undefined}
+      />
     </SettingsPage>
   );
 }

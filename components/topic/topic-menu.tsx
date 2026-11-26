@@ -44,7 +44,7 @@ export type MenuRequest = {
   /** Cursor (right click); else anchored under the ⋯ button. */
   point: { x: number; y: number } | null;
   via: "pointer" | "button" | "keyboard";
-  /** « E »: open the lists submenu at once. */
+  /** « S »: open the lists submenu at once. */
   submenu?: boolean;
 };
 
@@ -75,7 +75,8 @@ export function rowAccelerator(e: Pick<KeyboardEvent, "key" | "shiftKey" | "ctrl
   if (e.ctrlKey || e.metaKey) return null;
   const k = e.key;
   if (k === "m" || k === "M") return e.shiftKey ? null : "toggleRead";
-  if (k === "e" || k === "E") return e.shiftKey ? null : "lists";
+  // « S » (docs/design/3.5 § 0): same key as the global shortcut « enregistrer dans une liste ».
+  if (k === "s" || k === "S") return e.shiftKey ? null : "lists";
   if (k === "o" || k === "O") return e.shiftKey ? null : "article";
   if (k === "c") return "copyArticle";
   if (k === "C") return e.shiftKey ? "copyFolders" : "copyArticle";
@@ -438,7 +439,7 @@ function TopicMenu({
               aria-haspopup="menu"
               aria-expanded={sub !== "closed"}
               aria-controls={sub !== "closed" ? subId : undefined}
-              aria-keyshortcuts="e ArrowRight"
+              aria-keyshortcuts="s ArrowRight"
               onClick={() => setSub("keyboard")}
               onPointerEnter={(e) => {
                 e.currentTarget.focus();
