@@ -15,7 +15,7 @@ import { pageCsp } from "@/lib/csp";
 
 vi.mock("server-only", () => ({}));
 const { aiConfig, DEFAULT_GEMINI_MODEL, DEFAULT_TRANSLATE_MODEL } = await import("@/lib/ai/config");
-const { generateContent, GEMINI_API } = await import("@/lib/ai/gemini");
+const { generateContent, GEMINI_API, GEMINI_ERROR_MESSAGES } = await import("@/lib/ai/gemini");
 const { markdownToHtml } = await import("@/lib/ai/markdown");
 const { articleText, isFrench, truncateForModel, MAX_INPUT_CHARS } = await import("@/lib/ai/text");
 const { resetAiCalls, AI_LIMITS } = await import("@/lib/ai/rate-limit");
@@ -158,11 +158,14 @@ describe("Gemini client", () => {
   });
 
   it("maps quota, key, model, server, block, timeout and truncation", async () => {
-    const run = (reply: Parameters<typeof gemini>[0]) => generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: gemini(reply).fetch });
+    const run = (reply: Parameters<typeof gemini>[0]) => generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: gemini(reply).fetch, retryDelaysMs: [] });
     expect(await run({ status: 429, json: { error: { status: "RESOURCE_EXHAUSTED" } } })).toMatchObject({ ok: false, error: "quota" });
     expect(await run({ status: 403 })).toMatchObject({ ok: false, error: "auth" });
     expect(await run({ status: 404 })).toMatchObject({ ok: false, error: "model" });
-    expect(await run({ status: 503 })).toMatchObject({ ok: false, error: "unavailable" });
+    expect(await run({ status: 503 })).toMatchObject({ ok: false, error: "overloaded", status: 503 });
+    expect(await run({ status: 500 })).toMatchObject({ ok: false, error: "server", status: 500 });
+    expect(await run({ status: 400, json: { error: { status: "INVALID_ARGUMENT", details: [{ reason: "API_KEY_INVALID" }] } } })).toMatchObject({ ok: false, error: "auth" });
+    expect(await run({ status: 400, json: { error: { status: "INVALID_ARGUMENT", message: "Invalid JSON payload" } } })).toMatchObject({ ok: false, error: "request" });
     expect(await run({ json: { promptFeedback: { blockReason: "SAFETY" } } })).toMatchObject({ ok: false, error: "blocked" });
     expect(await run({ json: { candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "x" }] } }] } })).toMatchObject({ ok: false, error: "blocked" });
     expect(await run({ json: { candidates: [{ finishReason: "STOP", content: { parts: [] } }] } })).toMatchObject({ ok: false, error: "empty" });
@@ -173,6 +176,35 @@ describe("Gemini client", () => {
       throw Object.assign(new Error("t"), { name: "TimeoutError" });
     }) as unknown as typeof fetch;
     expect(await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: timeout })).toEqual({ ok: false, error: "timeout" });
+    const offline = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof fetch;
+    expect(await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: offline })).toEqual({ ok: false, error: "network" });
+  });
+
+  it("an overloaded model (503 « high demand ») is asked again before giving up; a quota or a bad key is not", async () => {
+    const replies = [{ status: 503 }, { status: 503 }, "- enfin"];
+    const g = gemini(() => replies.shift()! as never);
+    const ok = await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: g.fetch, retryDelaysMs: [0, 0] });
+    expect(ok).toEqual({ ok: true, text: "- enfin", truncated: false });
+    expect(g.calls).toHaveLength(3);
+    const down = gemini({ status: 503 });
+    expect(await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: down.fetch, retryDelaysMs: [0, 0] })).toMatchObject({ error: "overloaded" });
+    expect(down.calls).toHaveLength(3);
+    for (const status of [429, 403, 404]) {
+      const once = gemini({ status });
+      await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: once.fetch, retryDelaysMs: [0, 0] });
+      expect(once.calls).toHaveLength(1);
+    }
+  });
+
+  it("every error has its own message: quota, key, model, overload, network are told apart", () => {
+    expect(GEMINI_ERROR_MESSAGES.quota).toMatch(/Quota/);
+    expect(GEMINI_ERROR_MESSAGES.auth).toMatch(/Clé Gemini refusée/);
+    expect(GEMINI_ERROR_MESSAGES.model).toMatch(/introuvable/);
+    expect(GEMINI_ERROR_MESSAGES.overloaded).toMatch(/surchargé/);
+    expect(GEMINI_ERROR_MESSAGES.network).toMatch(/réseau/);
+    expect(new Set(Object.values(GEMINI_ERROR_MESSAGES)).size).toBe(Object.keys(GEMINI_ERROR_MESSAGES).length);
   });
 });
 

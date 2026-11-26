@@ -6,7 +6,19 @@ export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 export const GEMINI_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 
-export type GeminiError = "quota" | "auth" | "model" | "blocked" | "timeout" | "unavailable" | "empty" | "failed" | "invalid";
+export type GeminiError =
+  | "quota"
+  | "auth"
+  | "model"
+  | "overloaded"
+  | "server"
+  | "network"
+  | "request"
+  | "blocked"
+  | "timeout"
+  | "empty"
+  | "failed"
+  | "invalid";
 export type GeminiResult = { ok: true; text: string; truncated: boolean } | { ok: false; error: GeminiError; status?: number };
 
 export type GeminiRequest = {
@@ -23,7 +35,78 @@ export type GeminiRequest = {
   thinkingLevel?: "minimal" | "low" | "medium" | "high";
   fetch?: typeof fetch;
   timeoutMs?: number;
+  /** Waits before each new attempt after an overloaded / server error (default RETRY_DELAYS_MS; [] = no retry). */
+  retryDelaysMs?: number[];
 };
+
+/** A 503 « high demand » is often over within seconds: two more attempts before giving up. */
+export const RETRY_DELAYS_MS = [2_000, 5_000];
+const MAX_RETRY_AFTER_MS = 10_000;
+
+/**
+ * The HTTP error of Gemini, from its status and body (docs: API errors). 400 is an invalid key when the body
+ * says so (API_KEY_INVALID), otherwise a request of ours that Gemini refused.
+ */
+export function classifyHttpError(status: number, body = ""): GeminiError {
+  if (status === 429) return "quota";
+  if (status === 401 || status === 403) return "auth";
+  if (status === 400) return /API_KEY_INVALID|API key not valid/i.test(body) ? "auth" : "request";
+  if (status === 404) return "model";
+  if (status === 503) return "overloaded";
+  if (status >= 500) return "server";
+  return "failed";
+}
+
+const retryable = (e: GeminiError) => e === "overloaded" || e === "server";
+
+function retryWait(res: Response, planned: number): number {
+  const after = Number(res.headers.get("retry-after"));
+  return Number.isFinite(after) && after > 0 ? Math.min(after * 1000, MAX_RETRY_AFTER_MS) : planned;
+}
+
+const sleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    if (ms <= 0) return resolve();
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(t);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+
+const fetchError = (err: unknown): GeminiError => {
+  const name = (err as Error)?.name;
+  return name === "TimeoutError" || name === "AbortError" ? "timeout" : "network";
+};
+
+/** The response, retried on 503 / 5xx; or the error once out of attempts. */
+async function post(
+  url: string,
+  init: RequestInit,
+  opts: { fetch?: typeof fetch; retryDelaysMs?: number[]; timeoutMs: number; signal?: AbortSignal },
+): Promise<{ res: Response } | { error: GeminiError; status?: number }> {
+  const doFetch = opts.fetch ?? fetch;
+  const delays = opts.retryDelaysMs ?? RETRY_DELAYS_MS;
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      const timeout = AbortSignal.timeout(opts.timeoutMs);
+      res = await doFetch(url, { ...init, signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout });
+    } catch (err) {
+      return { error: fetchError(err) };
+    }
+    if (res.ok) return { res };
+    const body = await res.text().catch(() => "");
+    const error = classifyHttpError(res.status, body.slice(0, 2_000));
+    if (!retryable(error) || attempt >= delays.length || opts.signal?.aborted) return { error, status: res.status };
+    await sleep(retryWait(res, delays[attempt]!), opts.signal);
+    if (opts.signal?.aborted) return { error: "timeout" };
+  }
+}
 
 const BLOCKED = new Set(["SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY", "OTHER"]);
 
@@ -33,10 +116,9 @@ type GeminiResponse = {
 };
 
 export async function generateContent(req: GeminiRequest): Promise<GeminiResult> {
-  const doFetch = req.fetch ?? fetch;
-  let res: Response;
-  try {
-    res = await doFetch(`${GEMINI_API}/models/${encodeURIComponent(req.model)}:generateContent`, {
+  const sent = await post(
+    `${GEMINI_API}/models/${encodeURIComponent(req.model)}:generateContent`,
+    {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": req.apiKey },
       body: JSON.stringify({
@@ -49,21 +131,13 @@ export async function generateContent(req: GeminiRequest): Promise<GeminiResult>
           ...(req.thinkingLevel ? { thinkingConfig: { thinkingLevel: req.thinkingLevel.toUpperCase() } } : {}),
         },
       }),
-      signal: AbortSignal.timeout(req.timeoutMs ?? GEMINI_TIMEOUT_MS),
       redirect: "error",
       cache: "no-store",
-    });
-  } catch (err) {
-    const name = (err as Error)?.name;
-    return { ok: false, error: name === "TimeoutError" || name === "AbortError" ? "timeout" : "unavailable" };
-  }
-
-  if (!res.ok) {
-    const s = res.status;
-    const error: GeminiError = s === 429 ? "quota" : s === 401 || s === 403 ? "auth" : s === 404 ? "model" : s >= 500 ? "unavailable" : s === 400 ? "auth" : "failed";
-    // 400 is what an invalid key returns; a malformed request would be a bug of ours (logged).
-    return { ok: false, error, status: s };
-  }
+    },
+    { fetch: req.fetch, retryDelaysMs: req.retryDelaysMs, timeoutMs: req.timeoutMs ?? GEMINI_TIMEOUT_MS },
+  );
+  if ("error" in sent) return { ok: false, error: sent.error, ...(sent.status ? { status: sent.status } : {}) };
+  const res = sent.res;
 
   let body: GeminiResponse;
   try {
@@ -87,11 +161,14 @@ export async function generateContent(req: GeminiRequest): Promise<GeminiResult>
 
 export const GEMINI_ERROR_MESSAGES: Record<GeminiError, string> = {
   quota: "Quota Gemini atteint : réessaie dans quelques minutes.",
-  auth: "Clé Gemini refusée : vérifie GEMINI_API_KEY sur le serveur.",
-  model: "Modèle Gemini introuvable : vérifie GEMINI_MODEL.",
+  auth: "Clé Gemini refusée : vérifie-la dans Administration › Intégrations.",
+  model: "Modèle Gemini introuvable : vérifie son nom dans Administration › Intégrations.",
+  overloaded: "Modèle Gemini surchargé chez Google : réessaie dans quelques minutes.",
+  server: "Erreur interne de Gemini chez Google : réessaie dans quelques minutes.",
+  network: "Gemini injoignable depuis le serveur (réseau) : réessaie plus tard.",
+  request: "Requête refusée par Gemini : réessaie, et signale-le si ça se reproduit.",
   blocked: "Gemini a refusé de traiter cet article.",
   timeout: "Gemini n'a pas répondu à temps : réessaie.",
-  unavailable: "Service Gemini injoignable : réessaie plus tard.",
   empty: "Gemini n'a rien renvoyé : réessaie.",
   failed: "Réponse de Gemini illisible : réessaie.",
   invalid: "Traduction incomplète ou mal formée renvoyée par Gemini : réessaie.",
@@ -103,12 +180,13 @@ export type StreamEvent = { text: string } | { done: true; truncated: boolean } 
  * streamGenerateContent (SSE): the text as it comes, for « Demande à ta veille » (docs/design/3.3 § 4.5).
  * `signal` stops it (« Arrêter »); the caller keeps the whole text to check it once complete.
  */
-export async function* streamContent(req: Omit<GeminiRequest, "json" | "timeoutMs"> & { signal?: AbortSignal; timeoutMs?: number }): AsyncGenerator<StreamEvent> {
-  const doFetch = req.fetch ?? fetch;
-  let res: Response;
-  try {
-    const timeout = AbortSignal.timeout(req.timeoutMs ?? 60_000);
-    res = await doFetch(`${GEMINI_API}/models/${encodeURIComponent(req.model)}:streamGenerateContent?alt=sse`, {
+export async function* streamContent(
+  req: Omit<GeminiRequest, "json" | "timeoutMs"> & { signal?: AbortSignal; timeoutMs?: number },
+): AsyncGenerator<StreamEvent> {
+  // Retried before anything is streamed only (an overloaded model answers 503 at once).
+  const sent = await post(
+    `${GEMINI_API}/models/${encodeURIComponent(req.model)}:streamGenerateContent?alt=sse`,
+    {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": req.apiKey },
       body: JSON.stringify({
@@ -120,19 +198,18 @@ export async function* streamContent(req: Omit<GeminiRequest, "json" | "timeoutM
           ...(req.thinkingLevel ? { thinkingConfig: { thinkingLevel: req.thinkingLevel.toUpperCase() } } : {}),
         },
       }),
-      signal: req.signal ? AbortSignal.any([req.signal, timeout]) : timeout,
       redirect: "error",
       cache: "no-store",
-    });
-  } catch (err) {
-    const name = (err as Error)?.name;
-    yield { error: name === "TimeoutError" || name === "AbortError" ? "timeout" : "unavailable" };
+    },
+    { fetch: req.fetch, retryDelaysMs: req.retryDelaysMs, timeoutMs: req.timeoutMs ?? 60_000, signal: req.signal },
+  );
+  if ("error" in sent) {
+    yield { error: sent.error, ...(sent.status ? { status: sent.status } : {}) };
     return;
   }
-  if (!res.ok || !res.body) {
-    const s = res.status;
-    await res.body?.cancel().catch(() => {});
-    yield { error: s === 429 ? "quota" : s === 401 || s === 403 || s === 400 ? "auth" : s === 404 ? "model" : s >= 500 ? "unavailable" : "failed", status: s };
+  const res = sent.res;
+  if (!res.body) {
+    yield { error: "empty" };
     return;
   }
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -180,8 +257,7 @@ export async function* streamContent(req: Omit<GeminiRequest, "json" | "timeoutM
       }
     }
   } catch (err) {
-    const name = (err as Error)?.name;
-    yield { error: name === "TimeoutError" || name === "AbortError" ? "timeout" : "unavailable" };
+    yield { error: fetchError(err) };
     return;
   } finally {
     reader.releaseLock();
