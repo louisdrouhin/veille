@@ -38,7 +38,9 @@ function parts(line: string, max: number, cited: Set<number>): AnswerPart[] {
       typeof p === "string"
         ? p
             .replace(/\*\*|__|`/g, "")
+            // Rendered as text by React anyway; no bracket left (« <scr<script>ipt> »).
             .replace(/<[^>]*>/g, "")
+            .replace(/[<>]/g, "")
             .replace(/ {2,}/g, " ")
             .replace(/ +([.,;:!?)])/g, i > 0 ? "$1" : " $1")
         : p,
