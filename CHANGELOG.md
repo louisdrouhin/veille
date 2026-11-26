@@ -4,6 +4,23 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.3.0 — 26/11/2026
+
+- **Demande à ta veille** : un seul champ pour chercher et poser des questions, dans l'en-tête (`/` ou Ctrl+K sur
+  ordinateur, loupe sur mobile). Entrée cherche des mots-clés ou pose une question selon ce que tu tapes ;
+  Ctrl+Entrée fait l'autre.
+- **Recherche** : correspondances exactes (sans accents, en français et en anglais, mots surlignés, tes notes
+  incluses), puis résultats proches par le sens ; filtres forum, période, source, listes et notes.
+- **Questions** : une réponse rédigée uniquement à partir des articles de ta veille, qui arrive au fil de l'eau
+  avec un renvoi vers sa source après chaque affirmation (« Arrêter » à tout moment). Sans source, pas de réponse :
+  « Rien trouvé dans ta veille ». Période déduite de la question (« ce mois-ci »…) et modifiable ; tes 20 dernières
+  questions, effaçables.
+- **À la une** : un même sujet repris par plusieurs sources ne fait plus qu'un topic. Les autres sources y sont des
+  « reprises » (Sources · N), « Séparer » si ce n'est pas le même sujet ; les sujets les plus repris des 48 dernières
+  heures sont à la une sur l'accueil.
+- **Sujets proches** en bas de chaque topic ; « Résumer les N sources » pour un topic repris plusieurs fois.
+- Tes notes perso et ta stack ne sont jamais envoyées à Gemini.
+
 ## 3.2.0 — 25/11/2026
 
 - **Menu contextuel** sur les lignes de topic (forums, accueil, listes), sur ordinateur : clic droit, bouton « ⋯ » au
