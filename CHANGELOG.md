@@ -4,6 +4,24 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.5.0 — 26/11/2026
+
+- Paramètres : « Mon compte » et « Admin » sont réunis dans Paramètres, une page par réglage (Profil, Sécurité,
+  Apparence, Notifications, Briefing, Raccourcis, Forums, Sources, Intégrations, Recherche et IA, À propos). Les
+  anciennes adresses redirigent vers la bonne page.
+- Menu du compte en haut à droite : Paramètres, Profil, Raccourcis clavier, thème, déconnexion. Sur mobile, le compte
+  est en tête du menu et Paramètres est une liste façon Réglages iOS.
+- Profil : prénom et nom (repris de l'identifiant, modifiables), adresse de connexion protégée par la confirmation
+  d'identité, photo recadrée dans le navigateur et débarrassée de ses métadonnées.
+- Sécurité : changement du mot de passe, codes de secours restants, sessions ouvertes et déconnexion à distance.
+- Recherche et IA : seuil de regroupement avec simulation sur 7 jours, fenêtre de regroupement, limites
+  quotidiennes modifiables, état de l'index et réindexation complète.
+- Sources : filtres et sources en erreur en premier, avec la cause précise.
+- Raccourcis clavier sur ordinateur : j / k, Entrée, o, m, s, Maj+C, n / p dans les listes, g + lettre pour naviguer,
+  ? pour l'aide ; désactivables. Dans le menu contextuel, « Enregistrer dans une liste » passe de E à S.
+- Les réglages s'appliquent immédiatement avec « ✓ Enregistré » à côté ; la confirmation d'identité vaut 10 minutes
+  pour Sécurité et Intégrations.
+
 ## 3.4.0 — 26/11/2026
 
 - Briefing du matin : chaque matin à l'heure choisie (7:00 par défaut, du lundi au vendredi), une synthèse de ta veille depuis le dernier
