@@ -4,6 +4,11 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.3.1 — 26/11/2026
+
+- Correctif : sans limite réglée dans le `.env`, l'indexation et les questions étaient bloquées (limite lue à 0 au
+  lieu de 1 000 textes et 50 questions par jour).
+
 ## 3.3.0 — 26/11/2026
 
 - **Demande à ta veille** : un seul champ pour chercher et poser des questions, dans l'en-tête (`/` ou Ctrl+K sur

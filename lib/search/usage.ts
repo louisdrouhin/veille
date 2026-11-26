@@ -11,7 +11,10 @@ export const DEFAULT_LIMITS: Record<AiUsageKind, number> = { embed: 1_000, ask: 
 const ENV: Record<AiUsageKind, string> = { embed: "EMBED_DAILY_LIMIT", ask: "ASK_DAILY_LIMIT" };
 
 export function dailyLimit(kind: AiUsageKind, env: Partial<Record<string, string | undefined>> = process.env): number {
-  const n = Number(env[ENV[kind]]);
+  // Empty (docker-compose passes `${EMBED_DAILY_LIMIT:-}` when unset): the default, not 0.
+  const raw = env[ENV[kind]]?.trim();
+  if (!raw) return DEFAULT_LIMITS[kind];
+  const n = Number(raw);
   return Number.isInteger(n) && n >= 0 ? n : DEFAULT_LIMITS[kind];
 }
 
