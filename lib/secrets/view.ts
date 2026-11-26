@@ -25,6 +25,9 @@ export const LABELS: Record<SettingName, string> = {
   vapid_public_key: "Clé publique VAPID",
   vapid_private_key: "Clé privée VAPID",
   merge_threshold: "Seuil de regroupement des doublons",
+  merge_window_hours: "Fenêtre de regroupement",
+  embed_daily_limit: "Limite quotidienne d'indexation",
+  ask_daily_limit: "Limite quotidienne de questions",
 };
 
 export const ACTION_LABELS: Record<SettingAction, string> = {

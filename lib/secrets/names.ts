@@ -10,6 +10,10 @@ export const SETTING_NAMES = [
   "vapid_public_key",
   "vapid_private_key",
   "merge_threshold",
+  // Paramètres › Recherche et IA (docs/design/3.5 § 7).
+  "merge_window_hours",
+  "embed_daily_limit",
+  "ask_daily_limit",
 ] as const;
 export type SettingName = (typeof SETTING_NAMES)[number];
 
@@ -25,6 +29,9 @@ export const ENV_OF: Record<SettingName, string> = {
   vapid_public_key: "VAPID_PUBLIC_KEY",
   vapid_private_key: "VAPID_PRIVATE_KEY",
   merge_threshold: "MERGE_THRESHOLD",
+  merge_window_hours: "MERGE_WINDOW_HOURS",
+  embed_daily_limit: "EMBED_DAILY_LIMIT",
+  ask_daily_limit: "ASK_DAILY_LIMIT",
 };
 
 /** Journal of the changes: which value, what was done, when (never the value). */

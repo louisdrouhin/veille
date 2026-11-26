@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IntegrationsPanel } from "@/components/admin/integrations-panel";
+import { IdentityGate } from "@/components/settings/identity";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { getDb } from "@/lib/db";
 import { grantUntil, proofKind } from "@/lib/secrets/reconfirm";
@@ -21,7 +22,14 @@ export default async function IntegrationsPage() {
       title="Intégrations"
       description="Clés d'API des services externes. Une clé enregistrée ici, chiffrée sur le serveur, remplace celle du .env ; supprimée, l'app reprend celle du .env."
     >
-      <IntegrationsPanel view={view} grantUntil={grantUntil(session.session.id)} proof={proof} />
+      {view.master === "ok" ? (
+        <IdentityGate grantUntil={grantUntil(session.session.id)} proof={proof} what="modifier les clés et les modèles">
+          <IntegrationsPanel view={view} grantUntil={grantUntil(session.session.id)} proof={proof} />
+        </IdentityGate>
+      ) : (
+        // Read-only (no SECRETS_KEY): nothing to change, the notice must stay readable.
+        <IntegrationsPanel view={view} grantUntil={null} proof={proof} />
+      )}
     </SettingsPage>
   );
 }

@@ -32,6 +32,8 @@ export type AdminForum = {
   icon: ForumIconName;
   sourceCount: number;
   topicCount: number;
+  /** Unread topics (Paramètres › Forums, in accent). */
+  unreadCount?: number;
 };
 
 const FIELD = "h-9 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-base font-normal text-fg max-md:h-11 max-md:text-[16px]";
@@ -223,6 +225,7 @@ function ForumItem({
           <p className="truncate text-base font-semibold">{forum.name}</p>
           <p className="truncate text-xs text-fg-muted">
             {plural(forum.sourceCount, "source")} · {plural(forum.topicCount, "topic")}
+            {(forum.unreadCount ?? 0) > 0 && <span className="font-semibold text-accent"> · {forum.unreadCount} non lu{forum.unreadCount! > 1 ? "s" : ""}</span>}
           </p>
         </div>
         <div className="flex shrink-0 items-center">
@@ -338,7 +341,7 @@ export function ForumsPanel({ forums }: { forums: AdminForum[] }) {
   }
 
   return (
-    <Panel id="forums" title="Forums" className="w-full min-[1000px]:max-w-[360px] min-[1000px]:flex-[1_1_320px]">
+    <Panel id="forums" title="Forums" className="w-full">
       {items.length === 0 ? (
         <p className="px-3.5 py-4 text-sm text-fg-muted">Aucun forum. Crée le premier ci-dessous.</p>
       ) : (

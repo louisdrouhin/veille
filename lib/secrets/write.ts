@@ -16,10 +16,14 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /** An API key as pasted: printable ASCII without spaces. */
 const API_KEY = /^[\x21-\x7e]{16,256}$/;
+/** Fusion window (hours) offered in Paramètres › Recherche et IA. */
+export const MERGE_WINDOWS = ["24", "48", "72", "96", "168"] as const;
 
 export function validateSetting(name: SettingName, value: string): string | null {
   if (name === "gemini_model" || name === "gemini_translate_model") return MODEL.test(value) ? null : "Nom de modèle invalide (ex. gemini-3.5-flash-lite).";
   if (name === "merge_threshold") return /^0\.(5\d|[6-8]\d|9[0-9])$/.test(value) ? null : "Seuil entre 0,50 et 0,99 (ex. 0,87).";
+  if (name === "merge_window_hours") return (MERGE_WINDOWS as readonly string[]).includes(value) ? null : "Fenêtre de 24, 48, 72, 96 ou 168 heures.";
+  if (name === "embed_daily_limit" || name === "ask_daily_limit") return /^(0|[1-9]\d{0,5})$/.test(value) ? null : "Un nombre entier entre 0 et 999 999.";
   if (name === "gemini_api_key" || name === "nvd_api_key") return API_KEY.test(value) ? null : "Clé invalide : colle-la sans espace ni retour à la ligne.";
   return "Cette valeur ne se modifie pas ici.";
 }

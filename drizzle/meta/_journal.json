@@ -127,6 +127,13 @@
       "when": 1795700737459,
       "tag": "0017_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795702670356,
+      "tag": "0018_settings_names",
+      "breakpoints": true
     }
   ]
 }
