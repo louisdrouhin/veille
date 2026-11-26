@@ -32,7 +32,8 @@ export type Resolved = {
 };
 
 const CACHE_MS = 10_000;
-const cache = new WeakMap<object, { at: number; envKey: string; value: Promise<Resolved> }>();
+// Only the rows are cached: the environment is read again at every call (a variable changed is seen at once).
+const cache = new WeakMap<object, { at: number; rows: Promise<SettingRow[]> }>();
 const warned = new Set<string>();
 
 /** After a change (same process: the app; the worker re-reads at most every 10 s). */
@@ -41,18 +42,17 @@ export function invalidateSettings(db?: Db) {
 }
 
 export async function resolveSettings(db: Db, env: Env = process.env, now = Date.now()): Promise<Resolved> {
-  // Only cached for the real environment (the tests pass their own).
-  if (env !== process.env) return load(db, env);
-  // The variables read here: a change of the .env (tests, a process that sets them) is seen at once.
-  const envKey = JSON.stringify([env.SECRETS_KEY, ...SETTING_NAMES.map((n) => env[ENV_OF[n]])]);
   const hit = cache.get(db);
-  if (hit && hit.envKey === envKey && now - hit.at < CACHE_MS) return hit.value;
-  const value = load(db, env).catch((err) => {
-    cache.delete(db);
-    throw err;
-  });
-  cache.set(db, { at: now, envKey, value });
-  return value;
+  let rows = hit && now - hit.at < CACHE_MS ? hit.rows : null;
+  if (!rows) {
+    rows = db.select().from(appSettings).orderBy(asc(appSettings.name));
+    const pending = rows;
+    pending.catch(() => {
+      if (cache.get(db)?.rows === pending) cache.delete(db);
+    });
+    cache.set(db, { at: now, rows: pending });
+  }
+  return load(await rows, env);
 }
 
 /** The environment to use: process.env overlaid with the values saved in the interface. */
@@ -65,8 +65,7 @@ export async function effectiveEnv(db: Db, env: Env = process.env): Promise<Env>
   }
 }
 
-async function load(db: Db, env: Env): Promise<Resolved> {
-  const rows = await db.select().from(appSettings).orderBy(asc(appSettings.name));
+function load(rows: SettingRow[], env: Env): Resolved {
   const byName = new Map(rows.map((r) => [r.name, r]));
   const master = masterKey(env);
   const saved = new Map<SettingName, string>();

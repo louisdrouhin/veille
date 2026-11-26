@@ -275,6 +275,35 @@ export const mergeBlocks = pgTable(
   (t) => [primaryKey({ columns: [t.topicId, t.normalizedUrl] })],
 );
 
+/** « Tes dernières questions » (docs/design/3.3 § 4): the 20 latest per user, erasable. Never sent anywhere. */
+export const askHistory = pgTable(
+  "ask_history",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    /** The scope as URL parameters (periode, forum…), to ask it again. */
+    scope: text("scope").notNull().default(""),
+    askedAt: tsz("asked_at").notNull().defaultNow(),
+    /** « Utile » / « Pas utile » on its answer. */
+    feedback: text("feedback", { enum: ["utile", "pas-utile"] }),
+  },
+  (t) => [index("ask_history_user_idx").on(t.userId, t.askedAt), check("ask_history_feedback_check", sql`${t.feedback} in ('utile', 'pas-utile')`)],
+);
+
+/**
+ * Answers already written (docs/design/3.3 § 4): per normalized question, scope and version of the index (any new
+ * article, reprise or vector changes it), for a few hours. The answer is the checked text, its sources the extracts.
+ */
+export const askAnswers = pgTable("ask_answers", {
+  key: text("key").primaryKey(),
+  answer: text("answer").notNull(),
+  sources: jsonb("sources").notNull(),
+  createdAt: tsz("created_at").notNull().defaultNow(),
+});
+
 export const AI_USAGE_KINDS = ["embed", "ask"] as const;
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
 

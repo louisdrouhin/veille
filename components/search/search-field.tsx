@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { IconClock, IconFolder, IconSearch, IconShield, IconSparkle } from "@/components/ui/icons";
-import { startSuggestionsAction, suggestAction, type StartSuggestion } from "@/lib/actions/search";
+import { forgetQuestionsAction } from "@/lib/actions/ask";
+import { recentQuestionsAction, startSuggestionsAction, suggestAction, type StartSuggestion } from "@/lib/actions/search";
+import { formatShort } from "@/lib/format-date";
 import { NO_FILTERS, searchHref, type SearchFilters } from "@/lib/search/filters";
 import type { Range } from "@/lib/search/highlight";
 import { defaultIntent, otherIntent, searchWords, type Intent } from "@/lib/search/intent";
@@ -42,7 +44,7 @@ function forget() {
   }
 }
 
-type Option = { id: string; group?: "Topics" | "Forums" | "Suggestions" | "Recherches récentes"; label: React.ReactNode; text: string; icon: React.ReactNode; run: () => void; primary?: boolean };
+type Option = { id: string; group?: "Topics" | "Forums" | "Suggestions" | "Recherches récentes" | "Tes dernières questions"; label: React.ReactNode; text: string; icon: React.ReactNode; run: () => void; primary?: boolean };
 
 export function SearchField({
   variant,
@@ -67,6 +69,7 @@ export function SearchField({
   const [found, setFound] = useState<{ q: string; topics: { id: number; title: string; ranges: Range[] }[]; forums: { name: string; slug: string }[] } | null>(null);
   const [start, setStart] = useState<StartSuggestion[] | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<{ question: string; scope: string; at: string }[]>([]);
   const ownRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? ownRef;
   const listId = useId();
@@ -102,7 +105,7 @@ export function SearchField({
         const words = defaultIntent(text) === "ask" ? searchWords(text) : text;
         remember(words);
         go(searchHref(words, filters));
-      } else go(searchHref(text, filters, {}, "/demander"));
+      } else go(searchHref(text, filters, { go: "1" }, "/demander"));
     },
     [q, filters, go],
   );
@@ -138,11 +141,28 @@ export function SearchField({
           // A click on a suggestion is the explicit gesture (§ 5).
           run: () => (s.href ? go(s.href) : runIntent("ask", s.ask ?? s.text)),
         });
+      for (const [i, h] of questions.entries()) {
+        const u = new URLSearchParams(h.scope);
+        u.set("q", h.question);
+        u.set("go", "1");
+        out.push({
+          id: `h${i}`,
+          group: "Tes dernières questions",
+          label: (
+            <>
+              {h.question} <span className="text-sm text-fg-muted">· {formatShort(new Date(h.at))}</span>
+            </>
+          ),
+          text: h.question,
+          icon: <IconClock size={16} />,
+          run: () => go(`/demander?${u}`),
+        });
+      }
       for (const [i, r] of recent.entries())
         out.push({ id: `r${i}`, group: "Recherches récentes", label: r, text: r, icon: <IconClock size={16} />, run: () => runIntent("search", r) });
     }
     return out;
-  }, [q, intent, found, start, recent, runIntent, go]);
+  }, [q, intent, found, start, recent, questions, runIntent, go]);
 
   const activeIndex = Math.min(active, Math.max(0, options.length - 1));
   const expanded = open && options.length > 0;
@@ -151,6 +171,7 @@ export function SearchField({
     setOpen(true);
     setRecent(readRecent());
     if (!start) void startSuggestionsAction().then(setStart, () => setStart([]));
+    void recentQuestionsAction().then(setQuestions, () => setQuestions([]));
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -230,6 +251,20 @@ export function SearchField({
           {options.map((o, i) => (
             <OptionRow key={o.id} id={`${listId}-${o.id}`} option={o} active={i === activeIndex} group={o.group !== options[i - 1]?.group ? o.group : undefined} overlay={variant === "overlay"} onHover={() => setActive(i)} />
           ))}
+          {!q && questions.length > 0 && (
+            <li role="presentation" className="px-3 py-1.5 text-right">
+              <button
+                type="button"
+                className="cursor-pointer text-sm text-accent hover:underline"
+                onClick={() => {
+                  void forgetQuestionsAction("all");
+                  setQuestions([]);
+                }}
+              >
+                Effacer les questions
+              </button>
+            </li>
+          )}
           {!q && recent.length > 0 && (
             <li role="presentation" className="px-3 py-1.5 text-right">
               <button

@@ -6,6 +6,7 @@ import { forums, topics } from "@/lib/db/schema";
 import { currentAiConfig } from "@/lib/secrets/effective";
 import { parseFilters, type SearchFilters } from "@/lib/search/filters";
 import { exactSearch, quickSuggestions, semanticSearch } from "@/lib/search/query";
+import { history } from "@/lib/ask/store";
 import { requireSession } from "@/lib/session";
 import { countOpenAlerts } from "@/lib/stack/queries";
 
@@ -57,6 +58,12 @@ export async function startSuggestionsAction(): Promise<StartSuggestion[]> {
     out.push({ text: `Résume l'actualité ${f.name} de ce mois-ci`, ask: `Résume l'actualité ${f.name} de ce mois-ci` });
   }
   return out.slice(0, 3);
+}
+
+/** « Tes dernières questions » of the empty field: the 3 latest, with their scope (to ask them again). */
+export async function recentQuestionsAction(): Promise<{ question: string; scope: string; at: string }[]> {
+  const session = await requireSession();
+  return (await history(getDb(), session.user.id, 3)).map((h) => ({ question: h.question, scope: h.scope, at: h.askedAt.toISOString() }));
 }
 
 /** « Afficher N résultats » of the mobile filters sheet, live: exact matches plus those by meaning already known. */

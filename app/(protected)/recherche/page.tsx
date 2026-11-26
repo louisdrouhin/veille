@@ -113,7 +113,7 @@ export default async function SearchPage({ searchParams }: Props) {
 function AskCard({ q, filters }: { q: string; filters: SearchFilters }) {
   return (
     <Link
-      href={searchHref(q, filters, {}, "/demander")}
+      href={searchHref(q, filters, { go: "1" }, "/demander")}
       className="flex min-h-14 items-center gap-3 rounded-md border border-accent bg-surface px-3.5 py-2.5 text-fg no-underline shadow-sm hover:bg-accent-soft hover:text-fg"
     >
       <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
@@ -193,7 +193,7 @@ function NoResult({ q, filters }: { q: string; filters: SearchFilters }) {
             Chercher sur toute la période
           </Link>
         )}
-        <Link href={searchHref(q, filters, {}, "/demander")} className="inline-flex h-11 items-center gap-1.5 rounded-sm bg-accent px-3.5 text-base font-semibold text-accent-fg no-underline hover:text-accent-fg md:h-9">
+        <Link href={searchHref(q, filters, { go: "1" }, "/demander")} className="inline-flex h-11 items-center gap-1.5 rounded-sm bg-accent px-3.5 text-base font-semibold text-accent-fg no-underline hover:text-accent-fg md:h-9">
           <IconSparkle size={14} /> Demander à ta veille
         </Link>
       </div>
