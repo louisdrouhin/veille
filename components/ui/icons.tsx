@@ -39,6 +39,13 @@ export const IconChevronRight = (p: IconProps) => (
     <path d="M6 3.5L10.5 8 6 12.5" />
   </Svg>
 );
+/** Briefing du matin (docs/design/3.4). */
+export const IconSun = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="2.75" />
+    <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.06 1.06M11.54 11.54l1.06 1.06M3.4 12.6l1.06-1.06M11.54 4.46l1.06-1.06" />
+  </Svg>
+);
 export const IconMore = (p: IconProps) => (
   <Svg {...p}>
     <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2.5} />

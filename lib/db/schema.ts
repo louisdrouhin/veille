@@ -15,6 +15,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { BRIEFING_AI, BRIEFING_DAYS, BRIEFING_KINDS, BRIEFING_LENGTHS, BRIEFING_PREVIEWS, BRIEFING_STEPS, type BriefingContent } from "@/lib/briefing/types";
 import { LIST_COLORS } from "@/lib/lists/palette";
 import { SETTING_ACTIONS, SETTING_NAMES } from "@/lib/secrets/names";
 import { THEMES } from "@/lib/theme";
@@ -622,6 +623,78 @@ export const notificationSettings = pgTable(
   (t) => [
     check("notification_settings_singleton", sql`${t.id} = 1`),
     check("notification_settings_threshold_check", sql`${t.threshold} in ('critical', 'high', 'medium', 'all')`),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Briefing du matin (docs/design/3.4, lib/briefing)
+// ---------------------------------------------------------------------------
+
+/**
+ * Settings of the morning briefing (single-user app: one row). Off until « Activer » of the first-time card.
+ * `servicesForumIds`: the forums of « Mes services » (chosen in the settings, never guessed from a name),
+ * pre-filled once (`servicesPrefilled`) with a forum named « Mes services » when there is one.
+ */
+export const briefingSettings = pgTable(
+  "briefing_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    enabled: boolean("enabled").notNull().default(false),
+    sendAt: time("send_at").notNull().default("07:00"),
+    days: text("days", { enum: BRIEFING_DAYS }).notNull().default("weekdays"),
+    timezone: text("timezone").notNull().default("Europe/Paris"),
+    sectionStack: boolean("section_stack").notNull().default(true),
+    sectionFeatured: boolean("section_featured").notNull().default(true),
+    sectionServices: boolean("section_services").notNull().default(true),
+    sectionBrief: boolean("section_brief").notNull().default(true),
+    length: text("length", { enum: BRIEFING_LENGTHS }).notNull().default("detailed"),
+    preview: text("preview", { enum: BRIEFING_PREVIEWS }).notNull().default("full"),
+    servicesForumIds: integer("services_forum_ids").array().notNull().default(sql`'{}'::integer[]`),
+    servicesPrefilled: boolean("services_prefilled").notNull().default(false),
+    /** The first-time card was answered (« Activer », settings, or an aperçu). */
+    introSeenAt: tsz("intro_seen_at"),
+    /** « Masquer jusqu'à demain » of the home block: the local day it was hidden. */
+    homeHiddenOn: text("home_hidden_on"),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("briefing_settings_singleton", sql`${t.id} = 1`),
+    check("briefing_settings_days_check", sql`${t.days} in ('weekdays', 'daily')`),
+    check("briefing_settings_length_check", sql`${t.length} in ('detailed', 'short')`),
+    check("briefing_settings_preview_check", sql`${t.preview} in ('full', 'discreet')`),
+  ],
+);
+
+/**
+ * One briefing per local day, frozen once ready (the sentences may only be written again after an AI error).
+ * Saved before the AI calls, with the titles only (§ 1): always displayable. Kept 30 days.
+ */
+export const briefings = pgTable(
+  "briefings",
+  {
+    id: serial("id").primaryKey(),
+    /** Local day (YYYY-MM-DD, in the settings' time zone): /briefing/AAAA-MM-JJ. */
+    day: text("day").notNull().unique(),
+    kind: text("kind", { enum: BRIEFING_KINDS }).notNull().default("scheduled"),
+    /** Start of the window: the previous briefing's creation (§ 1). */
+    since: tsz("since").notNull(),
+    createdAt: tsz("created_at").notNull().defaultNow(),
+    readyAt: tsz("ready_at"),
+    step: text("step", { enum: BRIEFING_STEPS }).notNull().default("stack"),
+    ai: text("ai", { enum: BRIEFING_AI }).notNull().default("pending"),
+    length: text("length", { enum: BRIEFING_LENGTHS }).notNull().default("detailed"),
+    /** Articles received in the window (topics and reprises). */
+    articleCount: integer("article_count").notNull().default(0),
+    content: jsonb("content").$type<BriefingContent>().notNull(),
+    readAt: tsz("read_at"),
+    pushedAt: tsz("pushed_at"),
+  },
+  (t) => [
+    index("briefings_created_idx").on(t.createdAt),
+    check("briefings_day_check", sql`${t.day} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`),
+    check("briefings_kind_check", sql`${t.kind} in ('scheduled', 'test', 'preview')`),
+    check("briefings_step_check", sql`${t.step} in ('stack', 'services', 'select', 'ai', 'done')`),
+    check("briefings_ai_check", sql`${t.ai} in ('pending', 'ok', 'error', 'off')`),
   ],
 );
 

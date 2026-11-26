@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { AboutPanel } from "@/components/account/about-panel";
+import { AccountNav } from "@/components/account/account-nav";
 import { Avatar } from "@/components/account/avatar";
 import { LogoutButton } from "@/components/account/logout-button";
 import { ThemePicker } from "@/components/account/theme-picker";
@@ -28,8 +29,9 @@ export default async function AccountPage() {
     <>
       <PageNav items={[{ label: "Mon compte" }]} back={{ href: "/", mode: "any" }} />
       <h1 className="mb-3 font-cond text-xl font-bold">Mon compte</h1>
-      <div className="grid max-w-[720px] gap-4">
-        <Panel title="Profil">
+      <AccountNav current="profil" />
+      <div className="grid max-w-[700px] gap-4">
+        <Panel id="profil" title="Profil">
           <div className="flex items-center gap-3.5 p-3.5">
             <Avatar name={me?.name ?? ""} />
             <dl className="grid min-w-0 grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-base">
@@ -40,20 +42,22 @@ export default async function AccountPage() {
             </dl>
           </div>
         </Panel>
-        <Panel title="Apparence">
+        <Panel id="apparence" title="Apparence">
           <div className="p-3.5">
             <ThemePicker initial={parseTheme(me?.theme)} />
           </div>
         </Panel>
         <Panel title="Notifications">
           <div className="flex flex-wrap items-center justify-between gap-3 p-3.5">
-            <p className="text-base text-fg-muted">Alertes Ma stack sur tes appareils, gravité minimale, heures calmes.</p>
+            <p className="text-base text-fg-muted">Briefing du matin, alertes Ma stack sur tes appareils, gravité minimale, heures calmes.</p>
             <LinkButton href="/compte/notifications" size="md">
               Régler les notifications
             </LinkButton>
           </div>
         </Panel>
-        <TwoFactorPanel enabled={me?.twoFactorEnabled ?? false} />
+        <div id="securite" className="scroll-mt-4">
+          <TwoFactorPanel enabled={me?.twoFactorEnabled ?? false} />
+        </div>
         <Panel title="Session">
           <div className="flex flex-wrap items-center justify-between gap-3 p-3.5">
             <p className="text-base text-fg-muted">Les pages gardées pour la lecture hors ligne sont effacées de cet appareil.</p>

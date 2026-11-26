@@ -8,6 +8,7 @@
  *   node dist/worker.js --once   run a single cycle and exit (exit code 1 if the cycle crashed)
  */
 import { aiConfig } from "@/lib/ai/config";
+import { briefingBusy, purgeBriefings, runDueBriefing } from "@/lib/briefing/generate";
 import { currentVapid, effectiveEnv } from "@/lib/secrets/effective";
 import { closeDb, getDb } from "@/lib/db";
 import { dispatchNotifications } from "@/lib/push/notify";
@@ -77,12 +78,37 @@ async function searchIndex() {
   try {
     await refreshArticleTexts(getDb());
     const env = await effectiveEnv(getDb());
-    const r = await indexPending(getDb(), { ai: aiConfig(env), env, log, budget: Math.max(1, Number(process.env.EMBED_PER_CYCLE) || 200) });
-    if (r.indexed) log(`[index] ${r.indexed} article(s) indexé(s)`);
+    // The morning briefing first (docs/design/3.4): no embeddings while it is due or being written.
+    if (await briefingBusy(getDb())) log("[index] en pause : briefing du matin en cours ou imminent");
+    else {
+      const r = await indexPending(getDb(), { ai: aiConfig(env), env, log, budget: Math.max(1, Number(process.env.EMBED_PER_CYCLE) || 200) });
+      if (r.indexed) log(`[index] ${r.indexed} article(s) indexé(s)`);
+    }
     // Fusion of duplicates (docs/design/3.3 § 2): the new articles just indexed, against the last 72 hours.
     await mergePending(getDb(), { env, log });
   } catch (err) {
     log(`[index] Indexation en échec : ${(err as Error)?.name ?? "erreur"}`);
+  }
+}
+
+/**
+ * Morning briefing (docs/design/3.4 § 1): checked every minute, apart from the feed cycle, so that it goes out at
+ * the chosen time (and at restart when less than 3 hours late). Briefings older than 30 days are purged.
+ */
+let briefingRunning = false;
+async function briefingTick() {
+  if (stopping || briefingRunning) return;
+  briefingRunning = true;
+  try {
+    const db = getDb();
+    const env = await effectiveEnv(db);
+    await runDueBriefing(db, { ai: aiConfig(env), vapid: await currentVapid(db), log });
+    const purged = await purgeBriefings(db);
+    if (purged) log(`[briefing] ${purged} briefing(s) de plus de 30 jours supprimé(s)`);
+  } catch (err) {
+    log(`[briefing] en échec : ${(err as Error)?.name ?? "erreur"}`);
+  } finally {
+    briefingRunning = false;
   }
 }
 
@@ -94,11 +120,16 @@ async function main() {
     process.exitCode = ok ? 0 : 1;
     return;
   }
+  // First check at start (catch-up after a restart), then every minute.
+  void briefingTick();
+  const briefingTimer = setInterval(() => void briefingTick(), 60_000);
   while (!stopping) {
     const started = Date.now();
     await cycle();
     if (!stopping) await sleep(Math.max(0, intervalMinutes * 60_000 - (Date.now() - started)));
   }
+  clearInterval(briefingTimer);
+  while (briefingRunning) await new Promise((r) => setTimeout(r, 200));
   await closeDb();
   log("Worker arrêté");
 }

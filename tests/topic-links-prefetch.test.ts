@@ -5,7 +5,8 @@
  * topic read, and those full prefetches carry no header the server could tell apart.
  * With the default ("auto") no page was rendered, but the only safe setting is `false`.
  *
- * Same for an alert of Ma stack (3.0): opening /stack/alertes/[id] marks it seen.
+ * Same for an alert of Ma stack (3.0): opening /stack/alertes/[id] marks it seen; and for the morning briefing (3.4):
+ * opening /briefing or /briefing/AAAA-MM-JJ marks it read (its history and its link in the header included).
  *
  * This test parses every component and fails if any <Link> pointing to /t/… or to
  * /stack/alertes/… does not say prefetch={false}.
@@ -43,7 +44,7 @@ function topicLinks(file: string, code = readFileSync(file, "utf8")): TopicLink[
           : ts.isJsxExpression(href)
             ? (href.expression?.getText(source) ?? "")
             : "";
-      if (/^[`"']?\/(?:t|stack\/alertes)\//.test(hrefText)) {
+      if (/^[`"']?\/(?:(?:t|stack\/alertes)\/|briefing(?:[/`"']|$))/.test(hrefText) && !/^[`"']?\/briefing\/historique/.test(hrefText)) {
         const prefetch = attr("prefetch")?.initializer;
         const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
         found.push({
@@ -85,6 +86,9 @@ describe("links to a topic page never prefetch it (prefetching would mark it rea
     expect(probe('const a = <Link href="/f/securite">x</Link>;')).toEqual([]);
     expect(probe("const a = <Link href={`/stack/alertes/${id}`}>x</Link>;")).toEqual([null]);
     expect(probe('const a = <Link href="/stack/alertes?etat=traitees">x</Link>;')).toEqual([]);
+    expect(probe("const a = <Link href={`/briefing/${day}`}>x</Link>;")).toEqual([null]);
+    expect(probe('const a = <Link href="/briefing">x</Link>;')).toEqual([null]);
+    expect(probe('const a = <Link href="/briefing/historique">x</Link>;')).toEqual([]);
     expect(probe("const a = <Link href={`/admin?edit=${id}`}>x</Link>;")).toEqual([]);
   });
 });

@@ -113,6 +113,13 @@
       "when": 1795682173913,
       "tag": "0015_ai_fallback",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795685732916,
+      "tag": "0016_briefing",
+      "breakpoints": true
     }
   ]
 }

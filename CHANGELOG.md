@@ -4,6 +4,27 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.4.0 — 26/11/2026
+
+- Briefing du matin : chaque matin à l'heure choisie (7:00 par défaut, du lundi au vendredi), une synthèse de ta veille depuis le dernier
+  briefing : nouvelles failles de Ma stack (sans IA), sujets repris par plusieurs sources, nouvelles versions de tes
+  services, le reste en bref. Elle se lit en 2 à 4 minutes, chaque point mène à son topic.
+- Une notification quand il est prêt, même pendant les heures calmes. Le contexte Travail de Ma stack y reste
+  toujours générique, et l'aperçu « Discret » ne nomme aucun produit. Pas de notification quand il n'y a rien de neuf.
+- Les phrases sont écrites par l'IA à partir des titres et extraits des articles seulement : ni Ma stack ni tes notes
+  ne lui sont envoyées. Une phrase qui avance un chiffre absent des articles est écartée.
+- Page du briefing avec sommaire, menu contextuel sur desktop, « Marquer ces topics lus » avec « Annuler »,
+  historique sur 7 ou 30 jours (gardé 30 jours).
+- Bloc « Ton briefing de ce matin » en haut de l'accueil, entrée « Briefing » dans la navigation.
+- Réglages dans Mon compte › Notifications : heure, jours, sections, forums de « Mes services », longueur,
+  notification, test. Mon compte gagne une sous-navigation (Intégrations y mène à l'administration).
+- Accueil : le briefing, puis Ma stack, puis « À la une » ; une faille à traiter passe toujours avant l'actu.
+- Correctif : « À la une » ne retient que les sujets repris par au moins deux sources distinctes (plus de
+  « 1 sources »).
+- Le briefing passe avant l'indexation de fond pour le quota Gemini.
+- Correctif : environ une paire de clés de notification sur 256 générées dans Administration › Intégrations était
+  inutilisable (clé privée commençant par un zéro) ; les notifications restaient désactivées sans explication.
+
 ## 3.3.4 — 26/11/2026
 
 - Correctif : quand le modèle principal de Gemini ne répond plus (bloqué chez Google), la traduction et « Demande à ta

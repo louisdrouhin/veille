@@ -6,7 +6,8 @@
 import { createDecipheriv, createECDH, createHmac, createPublicKey, verify } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { areValidKeys, isAllowedEndpoint } from "@/lib/push/endpoint";
-import { b64url, encryptPayload, fromB64url, generateVapidKeys, sendPush, vapidAuthorization } from "@/lib/push/webpush";
+import { isVapidPair, vapidConfig } from "@/lib/push/config";
+import { b64url, encryptPayload, fromB64url, generateVapidKeys, sendPush, vapidAuthorization, vapidKeysFrom } from "@/lib/push/webpush";
 
 // RFC 8291, appendix A.
 const RFC = {
@@ -74,6 +75,51 @@ describe("VAPID (RFC 8292)", () => {
     const pub = fromB64url(keys.publicKey);
     const key = createPublicKey({ key: { kty: "EC", crv: "P-256", x: b64url(pub.subarray(1, 33)), y: b64url(pub.subarray(33)) }, format: "jwk" });
     expect(verify("sha256", Buffer.from(`${m[1]}.${m[2]}`), { key, dsaEncoding: "ieee-p1363" }, fromB64url(m[3]!))).toBe(true);
+  });
+});
+
+describe("VAPID keys with a leading zero byte (one key in 256)", () => {
+  /** A valid P-256 scalar whose first byte is 0x00: getPrivateKey() returns it with 31 bytes. */
+  const ZERO_LED = Buffer.concat([Buffer.from([0x00]), Buffer.alloc(31, 0x5a)]);
+
+  it("Node drops the leading zero (the cause), our pair keeps 32 bytes and is accepted", () => {
+    const ecdh = createECDH("prime256v1");
+    ecdh.setPrivateKey(ZERO_LED);
+    expect(ecdh.getPrivateKey()).toHaveLength(31);
+    const keys = vapidKeysFrom(ecdh.getPrivateKey());
+    expect(fromB64url(keys.privateKey)).toHaveLength(32);
+    expect(fromB64url(keys.privateKey)).toEqual(ZERO_LED);
+    expect(isVapidPair(keys.publicKey, keys.privateKey)).toBe(true);
+  });
+
+  it("a 31-byte key stored before 3.4 is accepted (padded), signs, and the JWT verifies", () => {
+    const keys = vapidKeysFrom(ZERO_LED);
+    const legacy = fromB64url(keys.privateKey).subarray(1).toString("base64url");
+    expect(fromB64url(legacy)).toHaveLength(31);
+    const vapid = vapidConfig({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: legacy, VAPID_SUBJECT: "mailto:a@b.example" });
+    expect(vapid).toMatchObject({ privateKey: keys.privateKey });
+    for (const v of [vapid!, { ...vapid!, privateKey: legacy }]) {
+      const m = /^vapid t=([\w-]+)\.([\w-]+)\.([\w-]+), k=/.exec(vapidAuthorization("https://web.push.apple.com/x", v))!;
+      const pub = fromB64url(keys.publicKey);
+      const key = createPublicKey({ key: { kty: "EC", crv: "P-256", x: b64url(pub.subarray(1, 33)), y: b64url(pub.subarray(33)) }, format: "jwk" });
+      expect(verify("sha256", Buffer.from(`${m[1]}.${m[2]}`), { key, dsaEncoding: "ieee-p1363" }, fromB64url(m[3]!))).toBe(true);
+    }
+  });
+
+  it("the signature is always r ‖ s on 64 bytes (r or s starting with 0x00 stays padded)", () => {
+    const vapid = { ...vapidKeysFrom(ZERO_LED), subject: "mailto:a@b.example" };
+    for (let i = 0; i < 300; i++) {
+      const sig = /\.([\w-]+), k=/.exec(vapidAuthorization("https://web.push.apple.com/x", vapid, Date.UTC(2026, 0, 1) + i * 1000))![1]!;
+      expect(fromB64url(sig)).toHaveLength(64);
+    }
+  });
+
+  it("refuses a private key that does not go with the public key, or is not a P-256 scalar", () => {
+    const a = vapidKeysFrom(ZERO_LED);
+    const b = generateVapidKeys();
+    expect(isVapidPair(a.publicKey, b.privateKey)).toBe(false);
+    expect(isVapidPair(a.publicKey, Buffer.alloc(33, 1).toString("base64url"))).toBe(false);
+    expect(isVapidPair(a.publicKey, "short")).toBe(false);
   });
 });
 
