@@ -5,11 +5,18 @@ import { parseScope } from "@/lib/ask/scope";
 import { cacheKey, indexVersion, readCache, remember, writeCache } from "@/lib/ask/store";
 import { FALLBACK_ERRORS, GEMINI_ERROR_MESSAGES, streamContent, type GeminiError } from "@/lib/ai/gemini";
 import { takeAiCall } from "@/lib/ai/rate-limit";
+import { FALLBACK_RESERVE_MS } from "@/lib/ai/service";
 import { getDb } from "@/lib/db";
 import { currentAiConfig, effectiveEnv } from "@/lib/secrets/effective";
 import { dailyLimit, release, reserve } from "@/lib/search/usage";
 
 export const dynamic = "force-dynamic";
+
+/** Retrieval included; the model's part is bounded by the same deadline. */
+const ASK_BUDGET_MS = 50_000;
+const FIRST_BYTES_MS = 15_000;
+/** GEMINI_FIRST_BYTES_MS overrides it (tests). */
+const firstBytesMs = () => Number(process.env.GEMINI_FIRST_BYTES_MS) || FIRST_BYTES_MS;
 
 /**
  * « Demande à ta veille » (docs/design/3.3 § 4): one question, one answer, streamed as NDJSON events:
@@ -32,6 +39,8 @@ export async function GET(request: Request) {
   const env = await effectiveEnv(db);
   const ai = await currentAiConfig(db);
   const signal = request.signal;
+  // The whole answer (attempts, retries, backup model) within the budget of the request (lib/ai/service.ts).
+  const deadline = Date.now() + ASK_BUDGET_MS;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -82,6 +91,10 @@ export async function GET(request: Request) {
             temperature: 0.2,
             thinkingLevel: "low",
             signal,
+            // Until the first bytes: a model that hangs is left for the backup one in time.
+            timeoutMs: firstBytesMs(),
+            deadline: model === ai.translateModel && backup ? deadline - FALLBACK_RESERVE_MS : deadline,
+            log: (line) => console.info(`[ask] ${line}`),
           })) {
             if ("text" in ev) {
               text += ev.text;
