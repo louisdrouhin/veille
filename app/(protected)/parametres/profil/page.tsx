@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PhotoSetting } from "@/components/settings/photo-setting";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { getDb } from "@/lib/db";
@@ -16,6 +17,7 @@ export default async function ProfilePage() {
   const [me, proof] = await Promise.all([getMe(db, session.user.id), proofKind(db, session.user.id)]);
   return (
     <SettingsPage page="profil" title="Profil" description="Ton nom tel qu'il s'affiche dans Folders, ton adresse de connexion.">
+      <PhotoSetting me={me} />
       <ProfileForm me={me} grantUntil={grantUntil(session.session.id)} proof={proof} />
     </SettingsPage>
   );
