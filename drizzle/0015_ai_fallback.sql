@@ -1,0 +1,1 @@
+ALTER TABLE "ai_outputs" ADD COLUMN "fallback" boolean DEFAULT false NOT NULL;

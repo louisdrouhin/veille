@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { SearchField } from "@/components/search/search-field";
 import { Highlighted } from "@/components/search/highlighted";
+import { FallbackNote } from "@/components/thread/ai-tools";
 import { FolderIcon } from "@/components/topic/folder-icon";
 import { FORUM_BADGE } from "@/components/topic/topic-grid";
 import { IconAlertCircle, IconCheck, IconClipboard, IconSparkle } from "@/components/ui/icons";
@@ -21,7 +22,19 @@ type Also = { id: number; title: string; ranges: Range[]; forum: string; source:
 type State =
   | { step: "idle" }
   | { step: "searching" }
-  | { step: "writing" | "done" | "stopped" | "empty" | "error"; sources: Source[]; also: Also[]; alsoTotal: number; keywords: string; text: string; answer: CheckedAnswer | null; message?: string; reason?: string };
+  | {
+      step: "writing" | "done" | "stopped" | "empty" | "error";
+      sources: Source[];
+      also: Also[];
+      alsoTotal: number;
+      keywords: string;
+      text: string;
+      answer: CheckedAnswer | null;
+      message?: string;
+      reason?: string;
+      /** Written by the backup model, the main one being overloaded. */
+      fallback?: boolean;
+    };
 
 type Snapshot = Extract<State, { sources: Source[] }>;
 
@@ -41,7 +54,7 @@ export function AskView({ q, scope, go, forums }: { q: string; scope: AskScope; 
   const abort = useRef<AbortController | null>(null);
   const cardId = useId();
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (opts: { primary?: boolean } = {}) => {
     abort.current?.abort();
     const ctrl = new AbortController();
     abort.current = ctrl;
@@ -51,6 +64,7 @@ export function AskView({ q, scope, go, forums }: { q: string; scope: AskScope; 
     setState({ step: "searching" });
     const u = new URLSearchParams({ q, periode: scope.period });
     for (const f of scope.forums) u.append("forum", f);
+    if (opts.primary) u.set("principal", "1");
     // The latest snapshot, read by the stream loop (React state is not updated synchronously).
     const cur: { v: Snapshot | null } = { v: null };
     const set = (patch: Partial<Snapshot>) => {
@@ -74,9 +88,10 @@ export function AskView({ q, scope, go, forums }: { q: string; scope: AskScope; 
           const ev = JSON.parse(line) as Record<string, unknown>;
           if (ev.type === "meta") setHistoryId(ev.historyId as number);
           else if (ev.type === "sources") set({ step: "writing", sources: ev.sources as Source[], also: ev.also as Also[], alsoTotal: ev.alsoTotal as number, keywords: ev.keywords as string });
+          else if (ev.type === "fallback") set({ fallback: true });
           else if (ev.type === "delta") set({ text: `${cur.v?.text ?? ""}${ev.text as string}` });
           else if (ev.type === "answer") {
-            set({ step: "done", answer: ev.answer as CheckedAnswer });
+            set({ step: "done", answer: ev.answer as CheckedAnswer, fallback: ev.fallback === true });
             setAnnounce("Réponse prête");
           } else if (ev.type === "empty") set({ step: "empty", reason: ev.reason as string, text: "" });
           else if (ev.type === "error") set({ step: "error", message: ev.message as string });
@@ -211,6 +226,15 @@ export function AskView({ q, scope, go, forums }: { q: string; scope: AskScope; 
             </span>
           </div>
           <div className="flex max-w-[72ch] flex-col gap-2.5 px-3.5 py-3.5 text-[15px] leading-[23px] md:px-5 md:text-[15.5px] md:leading-[25px]">
+            {s.fallback && (
+              <p className="text-[13px] leading-5">
+                {state.step === "done" ? (
+                  <FallbackNote onPrimary={() => void start({ primary: true })} />
+                ) : (
+                  <span className="text-fg-muted">Modèle de secours utilisé, le principal était surchargé.</span>
+                )}
+              </p>
+            )}
             <AnswerText blocks={blocks} sources={s.sources} active={active} onCite={cite} cardId={cardId} />
             {state.step === "writing" && !reducedMotion() && <span aria-hidden className="inline-block h-4 w-2 animate-pulse-soft bg-fg-muted" />}
             {state.step === "stopped" && <p className="text-sm text-fg-muted italic">Réponse interrompue.</p>}

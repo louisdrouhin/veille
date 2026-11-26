@@ -195,7 +195,35 @@ export function AiAlert({ title, message, onRetry }: { title: string; message: s
 }
 
 /** Head of the article while translating, then once translated (§ 5). */
-export function TranslationBanner({ loading, sourceLang }: { loading: boolean; sourceLang: string | null }) {
+/** The note of a result made by the backup model, with « Refaire avec le modèle principal ». */
+export function FallbackNote({ onPrimary, busy }: { onPrimary: () => void; busy?: boolean }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-fg-muted">
+      <span>Modèle de secours utilisé, le principal était surchargé.</span>
+      <button
+        type="button"
+        onClick={onPrimary}
+        disabled={busy}
+        className="inline-flex h-7 cursor-pointer items-center rounded-sm border border-line-strong bg-surface px-2 text-[12.5px] font-semibold text-fg hover:bg-surface-hover disabled:cursor-default disabled:opacity-60 max-md:h-11"
+      >
+        Refaire avec le modèle principal
+      </button>
+    </span>
+  );
+}
+
+export function TranslationBanner({
+  loading,
+  sourceLang,
+  fallback = false,
+  onPrimary,
+}: {
+  loading: boolean;
+  sourceLang: string | null;
+  /** Made by the backup model: says so, with « Refaire avec le modèle principal ». */
+  fallback?: boolean;
+  onPrimary?: () => void;
+}) {
   if (loading) {
     return (
       <p role="status" className="flex min-h-9 items-center gap-2 rounded-sm bg-surface-alt px-3 text-[13px] text-fg-muted">
@@ -206,12 +234,15 @@ export function TranslationBanner({ loading, sourceLang }: { loading: boolean; s
   }
   const lang = sourceLang ? LANG[sourceLang] : undefined;
   return (
-    <p className="flex min-h-9 items-center gap-1.5 rounded-sm border-b border-line bg-accent-soft px-3 text-[13px]">
-      <IconSparkle size={13} filled strokeWidth={1} className="text-accent" />
-      <span>
-        {lang?.banner ?? "Traduit en français"} · <strong>Généré par IA</strong>
-      </span>
-    </p>
+    <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 rounded-sm border-b border-line bg-accent-soft px-3 py-1 text-[13px]">
+      <p className="flex items-center gap-1.5">
+        <IconSparkle size={13} filled strokeWidth={1} className="text-accent" />
+        <span>
+          {lang?.banner ?? "Traduit en français"} · <strong>Généré par IA</strong>
+        </span>
+      </p>
+      {fallback && onPrimary && <FallbackNote onPrimary={onPrimary} />}
+    </div>
   );
 }
 

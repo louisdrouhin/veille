@@ -86,7 +86,7 @@ describe("the answer, checked on the server (§ 4.4)", () => {
 });
 
 /** Gemini: embeddings (OpenSSH one way, the rest another) and a streamed answer, every request body kept. */
-function fakeGemini(answer: string[] | { status: number }) {
+function fakeGemini(answer: string[] | { status: number }, models: { overloaded?: string; status429?: string } = {}) {
   const bodies: { url: string; body: string }[] = [];
   const impl = vi.fn(async (input: string, init: RequestInit) => {
     const url = String(input);
@@ -98,6 +98,8 @@ function fakeGemini(answer: string[] | { status: number }) {
       });
     }
     if ("status" in answer) return new Response("{}", { status: answer.status });
+    if (models.overloaded && url.includes(`/models/${models.overloaded}:`)) return new Response("{}", { status: 503 });
+    if (models.status429 && url.includes(`/models/${models.status429}:`)) return new Response("{}", { status: 429 });
     const sse = answer.map((t) => `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: t }] } }] })}\n\n`).join("");
     // Cut in the middle of an event: the parser must wait for the rest.
     const chunks = [sse.slice(0, 17), sse.slice(17)];
@@ -201,6 +203,27 @@ describe("the streamed route", () => {
     fakeGemini(["x [1]"]);
     const limited = await events("Kubernetes 1.36 ?");
     expect(limited.at(-1)).toMatchObject({ type: "error", message: expect.stringContaining("Limite quotidienne") });
+  });
+
+  it("main model overloaded: the backup model answers, says so, is cached apart; principal=1 asks the main one only", async () => {
+    vi.stubEnv("GEMINI_RETRY_DELAYS_MS", "0");
+    const bodies = fakeGemini(["OpenSSH 9.9 corrige ", "la faille [1]."], { overloaded: "gemini-3.8-flash" });
+    const ev = await events("Que corrige OpenSSH 9.9 ?");
+    expect(ev.map((e) => e.type)).toEqual(["meta", "sources", "fallback", "delta", "delta", "answer"]);
+    expect(ev.at(-1)).toMatchObject({ cached: false, fallback: true });
+    const streams = bodies.filter((b) => b.url.includes(":streamGenerateContent")).map((b) => b.url.split("/models/")[1]!.split(":")[0]);
+    expect(streams).toEqual(["gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"]);
+    // Asked again: the backup answer from the cache, still marked.
+    expect((await events("Que corrige OpenSSH 9.9 ?")).at(-1)).toMatchObject({ cached: true, fallback: true });
+    // « Refaire avec le modèle principal »: main only (overloaded → error), never the backup cache.
+    const primary = await events("Que corrige OpenSSH 9.9 ?", "&principal=1");
+    expect(primary.at(-1)).toMatchObject({ type: "error", message: expect.stringContaining("surchargé") });
+    expect(primary.some((e) => e.type === "fallback")).toBe(false);
+    // A quota is not handed to the backup model.
+    fakeGemini(["x [1]"], { status429: "gemini-3.8-flash" });
+    const quota = await events("Que dire de Kubernetes 1.36 ?");
+    expect(quota.at(-1)).toMatchObject({ type: "error", message: expect.stringContaining("Quota") });
+    expect(quota.some((e) => e.type === "fallback")).toBe(false);
   });
 
   it("refuses without a session or with a too short question", async () => {

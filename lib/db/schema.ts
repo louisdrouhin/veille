@@ -181,6 +181,8 @@ export const aiOutputs = pgTable(
     truncated: boolean("truncated").notNull().default(false),
     /** Version of the output format (lib/ai/service.ts AI_FORMAT): an older one is a cache miss. */
     format: integer("format").notNull().default(1),
+    /** Made by the backup model because the main one was overloaded (« Refaire avec le modèle principal »). */
+    fallback: boolean("fallback").notNull().default(false),
     articleFetchedAt: tsz("article_fetched_at").notNull(),
     createdAt: tsz("created_at").notNull().defaultNow(),
   },

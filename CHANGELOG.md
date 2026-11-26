@@ -4,6 +4,13 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.3.3 — 26/11/2026
+
+- Quand le modèle principal de Gemini reste surchargé malgré les nouvelles tentatives, la traduction et « Demande
+  à ta veille » passent sur le modèle de secours (Flash-Lite). Le bandeau de traduction ou la carte réponse
+  l'indiquent, avec un bouton « Refaire avec le modèle principal ».
+- Pas de modèle de secours sur un quota atteint, une clé refusée ou un modèle introuvable.
+
 ## 3.3.2 — 26/11/2026
 
 - Correctif : quand le modèle Gemini est surchargé chez Google (« high demand »), la traduction et les questions

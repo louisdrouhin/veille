@@ -19,7 +19,7 @@ const { generateContent, GEMINI_API, GEMINI_ERROR_MESSAGES } = await import("@/l
 const { markdownToHtml } = await import("@/lib/ai/markdown");
 const { articleText, isFrench, truncateForModel, MAX_INPUT_CHARS } = await import("@/lib/ai/text");
 const { resetAiCalls, AI_LIMITS } = await import("@/lib/ai/rate-limit");
-const { generateAi, AI_FORMAT, MAX_TRANSLATION_CHARS } = await import("@/lib/ai/service");
+const { generateAi, getStoredAiOutputs, AI_FORMAT, MAX_TRANSLATION_CHARS } = await import("@/lib/ai/service");
 const { normalizeSummary } = await import("@/lib/ai/prompts");
 const { segmentArticle } = await import("@/lib/ai/segments");
 const { sanitizeArticleHtml } = await import("@/lib/reader/sanitize");
@@ -510,6 +510,55 @@ describe("translation by segments", () => {
     const g = gemini((call) => (n++ === 0 ? "pas du JSON" : wellBehaved(call)));
     expect(await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: g.fetch, now: NOW })).toMatchObject({ ok: true });
     expect(g.calls).toHaveLength(2);
+  });
+
+  it("main model overloaded (after its retries): Flash-Lite translates, cached apart and marked; « Refaire avec le modèle principal »", async () => {
+    vi.stubEnv("GEMINI_RETRY_DELAYS_MS", "0,0");
+    await setArticle(RICH_ARTICLE);
+    let mainUp = false;
+    const g = gemini((call) => (call.url.includes("gemini-3.8-flash") && !mainUp ? ({ status: 503 } as never) : wellBehaved(call)));
+    const res = await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: g.fetch, now: NOW });
+    expect(res).toMatchObject({ ok: true, cached: false, model: "gemini-3.5-flash-lite", fallback: true });
+    expect(g.calls.filter((c) => c.url.includes("gemini-3.8-flash"))).toHaveLength(3);
+    expect(g.calls.at(-1)!.url).toContain("/models/gemini-3.5-flash-lite:generateContent");
+    expect(await db.select().from(aiOutputs)).toMatchObject([{ kind: "translation", model: "gemini-3.5-flash-lite", fallback: true }]);
+
+    // Cached as the backup result: on the server render and on a new click.
+    expect(await getStoredAiOutputs(db, topicId, NOW, CONFIG)).toMatchObject({ translation: { fallback: true, model: "gemini-3.5-flash-lite" } });
+    const again = await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: g.fetch, now: NOW });
+    expect(again).toMatchObject({ ok: true, cached: true, fallback: true });
+
+    // « Refaire avec le modèle principal »: still overloaded → an error, no backup; then the main model answers.
+    const calls = g.calls.length;
+    expect(await generateAi(db, { topicId, kind: "translation", userId: "u1", primary: true }, { config: CONFIG, fetch: g.fetch, now: NOW })).toEqual({
+      ok: false,
+      error: "Modèle Gemini surchargé chez Google : réessaie dans quelques minutes.",
+    });
+    expect(g.calls.slice(calls).every((c) => c.url.includes("gemini-3.8-flash"))).toBe(true);
+    mainUp = true;
+    const main = await generateAi(db, { topicId, kind: "translation", userId: "u1", primary: true }, { config: CONFIG, fetch: g.fetch, now: NOW });
+    expect(main).toMatchObject({ ok: true, cached: false, model: "gemini-3.8-flash", fallback: false });
+    // The main result wins from now on.
+    expect(await getStoredAiOutputs(db, topicId, NOW, CONFIG)).toMatchObject({ translation: { fallback: false, model: "gemini-3.8-flash" } });
+    expect(await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: g.fetch, now: NOW })).toMatchObject({
+      cached: true,
+      fallback: false,
+    });
+  });
+
+  it("no backup after a quota, a refused key or an unknown model; nor for an old Flash-Lite translation not marked as backup", async () => {
+    vi.stubEnv("GEMINI_RETRY_DELAYS_MS", "0,0");
+    await setArticle(RICH_ARTICLE);
+    for (const status of [429, 403, 404]) {
+      resetAiCalls();
+      const g = gemini((call) => (call.url.includes("gemini-3.8-flash") ? ({ status } as never) : wellBehaved(call)));
+      expect(await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: g.fetch, now: NOW })).toMatchObject({ ok: false });
+      expect(g.calls.every((c) => c.url.includes("gemini-3.8-flash"))).toBe(true);
+    }
+    expect(await db.select().from(aiOutputs)).toEqual([]);
+    // A translation made by Flash-Lite when it was the translation model (before 3.3.3): not shown as a backup one.
+    await db.insert(aiOutputs).values({ topicId, kind: "translation", model: "gemini-3.5-flash-lite", html: "<p>x</p>", format: 2, articleFetchedAt: NOW });
+    expect(await getStoredAiOutputs(db, topicId, NOW, CONFIG)).toEqual({});
   });
 
   it("our marker characters in the article cannot fake a marker", () => {

@@ -5,7 +5,7 @@ import { aiOutputs, articleContents, replies, topics, type AiKind } from "@/lib/
 import { sanitizeArticleHtml } from "@/lib/reader/sanitize";
 import { currentAiConfig } from "@/lib/secrets/effective";
 import type { AiConfig } from "./config";
-import { GEMINI_ERROR_MESSAGES, generateContent, type GeminiError } from "./gemini";
+import { FALLBACK_ERRORS, GEMINI_ERROR_MESSAGES, generateContent, type GeminiError } from "./gemini";
 import { markdownToHtml } from "./markdown";
 import { articleMessage, newMarkerId, normalizeSummary, segmentsMessage, systemInstruction } from "./prompts";
 import { takeAiCall } from "./rate-limit";
@@ -29,7 +29,8 @@ const TRANSLATION_TIMEOUT_MS = 90_000;
 /** Translation calls in parallel for one article. */
 const TRANSLATION_CONCURRENCY = 3;
 
-export type AiOutput = { html: string; truncated: boolean; model: string; inputCut: boolean };
+/** `fallback`: made by the backup model (config.model) because the main one was overloaded. */
+export type AiOutput = { html: string; truncated: boolean; model: string; inputCut: boolean; fallback?: boolean };
 export type AiResult = ({ ok: true; cached: boolean } & AiOutput) | { ok: false; error: string };
 
 type Deps = { config?: AiConfig | null; fetch?: typeof fetch; now?: Date };
@@ -40,14 +41,26 @@ const inFlight = new Map<string, Promise<AiResult>>();
 export const modelFor = (config: AiConfig, kind: AiKind) => (kind === "summary" ? config.model : config.translateModel);
 
 /**
+ * The backup model of a kind: Flash-Lite (config.model) for the translation, when it differs from the main one.
+ * Used only after an overload or a server error of the main model (FALLBACK_ERRORS, its retries done).
+ */
+export const fallbackModelFor = (config: AiConfig, kind: AiKind): string | null =>
+  kind === "translation" && config.model !== config.translateModel ? config.model : null;
+
+/**
  * Summary or French translation of a topic's article, on demand. Order: cache (same model, same
  * article version, same format) → checks → per-user limit → Gemini (concurrent identical requests
  * share it) → our own HTML, sanitized → cache.
  */
-export async function generateAi(db: Db, input: { topicId: number; kind: AiKind; userId: string }, deps: Deps = {}): Promise<AiResult> {
+export async function generateAi(
+  db: Db,
+  input: { topicId: number; kind: AiKind; userId: string; /** « Refaire avec le modèle principal »: no backup, no backup cache. */ primary?: boolean },
+  deps: Deps = {},
+): Promise<AiResult> {
   const config = deps.config === undefined ? await currentAiConfig(db) : deps.config;
   if (!config) return { ok: false, error: "Résumé et traduction indisponibles : aucune clé Gemini configurée." };
   const model = modelFor(config, input.kind);
+  const backup = input.primary ? null : fallbackModelFor(config, input.kind);
 
   const [row] = await db
     .select({ title: topics.title, url: topics.url, html: articleContents.html, fetchedAt: articleContents.fetchedAt })
@@ -56,13 +69,17 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
     .where(eq(topics.id, input.topicId));
   if (!row?.html) return { ok: false, error: "Article non disponible : rien à traiter." };
 
-  const [cached] = await db
+  const cachedRows = await db
     .select()
     .from(aiOutputs)
-    .where(and(eq(aiOutputs.topicId, input.topicId), eq(aiOutputs.kind, input.kind), eq(aiOutputs.model, model)));
-  if (cached && cached.format === AI_FORMAT[input.kind] && cached.articleFetchedAt.getTime() === row.fetchedAt.getTime()) {
-    console.info(`[ai] ${input.kind} topic ${input.topicId}: cache (${model})`);
-    return { ok: true, cached: true, html: cached.html, truncated: cached.truncated, model: cached.model, inputCut: false };
+    .where(and(eq(aiOutputs.topicId, input.topicId), eq(aiOutputs.kind, input.kind), inArray(aiOutputs.model, backup ? [model, backup] : [model])));
+  const fresh = (r: (typeof cachedRows)[number]) => r.format === AI_FORMAT[input.kind] && r.articleFetchedAt.getTime() === row.fetchedAt.getTime();
+  // The main model's result first; else a backup result made when the main one was overloaded.
+  const cached =
+    cachedRows.find((r) => r.model === model && !r.fallback && fresh(r)) ?? cachedRows.find((r) => r.model === backup && r.fallback && fresh(r));
+  if (cached) {
+    console.info(`[ai] ${input.kind} topic ${input.topicId}: cache (${cached.model}${cached.fallback ? ", secours" : ""})`);
+    return { ok: true, cached: true, html: cached.html, truncated: cached.truncated, model: cached.model, inputCut: false, fallback: cached.fallback };
   }
 
   const own = articleText(row.html);
@@ -83,7 +100,7 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
     if (full.length > MAX_TRANSLATION_CHARS) return { ok: false, error: "Article trop long pour être traduit." };
   }
 
-  const key = `${input.topicId}:${input.kind}:${model}`;
+  const key = `${input.topicId}:${input.kind}:${model}:${backup ?? "-"}`;
   const running = inFlight.get(key);
   if (running) return running;
 
@@ -93,20 +110,31 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
   const article: Article = { title: row.title, url: row.url, html: row.html };
   const job = (async (): Promise<AiResult> => {
     const started = Date.now();
-    const res = input.kind === "summary" ? await summarize(config, article, full, deps) : await translate(config, article, deps);
+    const run = (m: string) => (input.kind === "summary" ? summarize(config, article, full, deps) : translate(config, m, article, deps));
+    let res = await run(model);
+    let used = model;
     if (!res.ok) {
       // Kind, topic and error only: never the key nor the article.
       console.error(`[ai] ${input.kind} topic ${input.topicId}: ${res.error}${res.detail ? ` (${res.detail})` : ""}`);
-      return { ok: false, error: GEMINI_ERROR_MESSAGES[res.error] };
+      if (!backup || !FALLBACK_ERRORS.has(res.error)) return { ok: false, error: GEMINI_ERROR_MESSAGES[res.error] };
+      console.info(`[ai] ${input.kind} topic ${input.topicId}: modèle de secours ${backup} (${model} : ${res.error})`);
+      used = backup;
+      res = await run(backup);
+      if (!res.ok) {
+        console.error(`[ai] ${input.kind} topic ${input.topicId}: secours en échec : ${res.error}${res.detail ? ` (${res.detail})` : ""}`);
+        return { ok: false, error: GEMINI_ERROR_MESSAGES[res.error] };
+      }
     }
-    console.info(`[ai] ${input.kind} topic ${input.topicId}: generated (${model}, ${Date.now() - started} ms)`);
+    const fallback = used !== model;
+    console.info(`[ai] ${input.kind} topic ${input.topicId}: generated (${used}${fallback ? ", secours" : ""}, ${Date.now() - started} ms)`);
     const values = {
       topicId: input.topicId,
       kind: input.kind,
-      model,
+      model: used,
       html: res.html,
       truncated: res.truncated,
       format: AI_FORMAT[input.kind],
+      fallback,
       articleFetchedAt: row.fetchedAt,
     };
     await db
@@ -114,9 +142,9 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
       .values(values)
       .onConflictDoUpdate({
         target: [aiOutputs.topicId, aiOutputs.kind, aiOutputs.model],
-        set: { html: res.html, truncated: res.truncated, format: values.format, articleFetchedAt: row.fetchedAt, createdAt: deps.now ?? new Date() },
+        set: { html: res.html, truncated: res.truncated, format: values.format, fallback, articleFetchedAt: row.fetchedAt, createdAt: deps.now ?? new Date() },
       });
-    return { ok: true, cached: false, html: res.html, truncated: res.truncated, model, inputCut: res.inputCut };
+    return { ok: true, cached: false, html: res.html, truncated: res.truncated, model: used, inputCut: res.inputCut, fallback };
   })();
   inFlight.set(key, job);
   try {
@@ -139,8 +167,11 @@ export async function getStoredAiOutputs(db: Db, topicId: number, articleFetched
     .where(and(eq(aiOutputs.topicId, topicId), inArray(aiOutputs.model, [config.model, config.translateModel])));
   const out: StoredAiOutputs = {};
   for (const r of rows) {
-    if (r.model !== modelFor(config, r.kind) || r.format !== AI_FORMAT[r.kind] || r.articleFetchedAt.getTime() !== articleFetchedAt.getTime()) continue;
-    out[r.kind] = { html: r.html, truncated: r.truncated, model: r.model, inputCut: false };
+    if (r.format !== AI_FORMAT[r.kind] || r.articleFetchedAt.getTime() !== articleFetchedAt.getTime()) continue;
+    const main = r.model === modelFor(config, r.kind) && !r.fallback;
+    const backup = r.fallback && r.model === fallbackModelFor(config, r.kind);
+    // The main model's result wins over a backup one.
+    if (main || (backup && !out[r.kind])) out[r.kind] = { html: r.html, truncated: r.truncated, model: r.model, inputCut: false, fallback: !main };
   }
   return out;
 }
@@ -182,7 +213,7 @@ async function summarize(config: AiConfig, row: Article, full: string, deps: Dep
  * (same ids, plain text, same markers) and a refused batch is asked once more. Every segment must
  * come back, otherwise nothing is stored.
  */
-async function translate(config: AiConfig, row: Article, deps: Deps): Promise<Produced> {
+async function translate(config: AiConfig, model: string, row: Article, deps: Deps): Promise<Produced> {
   const doc = segmentArticle(row.html);
   if (!doc.segments.length) return { ok: false, error: "empty" };
   const batches = batchSegments(doc.segments, TRANSLATION_BATCH_CHARS);
@@ -193,7 +224,7 @@ async function translate(config: AiConfig, row: Article, deps: Deps): Promise<Pr
       const id = newMarkerId();
       const res = await generateContent({
         apiKey: config.apiKey,
-        model: config.translateModel,
+        model,
         system: systemInstruction("translation", id),
         user: segmentsMessage(batch, id),
         maxOutputTokens: TRANSLATION_MAX_OUTPUT_TOKENS,
