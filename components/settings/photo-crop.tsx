@@ -20,6 +20,28 @@ async function encode(canvas: HTMLCanvasElement): Promise<Blob> {
   return jpeg;
 }
 
+/**
+ * The picture as it will be cropped, drawn from the decoded bitmap (no URL, no <img>): the window and the round
+ * previews (96 and 32 px) at their own size, sharp on retina screens.
+ */
+function CropCanvas({ bitmap, view, viewport, size }: { bitmap: ImageBitmap; view: View; viewport: number; size: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    const k = (size / viewport) * dpr;
+    const scale = (viewport / Math.min(bitmap.width, bitmap.height)) * view.zoom * k;
+    ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, view.x * k, view.y * k, bitmap.width * scale, bitmap.height * scale);
+  }, [bitmap, view, viewport, size]);
+  return <canvas ref={ref} aria-hidden style={{ width: size, height: size }} className="pointer-events-none absolute top-0 left-0" />;
+}
+
 /** The square crop, drawn at 512 then 64 px (docs/design/3.5 § 5). */
 export async function renderCrop(img: CanvasImageSource & { width: number; height: number }, view: View, viewport: number): Promise<CropResult> {
   const scale = (viewport / Math.min(img.width, img.height)) * view.zoom;
@@ -47,7 +69,7 @@ export async function renderCrop(img: CanvasImageSource & { width: number; heigh
  * Drag to move, wheel / pinch / slider to zoom, arrows to move and + / − to zoom with the keyboard. Round previews at
  * 96 and 32 px. Mobile: full screen, « Annuler » and « Enregistrer » in the bar.
  */
-export function PhotoCropDialog({ src, bitmap, onCancel, onSave }: { src: string; bitmap: ImageBitmap; onCancel: () => void; onSave: (r: CropResult) => void }) {
+export function PhotoCropDialog({ bitmap, onCancel, onSave }: { bitmap: ImageBitmap; onCancel: () => void; onSave: (r: CropResult) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const sizeOf = () => (typeof window === "undefined" ? 300 : Math.min(320, window.innerWidth - 48));
@@ -164,20 +186,7 @@ export function PhotoCropDialog({ src, bitmap, onCancel, onSave }: { src: string
     }
   };
 
-  const s = base * view.zoom;
-  const picture = (size: number) => {
-    const k = size / viewport;
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- a local object URL being cropped
-      <img
-        src={src}
-        alt=""
-        draggable={false}
-        style={{ width: bitmap.width * s * k, height: bitmap.height * s * k, transform: `translate(${view.x * k}px, ${view.y * k}px)` }}
-        className="pointer-events-none absolute top-0 left-0 max-w-none select-none"
-      />
-    );
-  };
+  const picture = (size: number) => <CropCanvas bitmap={bitmap} view={view} viewport={viewport} size={size} />;
 
   return (
     <dialog

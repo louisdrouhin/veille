@@ -60,11 +60,12 @@ export function PhotoSetting({ me }: { me: AvatarUser }) {
   const errorId = useId();
   const [photo, setPhoto] = useState(me.photo ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [crop, setCrop] = useState<{ src: string; bitmap: ImageBitmap } | null>(null);
+  const [crop, setCrop] = useState<{ bitmap: ImageBitmap } | null>(null);
   const [upload, setUpload] = useState<Upload>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => () => (crop ? URL.revokeObjectURL(crop.src) : undefined), [crop]);
+  // The decoded picture is released when the crop window closes.
+  useEffect(() => () => crop?.bitmap.close(), [crop]);
 
   const pick = async (file: File | undefined) => {
     setError(null);
@@ -78,7 +79,7 @@ export function PhotoSetting({ me }: { me: AvatarUser }) {
       // Decoded with its orientation applied (a portrait photo stays upright), then drawn on a canvas.
       const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
       if (bitmap.width < 64 || bitmap.height < 64) return setError("Image trop petite : 64 × 64 pixels au moins.");
-      setCrop({ src: URL.createObjectURL(file), bitmap });
+      setCrop({ bitmap });
     } catch {
       setError("Image illisible. Ta photo actuelle est conservée.");
     }
@@ -188,7 +189,6 @@ export function PhotoSetting({ me }: { me: AvatarUser }) {
       </div>
       {crop && (
         <PhotoCropDialog
-          src={crop.src}
           bitmap={crop.bitmap}
           onCancel={() => setCrop(null)}
           onSave={(r) => void save(r)}
