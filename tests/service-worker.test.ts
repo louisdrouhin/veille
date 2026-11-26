@@ -136,7 +136,7 @@ describe("service worker — pages (network-first)", () => {
 });
 
 describe("service worker — never cached", () => {
-  it.each(["/api/auth/get-session", "/setup", "/admin", "/admin/sources", "/login", "/compte", "/api/health", "/sw.js"])(
+  it.each(["/api/auth/get-session", "/setup", "/admin", "/admin/sources", "/login", "/compte", "/parametres", "/parametres/securite", "/parametres/integrations", "/api/health", "/sw.js"])(
     "%s goes straight to the network and is never stored nor served from the cache",
     async (p) => {
       sw.network.routes.set(p, () => html("x"));
@@ -338,6 +338,18 @@ describe("service worker — push notifications (Ma stack)", () => {
     sw.self.clients.windows.length = 0;
     for (const url of ["//evil.example/x", "https://evil.example/", "/admin", "/stack\\..\\admin", "/stack/../admin"]) await sw.notificationClick({ url });
     expect(sw.self.clients.opened).toEqual(Array(5).fill(`${ORIGIN}/stack/alertes`));
+  });
+
+  it("a notification can open a settings page (3.5), rebuilt from its key; the old /compte/notifications still works", async () => {
+    for (const url of ["/parametres/notifications", "/parametres/briefing", "/compte/notifications", "/parametres/../admin", "/parametres/notifications?x=//evil", "/parametres/Notif"]) await sw.notificationClick({ url });
+    expect(sw.self.clients.opened).toEqual([
+      `${ORIGIN}/parametres/notifications`,
+      `${ORIGIN}/parametres/briefing`,
+      `${ORIGIN}/compte/notifications`,
+      `${ORIGIN}/stack/alertes`,
+      `${ORIGIN}/stack/alertes`,
+      `${ORIGIN}/stack/alertes`,
+    ]);
   });
 
   it("the morning briefing's notification opens /briefing/AAAA-MM-JJ, rebuilt from a strictly valid date", async () => {

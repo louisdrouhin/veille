@@ -20,7 +20,7 @@ export const MERGE_WINDOW_MS = 72 * 3_600_000;
 /** « Sujets proches »: at or above this similarity (RELATED_MIN overrides). */
 export const RELATED_MIN = 0.78;
 
-/** Admin › Intégrations (merge_threshold) or MERGE_THRESHOLD: 0.50 to 0.99. */
+/** Paramètres › Intégrations (merge_threshold) or MERGE_THRESHOLD: 0.50 to 0.99. */
 export function mergeThreshold(env: Env = process.env): number {
   const n = Number(env.MERGE_THRESHOLD);
   return Number.isFinite(n) && n >= 0.5 && n <= 0.99 ? n : DEFAULT_MERGE_THRESHOLD;

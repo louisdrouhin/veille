@@ -1,5 +1,5 @@
 /**
- * Version of the app (Mon compte › À propos) and the changelog (« Nouveautés »): values inlined at
+ * Version of the app (Paramètres › À propos) and the changelog (« Nouveautés »): values inlined at
  * build, never read from git or the environment at runtime, and a CHANGELOG entry per version.
  */
 import { readFileSync } from "node:fs";
@@ -45,7 +45,7 @@ describe("build metadata (next.config.ts → bundle)", () => {
   it("next.config inlines them (env) and ships CHANGELOG.md with the Nouveautés page", () => {
     const cfg = nextConfig("phase-production-build");
     expect(Object.keys(cfg.env ?? {}).sort()).toEqual(["APP_BUILT_AT", "APP_COMMIT", "APP_REPOSITORY_URL", "APP_VERSION"]);
-    expect(cfg.outputFileTracingIncludes?.["/compte/nouveautes"]).toEqual(["./CHANGELOG.md"]);
+    expect(cfg.outputFileTracingIncludes?.["/parametres/a-propos"]).toEqual(["./CHANGELOG.md"]);
     expect(cfg.output).toBe("standalone");
   });
 
@@ -74,8 +74,6 @@ describe("appInfo and the « À propos » panel", () => {
     expect(html).toContain("À propos");
     expect(html).toContain(`href="${REPO}/commit/12bdc40" target="_blank" rel="noopener noreferrer"`);
     expect(html).toContain('dateTime="2026-11-25T09:42:00.000Z"');
-    expect(html).toContain('href="/compte/nouveautes"');
-    expect(html).toContain(">Nouveautés<");
   });
 
   it("next dev: « dev » for the commit and the build, no link", () => {

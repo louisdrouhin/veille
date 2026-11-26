@@ -33,7 +33,7 @@ export function BriefingIntro({ publicKey, latestDay }: { publicKey: string | nu
       const res = await enableBriefingAction().catch(() => ({ ok: false as const, error: "Connexion au serveur impossible." }));
       if (!res.ok) return showToast({ kind: "error", title: "Briefing :", msg: res.error });
       showToast({ kind: "ok", title: "Briefing activé", msg: res.next ? `Prochain : ${res.next}.` : undefined });
-      router.push(latestDay ? `/briefing/${latestDay}` : "/compte/notifications#briefing");
+      router.push(latestDay ? `/briefing/${latestDay}` : "/parametres/briefing");
     });
 
   const preview = () =>
@@ -67,7 +67,7 @@ export function BriefingIntro({ publicKey, latestDay }: { publicKey: string | nu
         <Button variant="primary" onClick={enable} disabled={pending} className="max-md:min-h-11 max-md:w-full">
           Activer : 7:00, du lundi au vendredi
         </Button>
-        <LinkButton href="/compte/notifications#briefing" className="max-md:min-h-11 max-md:w-full">
+        <LinkButton href="/parametres/briefing" className="max-md:min-h-11 max-md:w-full">
           Choisir l&apos;heure et le contenu
         </LinkButton>
         <Button onClick={preview} disabled={pending} className="max-md:min-h-11 max-md:w-full">

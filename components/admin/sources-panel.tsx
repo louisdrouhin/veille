@@ -26,7 +26,7 @@ export function SourcesPanel({ sources, forums, editing, now }: { sources: Admin
       className="w-full min-w-0 min-[1000px]:flex-[999_1_640px]"
       action={
         forums.length > 0 && (
-          <Link href="/admin#source-form" className={BAR_BUTTON}>
+          <Link href="/parametres/sources#source-form" className={BAR_BUTTON}>
             <IconPlus size={14} /> Ajouter une source
           </Link>
         )
@@ -42,7 +42,7 @@ export function SourcesPanel({ sources, forums, editing, now }: { sources: Admin
                 icon={<IconRss size={40} strokeWidth={1.2} />}
                 title="Aucune source configurée"
                 action={
-                  <LinkButton href="/admin#source-form" variant="primary">
+                  <LinkButton href="/parametres/sources#source-form" variant="primary">
                     <IconPlus size={14} /> Ajouter une source
                   </LinkButton>
                 }
@@ -156,7 +156,7 @@ function SourceActions({ source: s }: { source: AdminSource }) {
         </SubmitButton>
       </form>
       <Link
-        href={`/admin?edit=${s.id}#source-form`}
+        href={`/parametres/sources?edit=${s.id}#source-form`}
         className={buttonClass("ghost-icon")}
         aria-label={`Modifier « ${s.name} »`}
         title="Modifier"
@@ -213,7 +213,7 @@ function SourceForm({ forums, editing }: { forums: Forum[]; editing?: AdminSourc
       )}
       <div className="mt-3 flex justify-end gap-2">
         {editing ? (
-          <LinkButton href="/admin#sources" variant="secondary">
+          <LinkButton href="/parametres/sources" variant="secondary">
             Annuler
           </LinkButton>
         ) : (

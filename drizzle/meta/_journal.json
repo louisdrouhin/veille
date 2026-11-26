@@ -120,6 +120,13 @@
       "when": 1795685732916,
       "tag": "0016_briefing",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795700737459,
+      "tag": "0017_profile",
+      "breakpoints": true
     }
   ]
 }

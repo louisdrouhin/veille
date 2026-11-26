@@ -67,10 +67,20 @@ function NotificationPreview({ preview }: { preview: BriefingPreview }) {
 }
 
 /**
- * « Briefing du matin » settings (docs/design/3.4 § 7), first section of Mon compte › Notifications; saved on change.
+ * « Briefing du matin » settings (docs/design/3.4 § 7), first section of Paramètres › Notifications; saved on change.
  * Mes services: the forums are chosen here (pre-filled with « Mes services » when it exists), never guessed.
  */
-export function BriefingSettingsPanel({ initial, forums, next: initialNext }: { initial: BriefingSettingsView; forums: { id: number; name: string }[]; next: string | null }) {
+export function BriefingSettingsPanel({
+  initial,
+  forums,
+  next: initialNext,
+  title = "Briefing du matin",
+}: {
+  initial: BriefingSettingsView;
+  forums: { id: number; name: string }[];
+  next: string | null;
+  title?: string;
+}) {
   const [s, setS] = useState(initial);
   const [next, setNext] = useState(initialNext);
   const [busy, start] = useTransition();
@@ -107,7 +117,7 @@ export function BriefingSettingsPanel({ initial, forums, next: initialNext }: { 
 
   const servicesOn = s.sectionServices;
   return (
-    <Panel id="briefing" title="Briefing du matin">
+    <Panel id="briefing" title={title}>
       <div className="grid gap-4 p-3.5">
         <div className="flex items-center gap-3">
           <IconSun size={18} className="shrink-0 text-fg-muted" />

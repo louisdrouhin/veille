@@ -14,6 +14,7 @@ import { TopicMenuProvider } from "@/components/topic/topic-menu";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
 import { briefingNav } from "@/lib/briefing/queries";
+import { getMe } from "@/lib/settings/summary";
 import { getDb } from "@/lib/db";
 import { getNavCounts } from "@/lib/lists/queries";
 import { countOpenAlerts } from "@/lib/stack/queries";
@@ -29,13 +30,13 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!session) redirect("/login");
   // Mobile menu counters (unread, lists, sources in error). The layout is kept across navigations:
   // refreshed with the page (BackForwardRefresh, « Actualiser », pull to refresh).
-  const [nav, stack, briefing] = await Promise.all([getNavCounts(getDb()), countOpenAlerts(getDb()), briefingNav(getDb())]);
+  const [nav, stack, briefing, me] = await Promise.all([getNavCounts(getDb()), countOpenAlerts(getDb()), briefingNav(getDb()), getMe(getDb(), session.user.id)]);
   const counts = { ...nav, stack, briefing, renderedAt: new Date().getTime() };
 
   return (
     <ReadTopicsProvider>
       <TopicMenuProvider>
-      <AppHeader userName={session.user.name} counts={counts} />
+      <AppHeader me={{ ...me, theme: parseTheme((session.user as { theme?: unknown }).theme) }} counts={counts} />
       <div className="safe-x">
         <main className="mx-auto w-full max-w-[1200px] px-2.5 py-4 sm:px-3.5 md:px-5">{children}</main>
       </div>

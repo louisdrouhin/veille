@@ -237,8 +237,8 @@ export async function generateContent(req: GeminiRequest): Promise<GeminiResult>
 
 export const GEMINI_ERROR_MESSAGES: Record<GeminiError, string> = {
   quota: "Quota Gemini atteint : réessaie dans quelques minutes.",
-  auth: "Clé Gemini refusée : vérifie-la dans Administration › Intégrations.",
-  model: "Modèle Gemini introuvable : vérifie son nom dans Administration › Intégrations.",
+  auth: "Clé Gemini refusée : vérifie-la dans Paramètres › Intégrations.",
+  model: "Modèle Gemini introuvable : vérifie son nom dans Paramètres › Intégrations.",
   overloaded: "Modèle Gemini surchargé chez Google : réessaie dans quelques minutes.",
   server: "Erreur interne de Gemini chez Google : réessaie dans quelques minutes.",
   network: "Gemini injoignable depuis le serveur (réseau) : réessaie plus tard.",

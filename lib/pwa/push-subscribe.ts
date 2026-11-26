@@ -4,7 +4,7 @@ import { subscribePushAction } from "@/lib/actions/notifications";
 
 /**
  * Push subscription of this device, asked inside a tap (iOS refuses a permission request made at load time).
- * Shared by Mon compte › Notifications and the first-time card of the briefing (docs/design/3.4 § 6).
+ * Shared by Paramètres › Notifications and the first-time card of the briefing (docs/design/3.4 § 6).
  */
 
 export const hasPushApi = () => typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;

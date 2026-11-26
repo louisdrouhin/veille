@@ -46,7 +46,7 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
       if (hasPushApi()) {
         const reg = await navigator.serviceWorker.getRegistration();
         const sub = await reg?.pushManager.getSubscription();
-        // Made with other VAPID keys (regenerated in Admin › Intégrations): no longer valid.
+        // Made with other VAPID keys (regenerated in Paramètres › Intégrations): no longer valid.
         current = sub && publicKey && sameKey(sub, publicKey) ? sub.endpoint : null;
       }
       if (!alive) return;
@@ -130,7 +130,7 @@ function DevicePanel({ publicKey }: { publicKey: string | null }) {
             </p>
           </div>
         )}
-        {mode === "unconfigured" && <p className="text-sm text-fg-muted">Génère les clés VAPID dans Administration › Intégrations (ou ajoute-les au .env du serveur).</p>}
+        {mode === "unconfigured" && <p className="text-sm text-fg-muted">Génère les clés VAPID dans Paramètres › Intégrations (ou ajoute-les au .env du serveur).</p>}
         {error && (
           <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-err bg-err-soft p-3 text-base">
             <IconAlertCircle size={18} className="shrink-0 text-err" />

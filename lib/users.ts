@@ -4,6 +4,7 @@
  * Rows follow Better Auth's schema (user + "credential" account) and the
  * password uses Better Auth's own default hash, so sign-in works unchanged.
  */
+import { splitIdentifier } from "@/lib/profile";
 import { randomBytes } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { and, eq, sql } from "drizzle-orm";
@@ -44,10 +45,13 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 async function insertUser(tx: Tx | Db, email: string, passwordHash: string, name?: string) {
   const id = newId();
   const now = new Date();
+  const identifier = name?.trim() || email.split("@")[0] || "Moi";
   await tx.insert(user).values({
     id,
     email,
-    name: name?.trim() || email.split("@")[0] || "Moi",
+    name: identifier,
+    // Prénom / Nom from the identifier, as migration 0017 did for existing accounts (lib/profile.ts).
+    ...splitIdentifier(identifier),
     emailVerified: true,
     createdAt: now,
     updatedAt: now,

@@ -1,5 +1,5 @@
 /**
- * Admin › Intégrations, read side: the value of each setting is the one saved in the interface
+ * Paramètres › Intégrations, read side: the value of each setting is the one saved in the interface
  * (app_settings, decrypted with SECRETS_KEY) when there is one, else the server .env. The result is
  * an environment (process.env overlaid with the saved values), so aiConfig(), vapidConfig() and the
  * NVD source read it unchanged. The VAPID pair always comes from one place: both keys from the

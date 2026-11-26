@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition } from "react";
 import { LogoutButton } from "@/components/account/logout-button";
-import { Avatar } from "@/components/account/avatar";
+import { UserAvatar } from "@/components/account/user-avatar";
 import { Star } from "@/components/lists/star";
 import { HeaderSearch } from "@/components/search/header-search";
 import { useUnreadCount } from "@/components/topic/read-topics";
 import { IconClose, IconFolder, IconMenu, IconRefresh, IconSettings, IconShield, IconSun, Logo } from "@/components/ui/icons";
 import { useBriefingSeen } from "@/lib/briefing/seen-client";
 import { runPageRefresh } from "@/lib/page-refresh";
+import { displayName } from "@/lib/profile";
+import { AccountMenu, type MenuUser } from "./account-menu";
 import { useStandalone } from "@/lib/pwa/client";
 
 export type NavCounts = {
@@ -50,7 +52,6 @@ const NAV = [
   { href: "/briefing", label: "Briefing", match: (p: string) => p === "/briefing" || p.startsWith("/briefing/") },
   { href: "/listes", label: "Listes", match: (p: string) => p === "/listes" || p.startsWith("/listes/") },
   { href: "/stack", label: "Ma stack", match: (p: string) => p === "/stack" || p.startsWith("/stack/") },
-  { href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin") },
 ] as const;
 
 /** Mobile menu rows (docs/design/v3 § 2): 52 px, 20 px icon, counter; active = light background + 3 px accent bar. */
@@ -77,7 +78,7 @@ function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
         {counts.stack.open} à traiter
       </span>
     ) : null;
-  if (counts.errors > 0)
+  if (href === "/parametres" && counts.errors > 0)
     return (
       <span className="ml-auto rounded-full bg-err px-2 text-xs leading-5 font-semibold text-err-fg">
         {counts.errors} erreur{counts.errors > 1 ? "s" : ""}
@@ -86,7 +87,7 @@ function MenuExtra({ href, counts }: { href: string; counts: NavCounts }) {
   return null;
 }
 
-const MENU_ICONS = { "/": IconFolder, "/briefing": IconSun, "/stack": IconShield, "/admin": IconSettings } as const;
+const MENU_ICONS = { "/": IconFolder, "/briefing": IconSun, "/stack": IconShield } as const;
 
 const briefingLabel = (counts: NavCounts) => (counts.briefing?.unread ? "Briefing, nouveau briefing non lu" : undefined);
 
@@ -126,7 +127,7 @@ function RefreshButton({ className }: { className: string }) {
 const REFRESH_CLASS =
   "inline-flex cursor-pointer items-center justify-center rounded-sm text-bar-fg hover:bg-white/8 disabled:opacity-70";
 
-export function AppHeader({ userName, counts: rendered }: { userName: string; counts: NavCounts }) {
+export function AppHeader({ me, counts: rendered }: { me: MenuUser; counts: NavCounts }) {
   const pathname = usePathname();
   // Today's briefing opened during this visit: no more « nouveau ».
   const seen = useBriefingSeen(rendered.briefing?.day);
@@ -180,14 +181,8 @@ export function AppHeader({ userName, counts: rendered }: { userName: string; co
         <div className="ml-auto hidden items-center gap-3 md:flex">
           <HeaderSearch part="desktop" />
           <RefreshButton className={`${REFRESH_CLASS} size-8`} />
-          <Link
-            href="/compte"
-            className="inline-flex h-8 items-center gap-2 rounded-sm px-1.5 text-sm font-medium text-bar-muted no-underline hover:bg-white/8 hover:text-bar-fg aria-[current=page]:text-bar-fg focus-visible:outline-bar-accent"
-            aria-current={pathname === "/compte" ? "page" : undefined}
-          >
-            <Avatar name={userName} size="sm" />
-            Mon compte
-          </Link>
+          {/* Account menu (docs/design/3.5 § 2): Paramètres, Profil, Raccourcis, Thème, Se déconnecter. */}
+          <AccountMenu user={me} />
         </div>
 
         <div className="ml-auto flex items-center md:hidden">
@@ -218,6 +213,17 @@ export function AppHeader({ userName, counts: rendered }: { userName: string; co
       </div>
 
       <div id={menuId} hidden={!open} className="border-t border-white/10 px-3.5 pb-3 md:hidden">
+        {/* The account first (docs/design/3.5 § 3): photo, name, e-mail; leads to Profil. */}
+        <Link
+          href="/parametres/profil"
+          className="mt-3 flex min-h-16 items-center gap-3 rounded-md bg-white/6 px-3 py-2 text-bar-fg no-underline hover:bg-white/10 hover:text-bar-fg focus-visible:outline-bar-accent"
+        >
+          <UserAvatar user={me} size={48} />
+          <span className="min-w-0">
+            <span className="block truncate text-base font-semibold">{displayName(me)}</span>
+            <span className="block truncate text-sm text-bar-muted">{me.email}</span>
+          </span>
+        </Link>
         <nav aria-label="Navigation principale (mobile)" className="flex flex-col py-2">
           {NAV.map((item) => {
             const Icon = item.href === "/listes" ? null : MENU_ICONS[item.href];
@@ -236,12 +242,13 @@ export function AppHeader({ userName, counts: rendered }: { userName: string; co
               </Link>
             );
           })}
-          <Link href="/compte" className={MENU_ROW} aria-current={pathname === "/compte" ? "page" : undefined}>
-            <Avatar name={userName} size="sm" />
-            Mon compte
-          </Link>
         </nav>
         <div className="flex flex-col border-t border-white/10 pt-2">
+          <Link href="/parametres" className={MENU_ROW} aria-current={pathname.startsWith("/parametres") ? "page" : undefined}>
+            <IconSettings size={20} className="text-bar-muted" />
+            Paramètres
+            <MenuExtra href="/parametres" counts={counts} />
+          </Link>
           <LogoutButton className={`${MENU_ROW} w-full cursor-pointer text-left disabled:opacity-70`} />
         </div>
       </div>
