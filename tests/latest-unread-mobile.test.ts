@@ -33,7 +33,7 @@ const topic = (id: number): TopicRowData => ({
 
 function render(n: number) {
   const html = renderToString(createElement(LatestUnreadList, { topics: Array.from({ length: n }, (_, i) => topic(i + 1)) }));
-  const rows = [...html.matchAll(/<li class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).includes("max-md:hidden"));
+  const rows = [...html.matchAll(/<li\s[^>]*?class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).includes("max-md:hidden"));
   return { html, hiddenOnMobile: rows };
 }
 

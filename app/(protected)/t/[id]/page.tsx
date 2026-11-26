@@ -8,6 +8,7 @@ import { Post } from "@/components/thread/post";
 import { RelatedTopics } from "@/components/thread/related-topics";
 import { RepriseMenu } from "@/components/thread/reprise";
 import { SourcesBlock, type SourceLine } from "@/components/thread/sources-block";
+import { TopicShortcuts } from "@/components/shortcuts/topic-shortcuts";
 import { MarkTopicRead } from "@/components/topic/mark-topic-read";
 import { ArticleFetchedAt, TopicArticle, TopicArticleSkeleton } from "@/components/thread/topic-article";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -82,6 +83,7 @@ export default async function TopicPage({ params }: Props) {
         items={[{ label: forum.name, href: `/f/${forum.slug}` }, { label: topic.title }]}
         back={{ href: `/f/${forum.slug}`, mode: "parent" }}
       />
+      <TopicShortcuts topicId={topic.id} url={topic.url} forumSlug={forum.slug} />
 
       <div className={merged ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:gap-4" : ""}>
       <div className="flex min-w-0 flex-col gap-3">

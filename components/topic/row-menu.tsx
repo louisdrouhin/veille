@@ -8,8 +8,10 @@ import type { TopicRowData } from "./topic-grid";
 
 /** Classes of a row with the context menu: hover, keyboard focus of its link, « menu ouvert » (docs/design/3.2 § 4). */
 export const ROW_MENU_STATES =
-  "group hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus " +
-  "data-menu-open:bg-accent-soft data-menu-open:outline-2 data-menu-open:-outline-offset-2 data-menu-open:outline-accent";
+  "group scroll-mt-20 hover:bg-surface-hover has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-focus " +
+  "data-menu-open:bg-accent-soft data-menu-open:outline-2 data-menu-open:-outline-offset-2 data-menu-open:outline-accent " +
+  // Selected with j / k (docs/design/3.5 § 6): accent-soft and a 4 px accent bar, unlike hover or the open menu.
+  "data-kbd-selected:bg-accent-soft data-kbd-selected:shadow-[inset_4px_0_0_var(--accent)]";
 
 /**
  * The context menu of a topic row (right click, ⋯, Menu key, Shift+F10, accelerators), for every row that shows a
@@ -27,6 +29,8 @@ export function useRowMenu(topic: TopicRowData, menu: RowMenu) {
 
   const rowProps = {
     ref: rowRef,
+    // Keyboard shortcuts (components/shortcuts): the rows of the page, in order, and their topic.
+    "data-topic-row": topic.id,
     "data-menu-open": menuOpen ? "" : undefined,
     // Right click: the menu at the cursor. Shift + right click, or a touch screen: the browser's own menu.
     onContextMenu: (e: React.MouseEvent) => {

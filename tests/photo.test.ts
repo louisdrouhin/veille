@@ -99,8 +99,8 @@ describe("real format, metadata, dimensions", () => {
 const ORIGIN = "https://folders.example";
 function post(files: { large?: Uint8Array; small?: Uint8Array }, headers: Record<string, string> = { "sec-fetch-site": "same-origin" }) {
   const form = new FormData();
-  if (files.large) form.append("large", new Blob([files.large]), "a.jpg");
-  if (files.small) form.append("small", new Blob([files.small]), "b.jpg");
+  if (files.large) form.append("large", new Blob([new Uint8Array(files.large)]), "a.jpg");
+  if (files.small) form.append("small", new Blob([new Uint8Array(files.small)]), "b.jpg");
   return route.POST(new Request(`${ORIGIN}/api/profil/photo`, { method: "POST", body: form, headers }));
 }
 
