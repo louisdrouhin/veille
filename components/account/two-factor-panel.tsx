@@ -35,7 +35,7 @@ function errorText(error: { status: number; code?: string; message?: string }): 
   return error.message || "Opération impossible.";
 }
 
-export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
+export function TwoFactorPanel({ enabled, backupLeft = null }: { enabled: boolean; backupLeft?: number | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +109,12 @@ export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
           d&apos;authentification (Aegis, 2FAS, Google Authenticator, Bitwarden…).
         </p>
 
+        {enabled && backupLeft !== null && (
+          <p>
+            Codes de secours : <strong>{backupLeft} restant{backupLeft > 1 ? "s" : ""} sur 10</strong>
+            {backupLeft <= 3 && <span className="text-err"> — pense à les régénérer.</span>}
+          </p>
+        )}
         {mode.kind === "idle" && (
           <div className="flex flex-wrap gap-2">
             {enabled ? (
@@ -121,7 +127,7 @@ export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
                   Régénérer les codes de secours
                 </button>
                 <button type="button" className={buttonClass("danger")} onClick={() => setMode({ kind: "confirm-password", action: "disable" })}>
-                  Désactiver
+                  Désactiver la double authentification
                 </button>
               </>
             ) : (

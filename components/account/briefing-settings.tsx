@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { testBriefingAction, updateBriefingSettingsAction } from "@/lib/actions/briefing";
 import type { BriefingDays, BriefingLength, BriefingPreview } from "@/lib/briefing/types";
 import { showToast } from "@/lib/toast-client";
+import { SaveError, SavedHint, useSave } from "@/components/settings/saved";
 
 export type BriefingSettingsView = {
   enabled: boolean;
@@ -87,18 +88,20 @@ export function BriefingSettingsPanel({
   const [testing, startTest] = useTransition();
   const ids = { on: useId(), time: useId(), help: useId(), focus: useId() };
 
+  // Applied at once, « ✓ Enregistré » inline; back to the previous value on failure (docs/design/3.5 § 4).
+  const { state: saved, save: run } = useSave();
   const save = (patch: Patch) => {
     const before = s;
     setS((prev) => ({ ...prev, ...patch }));
     start(async () => {
-      const res = await updateBriefingSettingsAction(patch).catch(() => ({ ok: false as const, error: "Connexion au serveur impossible." }));
-      if (!res.ok) {
-        setS(before);
-        return showToast({ kind: "error", title: "Briefing :", msg: res.error });
-      }
-      setS((prev) => ({ ...prev, enabled: res.enabled }));
-      setNext(res.next);
-      if (res.message) showToast({ kind: "error", title: res.message });
+      await run(async () => {
+        const res = await updateBriefingSettingsAction(patch);
+        if (!res.ok) return res;
+        setS((prev) => ({ ...prev, enabled: res.enabled }));
+        setNext(res.next);
+        if (res.message) showToast({ kind: "error", title: res.message });
+        return { ok: true };
+      }, () => setS(before));
     });
   };
 
@@ -119,6 +122,10 @@ export function BriefingSettingsPanel({
   return (
     <Panel id="briefing" title={title}>
       <div className="grid gap-4 p-3.5">
+        <div aria-live="off" className="-mb-2 flex min-h-5 justify-end">
+          <SavedHint state={saved} />
+        </div>
+        <SaveError state={saved} />
         <div className="flex items-center gap-3">
           <IconSun size={18} className="shrink-0 text-fg-muted" />
           <p className="min-w-0 flex-1">

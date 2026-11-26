@@ -12,6 +12,7 @@ import type { NotifyThreshold } from "@/lib/db/schema";
 import { useIsIos, useStandalone } from "@/lib/pwa/client";
 import { pushAvailability } from "@/lib/pwa/platform";
 import { showToast } from "@/lib/toast-client";
+import { SaveError, SavedHint, useSave } from "@/components/settings/saved";
 
 export type Settings = Required<SettingsInput>;
 
@@ -156,23 +157,31 @@ function RulesPanel({ initial }: { initial: Settings }) {
   const [, start] = useTransition();
   const name = useId();
   const ids = { exploited: useId(), quiet: useId(), homelab: useId(), work: useId(), discreet: useId(), from: useId(), to: useId() };
+  // Applied at once, « ✓ Enregistré » inline; back to the previous value on failure (docs/design/3.5 § 4).
+  const { state: saved, save: run } = useSave();
   const save = useCallback(
     (patch: SettingsInput) => {
-      setS((prev) => ({ ...prev, ...patch }));
+      let before: Settings | null = null;
+      setS((prev) => {
+        before = prev;
+        return { ...prev, ...patch };
+      });
       start(async () => {
-        const res = await updateNotificationSettingsAction(patch);
-        if (!res.ok) showToast({ kind: "error", title: res.error });
+        await run(() => updateNotificationSettingsAction(patch), () => before && setS(before));
       });
     },
-    [start],
+    [start, run],
   );
 
   return (
     <>
       <Panel title="Ce qui déclenche une notification">
         <div className="grid gap-3 p-3.5">
+          <SaveError state={saved} />
           <fieldset>
-            <legend className="mb-1.5 text-sm font-semibold">Gravité minimale</legend>
+            <legend className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+              Gravité minimale <SavedHint state={saved} />
+            </legend>
             <div role="radiogroup" className="grid gap-0.5">
               {THRESHOLDS.map((t) => (
                 <label key={t.key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-1 hover:bg-surface-hover">

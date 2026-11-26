@@ -17,6 +17,12 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export const DEFAULT_MERGE_THRESHOLD = 0.87;
 export const MERGE_WINDOW_MS = 72 * 3_600_000;
+
+/** Paramètres › Recherche et IA (merge_window_hours) or MERGE_WINDOW_HOURS: 24 h to a week; 72 h by default. */
+export function mergeWindowMs(env: Env = process.env): number {
+  const n = Number(env.MERGE_WINDOW_HOURS);
+  return Number.isInteger(n) && n >= 24 && n <= 168 ? n * 3_600_000 : MERGE_WINDOW_MS;
+}
 /** « Sujets proches »: at or above this similarity (RELATED_MIN overrides). */
 export const RELATED_MIN = 0.78;
 
@@ -35,7 +41,7 @@ export type MergeRun = { checked: number; merged: number };
 export async function mergePending(db: Db, deps: { env?: Env; now?: Date; log?: (...a: unknown[]) => void; limit?: number } = {}): Promise<MergeRun> {
   const env = deps.env ?? process.env;
   const now = deps.now ?? new Date();
-  const since = new Date(now.getTime() - MERGE_WINDOW_MS);
+  const since = new Date(now.getTime() - mergeWindowMs(env));
   const model = embeddingModel(env);
   const threshold = mergeThreshold(env);
   const pending = await db
