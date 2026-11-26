@@ -7,7 +7,9 @@ import { reloadArticle } from "@/lib/actions/topics";
 import { currentAiConfig } from "@/lib/secrets/effective";
 import { getStoredAiOutputs } from "@/lib/ai/service";
 import { articleText, detectLanguage } from "@/lib/ai/text";
+import { and, count, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
+import { replies } from "@/lib/db/schema";
 import { formatFull, formatShort, formatTitle } from "@/lib/format-date";
 import { getArticle } from "@/lib/reader/article";
 import { ArticleView, type AiProps } from "./article-view";
@@ -109,11 +111,16 @@ export async function TopicArticle({ topic, saved }: { topic: TopicRef; saved: S
     // Results already made (on any device): from the database, never a call to Gemini here.
     const stored = await getStoredAiOutputs(getDb(), topic.id, article.fetchedAt, config);
     const lang = detectLanguage(articleText(article.html));
+    const [reprises] = await getDb()
+      .select({ n: count() })
+      .from(replies)
+      .where(and(eq(replies.topicId, topic.id), eq(replies.type, "source")));
     ai = {
       canTranslate: lang !== "fr",
       sourceLang: lang,
       initialSummary: stored.summary ?? null,
       initialTranslation: stored.translation ?? null,
+      sourceCount: 1 + (reprises?.n ?? 0),
     };
   }
 

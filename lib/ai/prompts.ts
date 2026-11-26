@@ -45,7 +45,7 @@ export function newMarkerId(): string {
 }
 
 /** Drops anything shaped like one of our markers from untrusted text. */
-export const stripMarkers = (s: string) => s.replace(/<<<\s*(?:FIN\s+)?(?:ARTICLE|AVIS)[^>]*>>>/gi, "");
+export const stripMarkers = (s: string) => s.replace(/<<<\s*(?:FIN\s+)?(?:ARTICLE|AVIS|EXTRAITS)[^>]*>>>/gi, "");
 
 /** The summary's user message: the article title and text, and nothing else, inside the markers. */
 export function articleMessage(title: string, text: string, id: string): string {

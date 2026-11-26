@@ -14,13 +14,14 @@ livre (voir `CHANGELOG.md`).
 | `v3.1/` | 2.11 | Barre d'actions de la page topic (sans nouveau token) |
 | `3.0/` | 3.0 | Ma stack (radar de vulnérabilités) et notifications push ; tokens `--sev-*` |
 | `3.2/` | 3.2 | Menu contextuel des lignes de topic, desktop (sans nouveau token ; note écrite pour « 3.1 ») |
+| `3.3/` | 3.3 | « Demande à ta veille » : recherche, questions, fusion des doublons, À la une ; tokens `--mark-*` |
 
 ## Règle pour la suite
 
 - Une note par lot : `docs/design/<version>/HANDOFF-<version>.md`, où `<version>` est la version de l'app qui la
   livre, sans le patch (ex. `docs/design/3.0/HANDOFF-3.0.md`, puis `3.1/`…).
 - Les tokens (`veille-tokens.css`) sont copiés dans le dossier du lot seulement s'ils changent. Les tokens de
-  référence sont ceux du dossier le plus récent qui en contient : aujourd'hui `3.0/veille-tokens.css`, fusionnés dans
+  référence sont ceux du dossier le plus récent qui en contient : aujourd'hui `3.3/veille-tokens.css`, fusionnés dans
   `app/globals.css`.
 - Ne pas renommer les dossiers existants : le code et les tests y renvoient (`tests/theme-tokens.test.ts` lit
-  `3.0/veille-tokens.css`).
+  `3.3/veille-tokens.css`).

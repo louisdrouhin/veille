@@ -19,6 +19,7 @@ const API_KEY = /^[\x21-\x7e]{16,256}$/;
 
 export function validateSetting(name: SettingName, value: string): string | null {
   if (name === "gemini_model" || name === "gemini_translate_model") return MODEL.test(value) ? null : "Nom de modèle invalide (ex. gemini-3.5-flash-lite).";
+  if (name === "merge_threshold") return /^0\.(5\d|[6-8]\d|9[0-9])$/.test(value) ? null : "Seuil entre 0,50 et 0,99 (ex. 0,87).";
   if (name === "gemini_api_key" || name === "nvd_api_key") return API_KEY.test(value) ? null : "Clé invalide : colle-la sans espace ni retour à la ligne.";
   return "Cette valeur ne se modifie pas ici.";
 }

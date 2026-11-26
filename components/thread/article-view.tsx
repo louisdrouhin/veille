@@ -16,6 +16,8 @@ export type AiProps = {
   /** Results made before, on any device (server render, no call to Gemini). */
   initialSummary: AiOutput | null;
   initialTranslation: AiOutput | null;
+  /** Sources of a merged topic (docs/design/3.3 § 0): « Résumer les N sources », « Résumé de N sources ». */
+  sourceCount?: number;
 };
 
 type Tool = { output: AiOutput | null; open: boolean; loading: boolean; error: string | null };
@@ -88,6 +90,7 @@ export function ArticleView({
               translation={state(translation)}
               canTranslate={ai.canTranslate}
               sourceLang={ai.sourceLang}
+              sourceCount={ai.sourceCount ?? 1}
               onSummary={() => toggle("summary")}
               onTranslation={() => toggle("translation")}
               summaryRef={summaryRef}
@@ -104,6 +107,7 @@ export function ArticleView({
       {(summary.loading || (summary.open && summary.output)) && (
         <AiSummaryPanel
           output={summary.loading ? null : summary.output}
+          sourceCount={ai?.sourceCount ?? 1}
           onClose={() => {
             update("summary", { open: false });
             summaryRef.current?.focus();

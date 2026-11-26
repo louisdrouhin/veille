@@ -1,7 +1,7 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/lib/db";
-import { aiOutputs, articleContents, topics, type AiKind } from "@/lib/db/schema";
+import { aiOutputs, articleContents, replies, topics, type AiKind } from "@/lib/db/schema";
 import { sanitizeArticleHtml } from "@/lib/reader/sanitize";
 import { currentAiConfig } from "@/lib/secrets/effective";
 import type { AiConfig } from "./config";
@@ -65,7 +65,18 @@ export async function generateAi(db: Db, input: { topicId: number; kind: AiKind;
     return { ok: true, cached: true, html: cached.html, truncated: cached.truncated, model: cached.model, inputCut: false };
   }
 
-  const full = articleText(row.html);
+  const own = articleText(row.html);
+  // « Résumer les N sources » (docs/design/3.3 § 0): a merged topic is summarized with its reprises (title and
+  // excerpt of each, capped). Same untrusted block as the article; never a personal note.
+  const reprises =
+    input.kind === "summary"
+      ? await db
+          .select({ author: replies.author, title: replies.title, content: replies.content })
+          .from(replies)
+          .where(and(eq(replies.topicId, input.topicId), eq(replies.type, "source")))
+          .orderBy(asc(replies.createdAt), asc(replies.id))
+      : [];
+  const full = reprises.length ? `${own}\n\n${repriseBlock(reprises)}` : own;
   if (full.length < 40) return { ok: false, error: "Article trop court pour être traité." };
   if (input.kind === "translation") {
     if (isFrench(full)) return { ok: false, error: "L'article est déjà en français." };
@@ -130,6 +141,17 @@ export async function getStoredAiOutputs(db: Db, topicId: number, articleFetched
   for (const r of rows) {
     if (r.model !== modelFor(config, r.kind) || r.format !== AI_FORMAT[r.kind] || r.articleFetchedAt.getTime() !== articleFetchedAt.getTime()) continue;
     out[r.kind] = { html: r.html, truncated: r.truncated, model: r.model, inputCut: false };
+  }
+  return out;
+}
+
+/** The other sources of a merged topic, for its summary: at most 6 000 characters. */
+export function repriseBlock(rows: { author: string; title: string | null; content: string }[], max = 6_000): string {
+  let out = "Autres sources sur ce même sujet :";
+  for (const r of rows) {
+    const line = `\n- ${r.author} : ${r.title ?? ""}${r.content ? ` — ${r.content}` : ""}`.replace(/\s+$/, "");
+    if (out.length + line.length > max) break;
+    out += line;
   }
   return out;
 }
