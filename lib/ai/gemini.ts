@@ -42,6 +42,13 @@ export type GeminiRequest = {
 /** A 503 « high demand » is often over within seconds: two more attempts before giving up. */
 export const RETRY_DELAYS_MS = [2_000, 5_000];
 const MAX_RETRY_AFTER_MS = 10_000;
+/** GEMINI_RETRY_DELAYS_MS="2000,5000" overrides them ("" = default; "0,0" in the tests). */
+function envDelays(): number[] | null {
+  const raw = process.env.GEMINI_RETRY_DELAYS_MS?.trim();
+  if (!raw) return null;
+  const list = raw.split(",").map((x) => Number(x.trim()));
+  return list.every((n) => Number.isInteger(n) && n >= 0 && n <= 60_000) ? list.slice(0, 5) : null;
+}
 
 /**
  * The HTTP error of Gemini, from its status and body (docs: API errors). 400 is an invalid key when the body
@@ -57,7 +64,12 @@ export function classifyHttpError(status: number, body = ""): GeminiError {
   return "failed";
 }
 
-const retryable = (e: GeminiError) => e === "overloaded" || e === "server";
+/**
+ * Errors that are asked again, then handed to a backup model (translation, questions): an overload or a server
+ * error of Google. Never a quota, a refused key or an unknown model (they would fail the same way, or must be fixed).
+ */
+export const FALLBACK_ERRORS: ReadonlySet<GeminiError> = new Set<GeminiError>(["overloaded", "server"]);
+const retryable = (e: GeminiError) => FALLBACK_ERRORS.has(e);
 
 function retryWait(res: Response, planned: number): number {
   const after = Number(res.headers.get("retry-after"));
@@ -90,7 +102,7 @@ async function post(
   opts: { fetch?: typeof fetch; retryDelaysMs?: number[]; timeoutMs: number; signal?: AbortSignal },
 ): Promise<{ res: Response } | { error: GeminiError; status?: number }> {
   const doFetch = opts.fetch ?? fetch;
-  const delays = opts.retryDelaysMs ?? RETRY_DELAYS_MS;
+  const delays = opts.retryDelaysMs ?? envDelays() ?? RETRY_DELAYS_MS;
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {

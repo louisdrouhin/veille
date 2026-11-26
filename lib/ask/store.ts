@@ -22,9 +22,10 @@ export async function indexVersion(db: Db): Promise<string> {
   return `${t?.n ?? 0}.${t?.last ?? 0}.${r?.last ?? 0}.${e?.last?.getTime() ?? 0}`;
 }
 
-export function cacheKey(question: string, scope: AskScope, version: string): string {
+/** Per model too: an answer of the backup model is cached apart from the main one's. */
+export function cacheKey(question: string, scope: AskScope, version: string, model: string): string {
   const q = fold(question).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  return createHash("sha256").update(JSON.stringify([q, scope.period, [...scope.forums].sort(), version])).digest("base64url");
+  return createHash("sha256").update(JSON.stringify([q, scope.period, [...scope.forums].sort(), version, model])).digest("base64url");
 }
 
 export type CachedAnswer = { answer: CheckedAnswer; sources: number[] };

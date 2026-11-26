@@ -73,6 +73,21 @@ export function ArticleView({
     });
   }
 
+  // « Refaire avec le modèle principal »: the backup result stays shown if the main model still fails.
+  function redoWithPrimary(kind: AiKind) {
+    if (running.current.has(kind)) return;
+    update(kind, { loading: true, error: null });
+    running.current.add(kind);
+    startTransition(async () => {
+      const res = await runAi(topicId, kind, true)
+        .catch(() => ({ ok: false as const, error: "Connexion au serveur impossible." }))
+        .finally(() => running.current.delete(kind));
+      if (!res.ok) return update(kind, { loading: false, error: res.error });
+      update(kind, { loading: false, output: res, open: true });
+      cachePageForOffline(window.location.pathname, { force: true });
+    });
+  }
+
   const state = (t: Tool): ToolState => (t.loading ? "loading" : t.open && t.output ? "active" : "rest");
   const { summary, translation } = tools;
   const translated = translation.open && translation.output !== null;
@@ -115,7 +130,12 @@ export function ArticleView({
         />
       )}
 
-      {(translation.loading || translated) && <TranslationBanner loading={translation.loading} sourceLang={ai?.sourceLang ?? null} />}
+      {(translation.loading || translated) && <TranslationBanner
+          loading={translation.loading}
+          sourceLang={ai?.sourceLang ?? null}
+          fallback={translation.output?.fallback === true}
+          onPrimary={() => redoWithPrimary("translation")}
+        />}
       {translation.loading && <AiSkeleton lines={[96, 90, 100, 64]} />}
       {translated && !translation.loading && (
         <div lang="fr" className="article-body" dangerouslySetInnerHTML={{ __html: translation.output!.html }} />
