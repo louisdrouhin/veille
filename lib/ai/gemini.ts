@@ -34,9 +34,17 @@ export type GeminiRequest = {
   /** thinkingConfig.thinkingLevel (Gemini 3+): "low" keeps the translation fast. */
   thinkingLevel?: "minimal" | "low" | "medium" | "high";
   fetch?: typeof fetch;
+  /** Time allowed to ONE attempt (response headers and body; for a stream: until the headers). */
   timeoutMs?: number;
+  /**
+   * Absolute end (epoch ms) of the whole call, retries included: an attempt never runs past it, and no retry starts
+   * when too little is left. The user's request must get an answer or a clear message in time (docs: timeouts).
+   */
+  deadline?: number;
   /** Waits before each new attempt after an overloaded / server error (default RETRY_DELAYS_MS; [] = no retry). */
   retryDelaysMs?: number[];
+  /** One line per failed attempt (model, attempt, duration, error): never the key, never the text. */
+  log?: (line: string) => void;
 };
 
 /** A 503 « high demand » is often over within seconds: two more attempts before giving up. */
@@ -68,8 +76,16 @@ export function classifyHttpError(status: number, body = ""): GeminiError {
  * Errors that are asked again, then handed to a backup model (translation, questions): an overload or a server
  * error of Google. Never a quota, a refused key or an unknown model (they would fail the same way, or must be fixed).
  */
-export const FALLBACK_ERRORS: ReadonlySet<GeminiError> = new Set<GeminiError>(["overloaded", "server"]);
-const retryable = (e: GeminiError) => FALLBACK_ERRORS.has(e);
+const RETRYABLE: ReadonlySet<GeminiError> = new Set<GeminiError>(["overloaded", "server"]);
+const retryable = (e: GeminiError) => RETRYABLE.has(e);
+/**
+ * Errors after which the backup model is tried (translation, questions): an overload, a server error, or a model
+ * that does not answer in time (it was seen hanging for minutes while overloaded). Never a quota, a refused key or an
+ * unknown model (they would fail the same way, or must be fixed).
+ */
+export const FALLBACK_ERRORS: ReadonlySet<GeminiError> = new Set<GeminiError>(["overloaded", "server", "timeout"]);
+/** Below this, an attempt is not worth starting (the deadline is too close). */
+export const MIN_ATTEMPT_MS = 3_000;
 
 function retryWait(res: Response, planned: number): number {
   const after = Number(res.headers.get("retry-after"));
@@ -95,27 +111,68 @@ const fetchError = (err: unknown): GeminiError => {
   return name === "TimeoutError" || name === "AbortError" ? "timeout" : "network";
 };
 
-/** The response, retried on 503 / 5xx; or the error once out of attempts. */
-async function post(
-  url: string,
-  init: RequestInit,
-  opts: { fetch?: typeof fetch; retryDelaysMs?: number[]; timeoutMs: number; signal?: AbortSignal },
-): Promise<{ res: Response } | { error: GeminiError; status?: number }> {
+type PostOpts = {
+  fetch?: typeof fetch;
+  retryDelaysMs?: number[];
+  timeoutMs: number;
+  deadline?: number;
+  signal?: AbortSignal;
+  /** generateContent: the body is read within the attempt's time. A stream: only the headers (then the deadline). */
+  readBody: boolean;
+  model: string;
+  log?: (line: string) => void;
+};
+type Posted = { res: Response; text: string; done: () => void } | { error: GeminiError; status?: number };
+
+/**
+ * One call with its attempts: each one limited to `timeoutMs` and to the deadline; retried on 503 / 5xx while time is
+ * left; a timeout is not retried (the caller may try the backup model instead). Every failed attempt is logged with
+ * its duration.
+ */
+async function post(url: string, init: RequestInit, opts: PostOpts): Promise<Posted> {
   const doFetch = opts.fetch ?? fetch;
   const delays = opts.retryDelaysMs ?? envDelays() ?? RETRY_DELAYS_MS;
-  for (let attempt = 0; ; attempt++) {
+  const left = () => (opts.deadline === undefined ? Number.POSITIVE_INFINITY : opts.deadline - Date.now());
+  for (let attempt = 1; ; attempt++) {
+    const budget = Math.min(opts.timeoutMs, left());
+    if (budget < MIN_ATTEMPT_MS && attempt > 1) return { error: "timeout" };
+    const started = Date.now();
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(new DOMException("attempt timed out", "TimeoutError")), Math.max(budget, 1));
+    const done = () => clearTimeout(timer);
+    const fail = (error: GeminiError, status?: number) => {
+      opts.log?.(`${opts.model} tentative ${attempt} : ${error}${status ? ` (HTTP ${status})` : ""} après ${Date.now() - started} ms`);
+      return error;
+    };
     let res: Response;
     try {
-      const timeout = AbortSignal.timeout(opts.timeoutMs);
-      res = await doFetch(url, { ...init, signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout });
+      res = await doFetch(url, { ...init, signal: opts.signal ? AbortSignal.any([opts.signal, ctrl.signal]) : ctrl.signal });
     } catch (err) {
-      return { error: fetchError(err) };
+      done();
+      return { error: opts.signal?.aborted ? "timeout" : fail(fetchError(err)) };
     }
-    if (res.ok) return { res };
+    if (res.ok) {
+      if (!opts.readBody) {
+        done();
+        return { res, text: "", done };
+      }
+      try {
+        const text = await res.text();
+        done();
+        return { res, text, done };
+      } catch (err) {
+        done();
+        return { error: opts.signal?.aborted ? "timeout" : fail(fetchError(err)) };
+      }
+    }
     const body = await res.text().catch(() => "");
-    const error = classifyHttpError(res.status, body.slice(0, 2_000));
-    if (!retryable(error) || attempt >= delays.length || opts.signal?.aborted) return { error, status: res.status };
-    await sleep(retryWait(res, delays[attempt]!), opts.signal);
+    done();
+    const error = fail(classifyHttpError(res.status, body.slice(0, 2_000)), res.status);
+    if (!retryable(error) || attempt > delays.length || opts.signal?.aborted) return { error, status: res.status };
+    const wait = retryWait(res, delays[attempt - 1]!);
+    // No retry that could not finish before the deadline.
+    if (left() - wait < MIN_ATTEMPT_MS) return { error, status: res.status };
+    await sleep(wait, opts.signal);
     if (opts.signal?.aborted) return { error: "timeout" };
   }
 }
@@ -146,14 +203,21 @@ export async function generateContent(req: GeminiRequest): Promise<GeminiResult>
       redirect: "error",
       cache: "no-store",
     },
-    { fetch: req.fetch, retryDelaysMs: req.retryDelaysMs, timeoutMs: req.timeoutMs ?? GEMINI_TIMEOUT_MS },
+    {
+      fetch: req.fetch,
+      retryDelaysMs: req.retryDelaysMs,
+      timeoutMs: req.timeoutMs ?? GEMINI_TIMEOUT_MS,
+      deadline: req.deadline,
+      readBody: true,
+      model: req.model,
+      log: req.log,
+    },
   );
   if ("error" in sent) return { ok: false, error: sent.error, ...(sent.status ? { status: sent.status } : {}) };
-  const res = sent.res;
 
   let body: GeminiResponse;
   try {
-    const raw = await res.text();
+    const raw = sent.text;
     if (raw.length > MAX_RESPONSE_BYTES) return { ok: false, error: "failed" };
     body = JSON.parse(raw) as GeminiResponse;
   } catch {
@@ -180,7 +244,7 @@ export const GEMINI_ERROR_MESSAGES: Record<GeminiError, string> = {
   network: "Gemini injoignable depuis le serveur (réseau) : réessaie plus tard.",
   request: "Requête refusée par Gemini : réessaie, et signale-le si ça se reproduit.",
   blocked: "Gemini a refusé de traiter cet article.",
-  timeout: "Gemini n'a pas répondu à temps : réessaie.",
+  timeout: "Gemini n'a pas répondu à temps (modèle saturé chez Google) : réessaie dans quelques minutes.",
   empty: "Gemini n'a rien renvoyé : réessaie.",
   failed: "Réponse de Gemini illisible : réessaie.",
   invalid: "Traduction incomplète ou mal formée renvoyée par Gemini : réessaie.",
@@ -193,9 +257,13 @@ export type StreamEvent = { text: string } | { done: true; truncated: boolean } 
  * `signal` stops it (« Arrêter »); the caller keeps the whole text to check it once complete.
  */
 export async function* streamContent(
-  req: Omit<GeminiRequest, "json" | "timeoutMs"> & { signal?: AbortSignal; timeoutMs?: number },
+  req: Omit<GeminiRequest, "json"> & { signal?: AbortSignal },
 ): AsyncGenerator<StreamEvent> {
-  // Retried before anything is streamed only (an overloaded model answers 503 at once).
+  // The rest of the stream is bounded by the deadline (or 60 s without one).
+  const end = req.deadline ?? Date.now() + 60_000;
+  const whole = AbortSignal.timeout(Math.max(1, end - Date.now()));
+  const signal = req.signal ? AbortSignal.any([req.signal, whole]) : whole;
+  // Retried before anything is streamed only (an overloaded model answers 503 at once). `timeoutMs`: until the headers.
   const sent = await post(
     `${GEMINI_API}/models/${encodeURIComponent(req.model)}:streamGenerateContent?alt=sse`,
     {
@@ -213,7 +281,16 @@ export async function* streamContent(
       redirect: "error",
       cache: "no-store",
     },
-    { fetch: req.fetch, retryDelaysMs: req.retryDelaysMs, timeoutMs: req.timeoutMs ?? 60_000, signal: req.signal },
+    {
+      fetch: req.fetch,
+      retryDelaysMs: req.retryDelaysMs,
+      timeoutMs: req.timeoutMs ?? 60_000,
+      deadline: end,
+      signal,
+      readBody: false,
+      model: req.model,
+      log: req.log,
+    },
   );
   if ("error" in sent) {
     yield { error: sent.error, ...(sent.status ? { status: sent.status } : {}) };
