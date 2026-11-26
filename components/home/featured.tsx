@@ -15,11 +15,12 @@ const DESKTOP_CARDS = 4;
 
 const label = (t: FeaturedTopic) => `${t.title}, repris par ${t.sourceNames.length} sources : ${t.sourceNames.join(", ")}`;
 
-function SourceStack({ names }: { names: string[] }) {
+/** Overlapping source avatars (À la une, Briefing du matin). */
+export function SourceStack({ names, size = 18 }: { names: string[]; size?: number }) {
   return (
     <span className="flex" aria-hidden>
       {names.slice(0, 4).map((name) => (
-        <SourceAvatar key={name} name={name} size={18} shape="round" className="-ml-1.5 border border-surface first:ml-0" />
+        <SourceAvatar key={name} name={name} size={size} shape="round" className="-ml-1.5 border border-surface first:ml-0" />
       ))}
     </span>
   );

@@ -1,5 +1,7 @@
 import { ForumTable } from "@/components/forum/forum-table";
+import { BriefingBlock } from "@/components/home/briefing-block";
 import { FeaturedSection } from "@/components/home/featured";
+import { homeBriefing } from "@/lib/briefing/queries";
 import { HomeStats } from "@/components/home/home-stats";
 import { StackBlock } from "@/components/home/stack-block";
 import { LatestUnread } from "@/components/home/latest-unread";
@@ -23,12 +25,13 @@ export default async function HomePage() {
   const now = new Date();
 
   const featured = FEATURED_ENABLED ? await getFeatured(db, { limit: 10, since: new Date(now.getTime() - FEATURED_WINDOW_MS) }) : [];
-  const [stats, latest, forums, stack] = await Promise.all([
+  const [stats, latest, forums, stack, briefing] = await Promise.all([
     getHomeStats(db, now),
     // No topic twice: those « À la une » are left out of « Derniers non lus ».
     getLatestUnread(db, { limit: 8, exclude: featured.map((f) => f.id) }),
     getForumsWithCounts(db),
     getHomeStack(db),
+    homeBriefing(db, now),
   ]);
 
   if (stats.sourceCount === 0) {
@@ -55,9 +58,18 @@ export default async function HomePage() {
       <InstallBanner />
       <h1 className="sr-only">Accueil</h1>
       <div className="flex flex-col gap-4">
+        {/* Briefing du matin (3.4 § 5): at the top. On mobile it replaces the Ma stack banner, unless an alert came after it. */}
+        {briefing && !briefing.replacesStack && (
+          <div className="md:hidden">
+            <StackBlock stack={stack} />
+          </div>
+        )}
+        {briefing && <BriefingBlock briefing={briefing} />}
         <FeaturedSection items={featured} />
         {/* Ma stack (3.0): above the stats, under « À la une ». */}
-        <StackBlock stack={stack} />
+        <div className={briefing ? "max-md:hidden" : undefined}>
+          <StackBlock stack={stack} />
+        </div>
         <HomeStats stats={stats} renderedAt={now.getTime()} />
         <LatestUnread topics={latest} />
         <section aria-labelledby="forums-title">

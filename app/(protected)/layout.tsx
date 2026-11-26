@@ -13,6 +13,7 @@ import { ReadTopicsProvider } from "@/components/topic/read-topics";
 import { TopicMenuProvider } from "@/components/topic/topic-menu";
 import { Toaster } from "@/components/ui/toaster";
 import { getAuth } from "@/lib/auth";
+import { briefingNav } from "@/lib/briefing/queries";
 import { getDb } from "@/lib/db";
 import { getNavCounts } from "@/lib/lists/queries";
 import { countOpenAlerts } from "@/lib/stack/queries";
@@ -28,8 +29,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!session) redirect("/login");
   // Mobile menu counters (unread, lists, sources in error). The layout is kept across navigations:
   // refreshed with the page (BackForwardRefresh, « Actualiser », pull to refresh).
-  const [nav, stack] = await Promise.all([getNavCounts(getDb()), countOpenAlerts(getDb())]);
-  const counts = { ...nav, stack, renderedAt: new Date().getTime() };
+  const [nav, stack, briefing] = await Promise.all([getNavCounts(getDb()), countOpenAlerts(getDb()), briefingNav(getDb())]);
+  const counts = { ...nav, stack, briefing, renderedAt: new Date().getTime() };
 
   return (
     <ReadTopicsProvider>
