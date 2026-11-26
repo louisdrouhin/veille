@@ -1,5 +1,9 @@
 # Folders — page de veille façon forum (usage perso)
 
+> Spécification d'origine (v1), gardée comme référence. L'état actuel de l'app est décrit dans le
+> [README](../README.md) et le [CHANGELOG](../CHANGELOG.md) ; les lots suivants dans [`docs/design/`](design/).
+> Les écarts avec ce document sont signalés « (aujourd'hui : …) ».
+
 ## Objectif
 Une application web perso, auto-hébergée sur mon homelab Proxmox, qui agrège mes sources de veille (flux RSS d'abord) et les affiche **comme un forum à l'ancienne, façon JVC 18-25** : chaque article est un **topic** dans un **forum** thématique (ex. Sécu/CVE, DevOps, Proxmox/homelab, Actu tech).
 
@@ -11,12 +15,13 @@ Un seul utilisateur (moi). Pas de multi-tenant, pas d'inscription publique, pas 
 - **Better Auth** (email + mot de passe).
 - **Tailwind CSS**.
 - **Worker séparé** (process Node dans le même repo, dossier `worker/`) pour la récupération des flux. Parsing avec `rss-parser`.
-- **Docker Compose** : services `app`, `worker`, `db`.
+- **Docker Compose** : services `app`, `worker`, `db` (aujourd'hui aussi `backup` : `pg_dump` quotidien).
 - Code et identifiants en anglais, interface en français, dates affichées en Europe/Paris.
 
 ## Authentification
 - Better Auth, `emailAndPassword` activé, `disableSignUp: true`.
-- Compte unique créé par un script : `npm run create-user -- --email ... --password ...`.
+- Compte unique créé par un script : `npm run create-user -- --email ... --password ...` (aujourd'hui aussi par
+  `/setup` au premier lancement).
 - Les pages protégées sont sous `app/(protected)/`. Le `layout.tsx` de ce groupe vérifie la session avec `auth.api.getSession({ headers: await headers() })` et redirige vers `/login` s'il n'y en a pas.
 - **Ne pas se reposer uniquement sur `proxy.ts`** (cf. CVE-2025-29927). Chaque route API et chaque server action revérifie la session.
 - Page `/login` simple, bouton de déconnexion dans le header.
@@ -26,7 +31,7 @@ Un seul utilisateur (moi). Pas de multi-tenant, pas d'inscription publique, pas 
 - `sources` : id, forum_id, type (`rss` pour la v1), name, url (unique), enabled, etag, last_modified, last_fetched_at, last_error, consecutive_failures.
 - `topics` : id, forum_id, source_id, title, url, normalized_url (**unique**), excerpt, published_at, last_activity_at, reply_count, read_at (nullable), score (0 par défaut).
 - `replies` : id, topic_id, type (`note` | `source` | `comment`), author, content, url (nullable), created_at.
-- Plus les tables générées par Better Auth.
+- Plus les tables générées par Better Auth. (Aujourd'hui : bien d'autres tables, voir `lib/db/schema.ts` et `drizzle/`.)
 
 ## Worker de récupération
 - Toutes les 15 min (configurable par variable d'environnement), récupère chaque source active.
@@ -34,7 +39,7 @@ Un seul utilisateur (moi). Pas de multi-tenant, pas d'inscription publique, pas 
 - Après 3 échecs consécutifs, la source est mise en pause 1 h. L'erreur est stockée dans `last_error` et visible dans l'UI.
 - **Normalisation des URL** : retirer `utm_*`, `fbclid`, `gclid` et le fragment `#…`, mettre l'hôte en minuscules, retirer le `/` final. C'est la clé de dédoublonnage.
 - Nouvel article avec une `normalized_url` inconnue : création d'un topic (extrait = résumé du flux, nettoyé du HTML, ~500 caractères).
-- **(v2)** URL déjà connue, venant d'une autre source : on ne crée pas de topic, on ajoute une `reply` de type `source`, on incrémente `reply_count` et on met à jour `last_activity_at`.
+- **(v2)** URL déjà connue, venant d'une autre source : on ne crée pas de topic, on ajoute une `reply` de type `source`, on incrémente `reply_count` et on met à jour `last_activity_at`. (Aujourd'hui : fusion faite en 3.3 par proximité de sens — embeddings — dans une fenêtre de 72 h, voir `lib/merge/fusion.ts`.)
 
 ## Interface (v1)
 ### Accueil `/`
@@ -46,7 +51,7 @@ Un tableau dense, style forum classique :
 | Icône | Sujet | Auteur | Nb | Dernier msg |
 |---|---|---|---|---|
 
-- Icône : dossier jaune pour un topic normal, grisé s'il est lu. **(v2)** Dossier rouge si le topic est « chaud » (`reply_count` ≥ seuil ou score élevé).
+- Icône : dossier plein pour un topic non lu, vide s'il est lu. **(v2)** Dossier rouge si le topic est « chaud » (`reply_count` ≥ seuil ou score élevé) — pas fait ; les sujets repris par plusieurs sources sont dans « À la une » sur l'accueil.
 - Auteur = nom de la source.
 - Tri par `last_activity_at` décroissant, pagination de 25.
 - Topic lu : titre grisé. Bouton « Tout marquer comme lu ».
@@ -62,18 +67,19 @@ Un tableau dense, style forum classique :
 - Formulaire pour ajouter une **note perso** (= une reply de type `note`).
 - Ouvrir le topic le marque comme lu.
 
-### Administration `/admin`
+### Administration `/admin` (aujourd'hui : `/parametres/forums` et `/parametres/sources`, `/admin` redirige)
 - CRUD des forums (nom, ordre).
 - CRUD des sources (nom, URL, forum, actif/inactif), avec le statut de la dernière récupération et l'erreur éventuelle.
 - Bouton « Récupérer maintenant » par source.
 
 ## Feuille de route
-- **v1** : auth, forums, sources RSS, worker, liste des topics, page topic, lu/non lu, notes perso, admin, Docker Compose.
-- **v2** : mode lecture (fait), fusion des doublons multi-sources, dossier rouge, sources Reddit (`/r/x.json`), Hacker News (API officielle), releases GitHub (`/releases.atom`), YouTube et Mastodon (RSS), récupération des commentaires HN/Reddit comme réponses.
-- **v3** : recherche plein texte (Postgres `tsvector`), raccourcis clavier, mode sombre.
+- **v1** (fait) : auth, forums, sources RSS, worker, liste des topics, page topic, lu/non lu, notes perso, admin, Docker Compose.
+- **v2** : mode lecture (fait), fusion des doublons multi-sources (faite en 3.3), dossier rouge (non), sources Reddit (`/r/x.json`), Hacker News (API officielle), releases GitHub (`/releases.atom`), YouTube et Mastodon (RSS) (non : seul RSS / Atom est géré, ces sites en publient souvent), récupération des commentaires HN/Reddit comme réponses (non).
+- **v3** : recherche plein texte (Postgres `tsvector`, faite en 3.3), raccourcis clavier (faits en 3.5), mode sombre (fait en 2.5).
+- Ajouts hors feuille de route : listes de favoris, résumé et traduction par IA, Ma stack et notifications push, questions à la veille, briefing du matin, PWA.
 
 ## Déploiement
-- `Dockerfile` (build Next `standalone`), `docker-compose.yml` (app, worker, db avec volume persistant), `.env.example` documenté.
+- `Dockerfile` (build Next `standalone`), `docker-compose.yml` (app, worker, db avec volume persistant, backup), `.env.example` documenté. (Aujourd'hui : image publiée par la CI sur GHCR, `APP_VERSION` dans `.env`.)
 - L'app tourne derrière mon reverse proxy existant (HTTPS géré en amont). Prévoir `BETTER_AUTH_URL` et `BETTER_AUTH_SECRET` en variables d'environnement.
 - Endpoint `/api/health` pour la supervision (base + fraîcheur du worker, 503 au-delà de 3 intervalles sans cycle) ;
   `/api/health/app` (base seule) pour le healthcheck Docker.

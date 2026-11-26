@@ -4,205 +4,438 @@
 [![CodeQL](https://github.com/louisdrouhin/veille/actions/workflows/codeql.yml/badge.svg)](https://github.com/louisdrouhin/veille/actions/workflows/codeql.yml)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-Agrégateur de veille technique auto-hébergé, présenté comme un **forum des années 2000** : chaque source RSS / Atom
-alimente un forum thématique, chaque article devient un topic, et on le lit directement dans l'app.
-Application mono-utilisateur, pensée pour tourner chez soi en Docker Compose derrière un reverse proxy.
+Lecteur de veille technique auto-hébergé, présenté comme un **forum des années 2000**. Chaque source RSS ou Atom
+alimente un forum thématique, et chaque article devient un topic qu'on lit dans l'app. Autour de ce forum :
 
-![Accueil : la liste des forums avec les compteurs de non-lus](docs/screenshots/home.png)
+- des notes perso et des listes de favoris ;
+- un radar des failles qui touchent tes logiciels ;
+- un briefing du matin ;
+- une recherche qui répond à partir de tes articles.
 
-> **Nom** : l'app s'affiche « Folders ». Le dépôt, le dossier de déploiement, le projet Docker Compose (`name: veille`,
-> figé dans `docker-compose.yml`), les volumes (`veille_db-data`), la base et les identifiants internes gardent
-> `veille` : renommer le projet Compose créerait un nouveau volume, donc une base vide.
+Folders est mono-utilisateur. Il tourne chez soi en Docker Compose, derrière un reverse proxy, et s'installe comme
+une app sur téléphone.
 
-| Liste des topics | Page topic |
-|---|---|
-| ![Forum « Sécurité » : topics lus et non lus](docs/screenshots/forum.png) | ![Page topic : l'article complet et une note perso](docs/screenshots/topic.png) |
+![Accueil : alerte Ma stack, résumé chiffré, derniers non lus et liste des forums](docs/screenshots/home.jpg)
 
-![Administration : forums triables et sources avec leur statut de récupération](docs/screenshots/admin.png)
+> **Nom** : l'app s'affiche « Folders ». Le dépôt, le projet Docker Compose (`name: veille`, figé dans
+> `docker-compose.yml`), les volumes, la base et les identifiants internes gardent `veille` : renommer le projet
+> Compose créerait un nouveau volume, donc une base vide.
 
-*Captures réalisées sur la base de démo (`npm run db:seed`).*
+*Toutes les captures viennent de la base de démo (`npm run db:seed`) : sources publiques, logiciels et CVE fictifs
+(`CVE-2099-…`).*
+
+## Sommaire
+
+- [Fonctionnalités](#fonctionnalités)
+- [Stack technique](#stack-technique)
+- [Sécurité et vie privée](#sécurité-et-vie-privée)
+- [Auto-hébergement](#auto-hébergement)
+- [Développement local](#développement-local)
+- [Versions](#versions)
+- [Licence](#licence)
 
 ## Fonctionnalités
 
-- **Accueil** : résumé chiffré (non lus, reçus aujourd'hui, dernière récupération), alerte des sources en erreur,
-  derniers non lus de tous les forums, puis la liste des forums.
-- **Forums et topics** : un tableau dense par forum (dossier plein = non lu), tri par dernière activité, pagination,
-  « Tout marquer comme lu », compteurs de non-lus sur l'accueil.
-- **Récupération des flux** par un worker séparé : ETag / If-Modified-Since, timeout, mise en pause automatique d'une
-  source après 3 échecs, dédoublonnage par URL normalisée (sans `utm_*`, `fbclid`, fragment…).
-- **Article complet** dans la page topic, depuis le contenu du flux ou extrait de la page d'origine
-  avec Readability, HTML assaini (tableaux compris), images servies par un proxy interne. Cache et ré-extraction à la demande.
-- **Résumé et traduction par IA** (Gemini, optionnel) : dans la barre d'actions du topic, « Résumer » en
-  3 à 5 puces au-dessus de l'article (avec « À retenir » quand il y a une action à faire), « Traduire » à la place
-  de l'article (« Original ») en gardant images, liens, tableaux et code, à la demande, mis en cache et réaffiché
-  sans appel sur tous les appareils.
-- **Ma stack** (radar de vulnérabilités) : tu déclares tes logiciels (Homelab / Travail) et leur version ; Folders
-  croise ces versions avec CERT-FR, NVD et GitHub, et crée une alerte quand une faille touche **ta** version.
-  Alertes triées par gravité, détail en français (avis CERT-FR, ou résumé Gemini signalé « Généré par IA »), action
-  recommandée, lien vers le topic Folders du même CVE, « Marquer comme traitée » / « Ignorer » ; bloc sur l'accueil et
-  badge dans la navigation. Comparaison de versions par schéma (semver, `9.8p1`, `8.0 U2`, builds Windows).
-- **Notifications push** des alertes Ma stack (Web Push, iPhone compris dans l'app installée) : gravité minimale,
-  « toujours si exploitée », heures calmes avec envoi groupé à la fin, mode discret sans nom de produit.
-- **Notes perso** sur chaque topic.
-- **Listes de favoris** : ★ Enregistrer sur un topic, dans une ou plusieurs listes colorées, avec un repère ★ dans
-  les listes de topics. Pages « Listes » (renommer, couleur, ordre par glisser-déposer, suppression) et une page par
-  liste (tri par date d'ajout, retrait avec « Annuler », « Copier en Markdown »). Les articles enregistrés ne sont jamais
-  purgés du cache de lecture, et les pages de listes sont gardées pour la lecture hors ligne.
-- **Navigation** : bouton « ← Retour » et fil d'Ariane sur chaque page ; retour à la même page et au même défilement
-  de la liste quand on vient d'un topic ; raccourcis **Échap** ou **U** pour remonter d'un niveau.
-- **Mode sombre** qui suit l'appareil, ou forcé clair / sombre depuis « Mon compte › Apparence » (réglage du
-  compte, rendu côté serveur sans flash ni script).
-- **Double authentification (TOTP)** optionnelle, depuis « Mon compte » : QR code, codes de secours, appareil de confiance 30 jours.
-- **Administration** : forums réordonnables par glisser-déposer, sources avec statut et dernière erreur,
-  « Récupérer maintenant ».
-- **Favicons des sources** téléchargés côté serveur, avec repli sur l'initiale.
-- **Premier lancement guidé** (`/setup`) et scripts de création de compte et de récupération de mot de passe.
-- **Supervision** : `/api/health` signale une base injoignable ou un worker arrêté (pour Uptime Kuma & co).
-- **Sauvegardes** : `pg_dump` quotidien avec rétention de 7 jours, procédure de restauration testée.
-- **App installable (PWA)** sur iPhone, Android et ordinateur : plein écran, lecture hors ligne des topics déjà
-  ouverts (article et images compris), bouton « Actualiser » et « tirer pour rafraîchir » dans l'app installée
-  (iOS n'en a pas en mode app), avis de nouvelle version.
+### Accueil et « À la une »
 
-## Stack
+- Bandeau **Ma stack** quand une faille est à traiter, puis le résumé chiffré : non lus, reçus aujourd'hui, heure
+  de la dernière récupération.
+- **À la une** : les sujets repris par au moins 2 sources dans les dernières 48 h.
+- **Derniers non lus** de tous les forums. Sur mobile, on en voit 3, et « + N autres non lus » déplie le reste.
+- La liste des forums, avec leurs compteurs de non-lus, et une alerte quand des sources sont en erreur.
+
+### Forums, topics et sources
+
+| Liste des topics | Page topic |
+|---|---|
+| ![Forum « Sécurité » : topics lus et non lus](docs/screenshots/forum.jpg) | ![Page topic : article complet et note perso](docs/screenshots/topic.jpg) |
+
+- **Liste des topics** :
+  - un tableau dense par forum, où un dossier plein signale un non-lu ;
+  - tri par dernière activité, pagination, « Tout marquer comme lu » ;
+  - menu ⋯ ou clic droit sur une ligne pour ouvrir, enregistrer ou marquer comme lu.
+- **Article complet** dans la page topic :
+  - le texte vient du flux, ou de la page d'origine extraite avec Readability ;
+  - le HTML est assaini (tableaux et code compris) et les images passent par un proxy interne ;
+  - le texte est mis en cache, avec « Recharger l'article » à côté du lien source.
+- **Notes perso** sous chaque article.
+- **Récupération des flux** par un worker séparé, toutes les 15 minutes :
+  - ETag et If-Modified-Since ;
+  - pause d'une heure après 3 échecs consécutifs ;
+  - dédoublonnage par URL normalisée, sans `utm_*`, `fbclid` ni fragment.
+- **Fusion des doublons** : un article proche par le sens d'un topic des 72 dernières heures devient une reprise de
+  ce topic. Le seuil et la fenêtre se règlent, et « Séparer » annule une fusion.
+- **Paramètres › Forums et Sources** :
+  - forums réordonnables par glisser-déposer ;
+  - sources avec leur statut et leur dernière erreur, filtres « En erreur » et « Désactivées » ;
+  - « Récupérer maintenant » ;
+  - favicons des sources téléchargés côté serveur.
+
+![Paramètres › Sources : statut de chaque flux, source en pause après 3 échecs](docs/screenshots/settings-sources.jpg)
+
+### Listes de favoris
+
+- **★ Enregistrer** range un topic dans une ou plusieurs listes colorées.
+- **Page Listes** : renommer, changer la couleur, réordonner par glisser-déposer, supprimer.
+- **Page d'une liste** : tri par date d'ajout, retrait avec « Annuler », « Copier en Markdown ».
+- Les articles enregistrés ne sont jamais purgés du cache de lecture, et les pages de listes restent lisibles hors
+  ligne.
+
+### Ma stack et alertes CVE
+
+![Ma stack : alertes triées par gravité et détail d'une faille exploitée](docs/screenshots/stack.jpg)
+
+- **Inventaire** : tu déclares tes logiciels et leur version, en contexte Homelab ou Travail.
+- **Vérification** : le worker la fait toutes les 30 minutes, en croisant les versions avec :
+  - les avis du CERT-FR ;
+  - l'API CVE de NVD ;
+  - les avis de sécurité et les versions publiées sur GitHub.
+- **Comparaison de versions** par schéma : semver, `9.8p1`, `8.0 U2`, builds Windows.
+- **Alertes** : une alerte n'est créée que si **ta** version est touchée.
+  - Elles sont triées par gravité ; « Exploitée » vient du catalogue CISA KEV ou de l'avis CERT-FR.
+  - Le détail est en français : l'avis CERT-FR, ou un résumé Gemini signalé comme tel.
+  - Chaque alerte indique la version corrigée, l'action recommandée et le lien vers le topic du même CVE.
+  - Actions : « Marquer comme traitée », « Ignorer » (raison au choix, dont « Corrigé par la distribution »).
+- **Clés facultatives** :
+  - NVD, pour passer de 5 à 50 requêtes / 30 s ;
+  - `GITHUB_TOKEN`, pour passer de 60 à 5 000 requêtes / h.
+
+### Briefing du matin
+
+![Briefing du matin : nouvelles failles de Ma stack et « Le reste en bref »](docs/screenshots/briefing.jpg)
+
+- **Contenu** : à l'heure choisie, Folders prépare une synthèse de ce qui est arrivé depuis la veille, en 4 rubriques
+  au choix :
+  - **Ma stack** : les nouvelles failles, toujours sans IA ;
+  - **À la une** : les sujets repris par plusieurs sources ;
+  - **Mes services** : les nouvelles versions des services suivis ;
+  - **Le reste en bref** : quelques sujets notables.
+- **Réglages** :
+  - heure et jours (du lundi au vendredi, ou tous les jours) ;
+  - longueur : « Court », sans IA, ou « Détaillé », avec une phrase par point ;
+  - aperçu de la notification : complet, ou discret.
+- **Horaire** : il suit le fuseau du compte, changement d'heure compris. Un briefing en retard de moins de 3 h est
+  rattrapé, au-delà il est sauté.
+- **Usage** : « Voir un aperçu d'abord » montre un briefing sans notification. L'historique garde les briefings
+  précédents.
+- **Activation** : le briefing est désactivé tant qu'on ne l'active pas.
+
+### Notifications push
+
+- Web Push pour les alertes Ma stack et le briefing, iPhone compris (app installée, iOS 16.4 ou plus).
+- **Réglages** dans Paramètres › Notifications :
+  - gravité minimale ;
+  - « toujours si exploitée » ;
+  - heures calmes, avec un envoi groupé à leur fin ;
+  - mode discret, sans nom de produit.
+- La notification du briefing est construite sans IA, et le contexte Travail y reste générique.
+
+### Recherche et IA (Gemini, optionnel)
+
+![Recherche : correspondances exactes surlignées, filtres, « Demander à ta veille »](docs/screenshots/search.jpg)
+
+- **Recherche** (`/recherche`, champ de l'en-tête, `/` ou Ctrl+K) :
+  - d'abord les correspondances exactes, notes perso comprises, surlignées ;
+  - puis les articles « proches par le sens » ;
+  - filtres par forum, période, source et listes, et « Inclure mes notes ».
+- **Demander à ta veille** (`/demander`) :
+  - la réponse est rédigée **uniquement** à partir d'extraits de tes articles, avec un renvoi `[n]` vérifié côté
+    serveur après chaque affirmation ;
+  - sans source valide, la réponse est « Rien trouvé dans ta veille » ;
+  - l'historique garde les 20 dernières questions, et il est effaçable.
+- **Résumer** et **Traduire** dans la page topic :
+  - Résumer : 3 à 5 puces, avec « À retenir » quand une action s'impose ;
+  - Traduire : traduction à la place de l'article, en gardant images, liens, tableaux et code ;
+  - les résultats sont mis en cache et réaffichés sans nouvel appel.
+- **Modèles** : `gemini-3.5-flash-lite` pour les résumés, `gemini-3.8-flash` pour les traductions et les questions.
+  - Si le modèle principal est surchargé ou trop lent, le résultat vient de Flash-Lite, signalé « Modèle de
+    secours », avec « Refaire avec le modèle principal ».
+  - Un appel dure au plus 25 s, et une demande au plus 50 s en tout.
+- **Paramètres › Recherche et IA** :
+  - seuil et fenêtre de fusion des doublons ;
+  - limites par jour : textes indexés (1 000) et questions (50) ;
+  - simulation des réglages sur tes articles ;
+  - avancement de l'indexation.
+- Sans clé Gemini, tout ce qui précède est désactivé ou masqué, sauf la recherche exacte, qui reste locale.
+
+### Raccourcis clavier
+
+![Aide des raccourcis clavier (touche ?)](docs/screenshots/shortcuts.jpg)
+
+- **Partout** :
+  - `/` ou `Ctrl K` : rechercher ;
+  - `g` puis `h` / `f` / `b` / `l` / `s` / `p` : aller à l'accueil, aux forums, au briefing, aux listes, à Ma
+    stack, aux paramètres ;
+  - `u` ou `Échap` : remonter d'un niveau ;
+  - `?` : l'aide.
+- **Listes de topics** :
+  - `j` / `k` : ligne suivante / précédente ;
+  - `Entrée` : ouvrir, `Ctrl Entrée` dans un nouvel onglet ;
+  - `o` : article d'origine ;
+  - `m` : marquer lu / non lu ;
+  - `s` : enregistrer dans une liste ;
+  - `Maj C` : copier le lien Folders ;
+  - `n` / `p` : page suivante / précédente.
+- **Page d'un topic** :
+  - `j` / `k` : topic suivant / précédent de la liste d'origine (le topic ouvert passe en lu) ;
+  - `Espace` : défiler.
+
+Les raccourcis sont inactifs pendant la saisie dans un champ. Paramètres › Raccourcis clavier permet de les
+désactiver.
+
+### Compte, apparence et paramètres
+
+![Mode sombre et menu du compte : Paramètres, Profil, Raccourcis, thème](docs/screenshots/dark.jpg)
+
+- **Menu du compte** (en-tête) : Paramètres, Profil, Raccourcis clavier, thème (Clair / Sombre / Système),
+  déconnexion.
+- **Mode sombre** : il suit l'appareil, ou il est forcé. Le rendu est fait côté serveur, sans flash ni script.
+- **Paramètres** (`/parametres/…`) : Profil, Sécurité, Apparence, Notifications, Briefing du matin, Raccourcis
+  clavier, Forums, Sources, Intégrations, Recherche et IA, À propos.
+  - Les anciennes adresses `/compte` et `/admin` redirigent vers leur page.
+  - À propos affiche la version, le commit, la date du build et les nouveautés.
+- **Profil** :
+  - prénom, nom et adresse e-mail ;
+  - photo recadrée dans le navigateur, puis contrôlée par le serveur (voir [Sécurité](#sécurité-et-vie-privée)).
+- **Sécurité** :
+  - changement du mot de passe ;
+  - double authentification TOTP : QR code, codes de secours, appareil de confiance 30 jours ;
+  - sessions ouvertes, révocables une par une ou toutes sauf la session en cours.
+
+### App installable (PWA)
+
+- **Installation** : sur iPhone, Partager › Sur l'écran d'accueil ; sur Android et ordinateur, le bouton
+  « Installer l'app ». Il faut du HTTPS, ou `localhost`.
+- **Hors ligne** :
+  - les pages déjà vues restent lisibles : accueil, forums, topics ouverts (article et images), listes, Ma stack ;
+  - ailleurs, une page « Hors ligne » liste ce qui est disponible ;
+  - les actions demandent le réseau.
+- **Dans l'app installée** :
+  - « tirer pour rafraîchir » et un bouton « Actualiser » (iOS n'en a pas en mode app) ;
+  - un avis « Nouvelle version disponible » après un déploiement, sans rechargement forcé ;
+  - les liens externes s'ouvrent dans le navigateur.
+
+## Stack technique
 
 | | |
 |---|---|
 | App | Next.js 16 (App Router, server actions, `proxy.ts`), React 19, TypeScript strict |
 | UI | Tailwind CSS v4 (design tokens, aucune couleur en dur), polices IBM Plex auto-hébergées |
-| Données | PostgreSQL 17, Drizzle ORM (migrations versionnées) |
-| Auth | Better Auth (email + mot de passe, inscription désactivée) |
-| Worker | Process Node séparé (`rss-parser`), même base de code |
+| Données | PostgreSQL 17, Drizzle ORM (migrations versionnées dans `drizzle/`) ; embeddings en `bytea`, sans pgvector |
+| Auth | Better Auth (email + mot de passe, inscription désactivée, TOTP) |
+| Worker | Process Node séparé (`rss-parser`), même base de code : flux, Ma stack, indexation, briefing |
 | Lecture | `@mozilla/readability` sur un DOM `linkedom`, `sanitize-html` |
-| Tests | Vitest, PGlite en mémoire, testcontainers (PostgreSQL réel) pour l'intégration |
-| Déploiement | Docker (build Next `standalone`, utilisateur non-root), Docker Compose |
-| CI | GitHub Actions (lint, typecheck, tests, intégration, `npm audit`), CodeQL, Dependabot ; actions épinglées par SHA |
+| IA | API Gemini appelée côté serveur (`fetch`), sans SDK ; Web Push avec `node:crypto`, sans dépendance |
+| Tests | Vitest, PGlite en mémoire ; testcontainers (PostgreSQL réel) pour l'intégration |
+| Déploiement | Image Docker (Next `standalone`, utilisateur non-root) publiée sur GHCR, Docker Compose |
+| CI | GitHub Actions (lint, typecheck, tests, intégration, `npm audit`), CodeQL, scan Trivy de l'image, Dependabot ; actions épinglées par SHA |
 
-## Choix de sécurité
+## Sécurité et vie privée
 
 L'app affiche du HTML venu de sites tiers et télécharge des URL qu'elle ne contrôle pas : la sécurité a guidé la
-conception.
+conception. Une faille ? Voir [SECURITY.md](SECURITY.md).
 
-- **SSRF** (`lib/net/safe-fetch.ts`) : toutes les requêtes sortantes déclenchées par du contenu tiers (articles,
-  favicons, proxy d'images) passent par `safeFetch`. Seuls `http` et `https` sont acceptés ; le nom est résolu et
-  toute adresse privée, loopback, link-local ou réservée est refusée (10/8, 172.16/12, 192.168/16, 127/8,
-  169.254/16, 100.64/10, `::1`, `fc00::/7`, `fe80::/10`, IPv4 mappée…). La socket elle-même utilise un `lookup`
-  filtré, donc pas de fenêtre de DNS rebinding entre la vérification et la connexion. Redirections suivies à la main
-  (3 au maximum) et revérifiées à chaque saut ; taille maximale appliquée pendant le téléchargement.
-- **Assainissement HTML** (`lib/reader/sanitize.ts`) : liste blanche stricte de balises (`p`, `h2`-`h4`, listes,
-  `a`, `strong`, `em`, `blockquote`, `pre`/`code`, `img`, `figure`) et d'attributs (`a[href]`, `img[src|alt]`
-  seulement : ni `on*`, ni `style`) ; liens externes en `rel="noopener noreferrer"`. Fait côté serveur, avant stockage.
-  L'extraction tourne sur `linkedom`, qui n'exécute aucun script.
-- **Images** : réécrites vers `/api/image-proxy` (session requise), types identifiés par leurs octets (SVG refusé),
-  taille limitée. Le navigateur ne contacte jamais le site tiers.
-- **CSP** (`lib/csp.ts`, posée par `proxy.ts` sur chaque page) : scripts `'nonce-…' 'strict-dynamic'` avec un nonce
-  par requête, `img-src 'self'`, `object-src`, `frame-src` et `media-src` à `'none'`, `frame-ancestors 'none'`,
-  `form-action 'self'`.
-- **Authentification** : Better Auth, inscription désactivée, mots de passe ≥ 12 caractères, cookies `Secure` en
-  HTTPS, double authentification TOTP optionnelle (secret chiffré en base, codes de secours à usage unique, verrouillage
-  après 10 échecs). Rate limiting : 3 tentatives / 10 s par client sur la connexion et sur le second facteur.
-  Le client est identifié par `X-Forwarded-For` uniquement (pas `X-Real-IP`, qu'un proxy qui ne le pose pas laisse
-  passer tel quel) ; avec `TRUSTED_PROXIES`, par l'IP que le proxy a lui-même ajoutée en fin d'en-tête. Le proxy ne
-  doit pas non plus croire un `X-Real-IP` envoyé par le client (voir [Nginx Proxy Manager](#derrière-nginx-proxy-manager)).
-  `proxy.ts` ne sert qu'à une redirection de confort : chaque layout protégé, route API et server
-  action revérifie la session côté serveur (cf. CVE-2025-29927). Le setup de premier lancement est protégé par
-  `pg_advisory_xact_lock` (un seul compte peut être créé, testé avec des setups concurrents) puis renvoie 404.
-- **Service worker** (`lib/pwa/service-worker.js`) : ne met en cache que des `GET` de notre origine ; jamais
-  `/api/auth`, `/setup`, `/admin`, `/compte`, `/login`, ni les server actions (POST) ni les données du routeur (RSC) ;
-  jamais une redirection (session expirée) ni une erreur. Tous ses caches sont vidés à la déconnexion et à chaque
-  affichage de la page de connexion. La CSP ne gagne que `worker-src 'self'` et `manifest-src 'self'`.
-- **Exploitation** : conteneur non-root, images de base épinglées par digest (mises à jour par Dependabot), healthcheck
-  sans donnée utilisateur, secrets par variables d'environnement ou chiffrés en base (voir [Intégrations](#intégrations-clés-dapi-depuis-linterface)), rotation des logs Docker.
+### Anti-SSRF
 
-Une faille ? Voir [SECURITY.md](SECURITY.md).
+`lib/net/safe-fetch.ts` porte toutes les requêtes sortantes déclenchées par du contenu tiers : articles, favicons,
+proxy d'images, sources Ma stack, envoi des notifications.
 
-## Installation (Docker Compose)
+- Seuls `http` et `https` sont acceptés.
+- Toute adresse privée, loopback, link-local ou réservée est refusée, en IPv4 comme en IPv6, IPv4 mappée comprise.
+- La socket utilise un `lookup` filtré : il n'y a pas de fenêtre de DNS rebinding.
+- Les redirections (3 au plus) sont revérifiées à chaque saut, et la taille maximale est appliquée pendant le
+  téléchargement.
 
-Prérequis : Docker avec le plugin Compose, et idéalement un reverse proxy HTTPS devant l'app.
+### CSP avec nonce
+
+`lib/csp.ts`, posée par `proxy.ts` sur chaque page, avec un nonce par requête :
+
+- `script-src 'nonce-…' 'strict-dynamic'` : aucun script inline ;
+- `img-src 'self'` et `connect-src 'self'` ;
+- `object-src`, `frame-src` et `media-src` à `'none'`, `frame-ancestors 'none'`, `form-action 'self'`.
+
+### HTML assaini
+
+`lib/reader/sanitize.ts` fait l'assainissement côté serveur, avant le stockage.
+
+- Liste blanche stricte de balises et d'attributs : ni `on*`, ni `style`.
+- Les liens externes reçoivent `rel="noopener noreferrer"`.
+- L'extraction tourne sur `linkedom`, qui n'exécute aucun script.
+
+### Proxy d'images
+
+Les images des articles sont réécrites vers `/api/image-proxy`, et le navigateur ne contacte jamais le site tiers.
+
+- Une session est requise.
+- Le type est identifié par les octets, et le SVG est refusé.
+- La taille est limitée.
+
+### Authentification
+
+- **Comptes** : Better Auth, inscription désactivée, mots de passe d'au moins 12 caractères, cookies `Secure` en
+  HTTPS.
+- **2FA** : TOTP optionnelle, secret chiffré en base, codes de secours à usage unique.
+- **Rate limiting** : 3 tentatives par 10 s et par client, sur la connexion et sur le second facteur. Le client est
+  identifié par `X-Forwarded-For`, lu par la droite avec `TRUSTED_PROXIES`.
+- **Sessions** : chaque layout, route API et server action revérifie la session. `proxy.ts` ne fait qu'une
+  redirection de confort (cf. CVE-2025-29927).
+- **Premier lancement** : `/setup` est protégé par un verrou consultatif PostgreSQL, si bien qu'un seul compte peut
+  être créé. Ensuite, `/setup` renvoie 404.
+- **Re-confirmation** : modifier les clés d'API, le mot de passe, la 2FA ou l'e-mail demande le mot de passe, ou le
+  code 2FA. La confirmation vaut 10 minutes dans cette session, avec 5 essais par 10 minutes.
+
+### Clés chiffrées
+
+Les clés saisies dans Paramètres › Intégrations sont chiffrées en AES-256-GCM avec `SECRETS_KEY`.
+
+- Le chiffrement utilise un IV aléatoire et le nom de la clé en donnée associée.
+- Une clé n'est jamais renvoyée au navigateur : seuls ses 4 derniers caractères sont affichés.
+- Une clé n'apparaît jamais dans les journaux.
+- Le journal `settings_log` dit qui a changé quoi, et quand, sans les valeurs.
+
+### Photo de profil
+
+- Elle est recadrée et ré-encodée dans le navigateur, sur un canvas.
+- Le serveur vérifie :
+  - le vrai format (JPEG ou WebP) ;
+  - l'absence de métadonnées EXIF, XMP, IPTC ou commentaires ;
+  - les dimensions exactes, 512 × 512 et 64 × 64.
+- Elle est servie en `nosniff` et en cache privé.
+
+### Service worker
+
+- Il ne met en cache que des `GET` de notre origine, et seulement les pages prévues pour le hors-ligne.
+- Il ne met jamais en cache :
+  - `/api/auth`, `/setup`, `/parametres`, `/login`, ni les server actions ;
+  - une redirection ou une erreur.
+- Ses caches sont vidés à la déconnexion.
+
+### Vie privée et IA
+
+- Rien n'est envoyé à Gemini sans geste explicite : un clic sur Résumer, Traduire ou Demander, ou l'activation du
+  briefing détaillé. Une URL de question partagée ou rechargée redemande avant d'envoyer.
+- L'indexation par le sens envoie le titre, le chapô et le début des articles publics.
+- Les **notes perso** et l'inventaire **Ma stack** ne partent **jamais** à Gemini : ni en embeddings, ni dans une
+  question, ni dans le briefing.
+- Les journaux de Ma stack ne contiennent que des nombres et des noms de sources : jamais un produit, une version ni
+  un CVE. Les services interrogés (NVD, GitHub) voient en revanche quels produits sont suivis.
+- Offre gratuite de Gemini : Google peut utiliser les textes envoyés (des articles publics) pour améliorer ses
+  produits.
+
+## Auto-hébergement
+
+Prérequis : Docker avec le plugin Compose, et un reverse proxy HTTPS devant l'app.
+
+### docker compose
 
 ```sh
 git clone https://github.com/louisdrouhin/veille.git
 cd veille
-cp .env.example .env
-```
-
-Dans `.env`, renseigner au minimum :
-
-- `POSTGRES_PASSWORD` : par exemple `openssl rand -base64 24` ;
-- `BETTER_AUTH_SECRET` : au moins 32 caractères aléatoires, par exemple `openssl rand -base64 32` ;
-- `BETTER_AUTH_URL` : l'URL publique exacte de l'app, telle que la voit le navigateur ;
-- `APP_PORT` / `APP_BIND` : le port publié pour le reverse proxy (`APP_BIND=127.0.0.1` si le proxy est sur la même machine ;
-  inutile si le proxy rejoint l'app par un réseau Docker, voir [Nginx Proxy Manager](#derrière-nginx-proxy-manager)) ;
-- `TRUSTED_PROXIES` (optionnel) : l'IP du reverse proxy, pour un rate limiting par client exact ;
-- `APP_VERSION` : la version de l'image à lancer (voir les [Releases](https://github.com/louisdrouhin/veille/releases)).
-
-> Le port de l'app ne doit être joignable que par le reverse proxy (`APP_BIND`, pare-feu) : en accès direct, un client
-> peut forger `X-Forwarded-For` et contourner le rate limiting de la connexion.
-
-```sh
+cp .env.example .env      # puis le remplir, voir ci-dessous
 docker compose pull
 docker compose up -d
 curl http://localhost:3000/api/health     # {"status":"ok",…} une fois le premier cycle du worker terminé
 ```
 
-L'image `ghcr.io/louisdrouhin/veille` (linux/amd64, publique) est construite par la CI à chaque nouvelle version,
-analysée par Trivy (une faille CRITIQUE corrigeable ou un secret bloque la publication) et publiée avec sa
-provenance et son SBOM, sous les tags `X.Y.Z`, `X.Y`, commit court et `latest`. Mon compte › À propos affiche la
-version, le commit et la date du build.
+Quatre services :
 
-#### Mise à jour et retour arrière
+- `db` : PostgreSQL 17, dans le volume `db-data` ;
+- `app` : applique les migrations au démarrage, puis sert Next ;
+- `worker` : démarre une fois `app` healthy ;
+- `backup` : les sauvegardes.
 
-1. Lire les notes de la [Release](https://github.com/louisdrouhin/veille/releases) ; si elle contient une migration
-   (nouveau fichier dans `drizzle/`), faire d'abord une sauvegarde :
-   `docker compose exec -T db pg_dump -U veille -d veille -Fc > backups/avant-X.Y.Z.dump`.
-2. Mettre la nouvelle version dans `.env` (`APP_VERSION=X.Y.Z`), puis `git pull` (fichier compose à jour).
-3. `docker compose pull && docker compose up -d`, puis vérifier `/api/health`.
+Les logs Docker sont limités à 3 × 10 Mo par service.
 
-Retour arrière : remettre l'ancienne `APP_VERSION` dans `.env`, puis `docker compose pull && docker compose up -d`.
-Les migrations ne sont pas annulées : après une version qui en contenait, restaurer aussi la sauvegarde (voir
-[Sauvegardes et restauration](#sauvegardes-et-restauration)).
+L'image `ghcr.io/louisdrouhin/veille` (linux/amd64, publique) est construite par la CI à chaque nouvelle version.
 
-Pour construire l'image soi-même (développement, fork) :
+- Elle est analysée par Trivy : une faille CRITIQUE corrigeable bloque la publication.
+- Elle est publiée avec sa provenance et son SBOM, sous les tags `X.Y.Z`, `X.Y`, commit court et `latest`.
+
+Pour construire l'image soi-même (fork, développement) :
 `APP_VERSION=local APP_COMMIT=$(git rev-parse --short HEAD) docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
-- `app` applique les migrations au démarrage puis sert Next ; `worker` démarre une fois `app` healthy ;
-  `db` stocke ses données dans le volume `db-data`. Logs Docker limités à 3 × 10 Mo par service.
-- Le reverse proxy doit transmettre l'en-tête `Host` d'origine (ou `X-Forwarded-Host`), sinon Next refuse les
-  server actions (protection CSRF).
+### Variables du `.env`
 
-### Derrière Nginx Proxy Manager
+Toutes sont décrites dans [`.env.example`](.env.example).
 
-Montage recommandé quand NPM tourne en Docker sur la même machine : l'app rejoint le réseau Docker de NPM et ne
-publie **aucun port**, NPM est le seul point d'entrée.
+| Variable | Rôle |
+|---|---|
+| `APP_VERSION` | **Obligatoire.** Version de l'image à lancer (voir les [Releases](https://github.com/louisdrouhin/veille/releases)) |
+| `POSTGRES_PASSWORD` | **Obligatoire.** Ex. `openssl rand -base64 24` (`POSTGRES_USER` / `POSTGRES_DB` : `veille`) |
+| `BETTER_AUTH_SECRET` | **Obligatoire.** Au moins 32 caractères aléatoires, ex. `openssl rand -base64 32` |
+| `BETTER_AUTH_URL` | URL publique exacte de l'app, telle que la voit le navigateur |
+| `TRUSTED_PROXIES` | IP du reverse proxy (`/32`), pour un rate limiting par client exact |
+| `APP_PORT` / `APP_BIND` | Port publié (`APP_BIND=127.0.0.1` si le proxy est sur la même machine) |
+| `SECRETS_KEY` | Clé maîtresse des clés saisies dans Paramètres › Intégrations (`openssl rand -base64 32`) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TRANSLATE_MODEL`, `GEMINI_EMBEDDING_MODEL` | IA (optionnel) |
+| `EMBED_DAILY_LIMIT`, `ASK_DAILY_LIMIT` | Limites par jour de l'indexation et des questions |
+| `NVD_API_KEY`, `GITHUB_TOKEN`, `STACK_CHECK_INTERVAL_MINUTES` | Ma stack |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Notifications push (optionnel) |
+| `FETCH_INTERVAL_MINUTES`, `FETCH_CONCURRENCY`, `FETCH_USER_AGENT` | Worker de récupération |
+| `BACKUP_HOUR`, `BACKUP_KEEP`, `BACKUP_UID`, `BACKUP_GID` | Sauvegardes |
 
-1. **Réseau** : copier [`docker-compose.npm.example.yml`](docker-compose.npm.example.yml) en
-   `docker-compose.override.yml` (non versionné), y mettre le nom du réseau de NPM (`docker network ls`), puis
-   `docker compose up -d`. L'app y est joignable sous l'alias `veille-app` ; choisir un alias qu'aucun autre conteneur
-   n'utilise sur ce réseau (Compose y enregistre aussi le nom de service `app`, que NPM ne doit donc pas utiliser).
-2. **`TRUSTED_PROXIES`** dans `.env` : l'IP de NPM sur ce réseau
-   (`docker inspect <conteneur npm> -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}'`), en `/32`.
-   Pas tout le sous-réseau : la passerelle Docker (`.1`) est l'adresse vue par NPM pour certaines connexions relayées
-   par Docker, et la croire ferait lire au rate limiting la valeur forgée à sa gauche. L'IP de NPM n'apparaît jamais
-   dans `X-Forwarded-For` : la liste sert seulement à activer la lecture par la droite (première IP non fiable).
-3. **Dans NPM**, Proxy Hosts → l'hôte de l'app → Edit :
+- **Clés dans l'interface** : Paramètres › Intégrations gère les clés Gemini, NVD et VAPID sans toucher au `.env`,
+  à condition que `SECRETS_KEY` soit défini.
+  - Une valeur saisie dans l'interface remplace celle du `.env`.
+  - « Tester la clé » fait l'appel le plus petit possible.
+  - « Générer les clés » crée les clés VAPID côté serveur.
+- **Clés VAPID en ligne de commande** :
+  `docker compose run --rm --no-deps app node dist/vapid-keys.js`, puis les deux lignes affichées dans le `.env`.
+  Ne plus les changer ensuite : chaque appareil abonné devrait se réabonner.
+
+> Le port de l'app ne doit être joignable que par le reverse proxy (`APP_BIND`, pare-feu). En accès direct, un client
+> peut forger `X-Forwarded-For` et contourner le rate limiting de la connexion.
+
+### Premier lancement : `/setup`
+
+Tant qu'aucun compte n'existe, toutes les pages redirigent vers **`/setup`** : email, mot de passe (au moins
+12 caractères) et confirmation. Une fois le compte créé, `/setup` renvoie 404.
+
+> ⚠️ Tant que le setup n'est pas fait, quiconque atteint l'app peut le faire. Crée le compte **avant** d'exposer
+> l'app via le reverse proxy, ou en ligne de commande :
+
+```sh
+docker compose exec app node dist/create-user.js --email moi@example.com --password 'un long mot de passe' --name Moi
+# Mot de passe oublié : change le mot de passe et ferme toutes les sessions (--disable-2fa : coupe aussi la 2FA)
+docker compose exec app node dist/reset-password.js --email moi@example.com --password 'un nouveau mot de passe'
+```
+
+Ensuite :
+
+1. Crée des forums et des sources dans **Paramètres › Forums** et **Sources**.
+2. Clique sur « Récupérer maintenant », ou attends le worker (toutes les `FETCH_INTERVAL_MINUTES`, 15 par défaut).
+
+### Reverse proxy et `TRUSTED_PROXIES`
+
+Le reverse proxy doit transmettre l'en-tête `Host` d'origine (ou `X-Forwarded-Host`), sinon Next refuse les server
+actions (protection CSRF). Il ne doit pas non plus croire un `X-Real-IP` envoyé par le client.
+
+**Exemple avec Nginx Proxy Manager** (NPM) en Docker sur la même machine. L'app rejoint le réseau de NPM et ne
+publie aucun port.
+
+1. **Réseau** :
+   - copier [`docker-compose.npm.example.yml`](docker-compose.npm.example.yml) en `docker-compose.override.yml`
+     (non versionné) ;
+   - y mettre le nom du réseau de NPM (`docker network ls`), puis lancer `docker compose up -d` ;
+   - l'app y est joignable sous l'alias `veille-app`, qu'aucun autre conteneur du réseau ne doit utiliser.
+2. **`TRUSTED_PROXIES`** dans `.env` : l'IP de NPM sur ce réseau, en `/32`, obtenue avec
+   `docker inspect <conteneur npm> -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}'`.
+   Ne pas y mettre tout le sous-réseau : la passerelle Docker (`.1`) relaie certaines connexions, et la croire ferait
+   lire au rate limiting une valeur forgée.
+3. **Dans NPM**, Proxy Hosts › l'hôte de l'app :
    - *Details* : scheme `http`, Forward Hostname `veille-app`, Forward Port `3000` ;
-   - *Advanced*, « Custom Nginx Configuration » :
+   - *Advanced* :
 
      ```nginx
      set_real_ip_from 127.0.0.1/32;
      real_ip_recursive off;
      ```
 
-   La configuration globale de NPM fait confiance à l'en-tête `X-Real-IP` envoyé par le client dès que la connexion
-   vient d'une adresse privée (10/8, 172.16/12, 192.168/16 : tout le LAN, et Internet via le NAT du routeur) ou d'une
-   plage Cloudflare / CloudFront : NPM remplace alors l'IP du client par la valeur forgée et l'ajoute à
-   `X-Forwarded-For`, ce qui contourne le rate limiting de la connexion. Ces deux lignes remplacent, pour cet hôte
-   seulement, la liste des sources de confiance : NPM garde l'IP réelle de la connexion. À retirer si un CDN est
-   placé devant NPM (il faudrait alors y lister ses plages).
-   - Enregistrer *Details* et *Advanced* **ensemble** : chaque enregistrement réécrit tout l'hôte, et une config
-     Advanced vide l'efface. Vérification : `grep -E 'server  |port  |real_ip' <données NPM>/nginx/proxy_host/<id>.conf`.
+     Sans ces deux lignes, la configuration globale de NPM croit le `X-Real-IP` d'un client du LAN ou d'Internet
+     (via le NAT), ce qui contourne le rate limiting. À retirer si un CDN est placé devant NPM.
+   - Enregistrer *Details* et *Advanced* **ensemble** : chaque enregistrement réécrit tout l'hôte.
 
-Contrôle (6 tentatives : les 3 premières en 401, puis 429 ; sans le correctif, la variante `X-Real-IP` n'est jamais
-bloquée) :
+**Contrôle** : sur 6 tentatives, les 3 premières renvoient 401, les suivantes 429.
 
 ```sh
 U=https://veille.example.org
@@ -214,204 +447,59 @@ for i in 1 2 3 4 5 6; do
 done
 ```
 
-La sonde de supervision (Uptime Kuma…) passe alors par l'URL publique : `https://…/api/health`.
-
-### Premier lancement : `/setup`
-
-Tant qu'aucun compte n'existe, toutes les pages redirigent vers **`/setup`** : email, mot de passe (≥ 12 caractères)
-et confirmation. Une fois le compte créé, `/setup` renvoie 404 définitivement.
-
-> ⚠️ Tant que le setup n'est pas fait, quiconque atteint l'app peut le faire : crée le compte **avant** d'exposer
-> l'app via le reverse proxy, ou en ligne de commande :
-
-```sh
-docker compose exec app node dist/create-user.js --email moi@example.com --password 'un long mot de passe' --name Moi
-# Mot de passe oublié : change le mot de passe et ferme toutes les sessions (--disable-2fa : coupe aussi la 2FA)
-docker compose exec app node dist/reset-password.js --email moi@example.com --password 'un nouveau mot de passe'
-```
-
-Ensuite : créer des forums et des sources dans **Admin**, puis « Récupérer maintenant » ou attendre le worker
-(toutes les `FETCH_INTERVAL_MINUTES`, 15 par défaut).
-
-### Intégrations (clés d'API depuis l'interface)
-
-**Administration › Intégrations** gère la clé Gemini (et ses deux modèles), la clé NVD et les clés VAPID sans
-toucher au `.env`. Il faut d'abord une clé maîtresse dans le `.env` du serveur :
-
-```sh
-echo "SECRETS_KEY=$(openssl rand -base64 32)" >> .env && docker compose up -d
-```
-
-- **Priorité** : une valeur enregistrée dans l'interface remplace la variable d'environnement ; supprimée, l'app
-  reprend celle du `.env`. La page indique la source (« Interface » / « .env ») et le dernier test de chaque clé.
-- **Chiffrement** : AES-256-GCM avec `SECRETS_KEY`, IV aléatoire par valeur, nom de la clé en donnée associée (un
-  chiffré recopié sur une autre clé ne se déchiffre pas). Garder `SECRETS_KEY` : sans elle, ou avec une autre, les clés
-  enregistrées sont illisibles (signalées comme telles) et l'app revient au `.env`. Sans `SECRETS_KEY`, la page est en
-  lecture seule.
-- **Écriture seule** : une clé n'est jamais renvoyée au navigateur (seulement ses 4 derniers caractères), ni écrite
-  dans les journaux ou les messages d'erreur. Remplacer ou supprimer, jamais relire.
-- **Re-confirmation** : chaque modification demande le mot de passe, ou le code de double authentification quand
-  elle est activée, puis reste permise 5 minutes dans cette session (5 essais par 10 min).
-- **« Tester la clé »** : l'appel le plus petit possible (description des deux modèles Gemini, une CVE connue pour
-  NVD), 5 tests par minute et 30 par jour.
-- **VAPID** : « Reprendre les clés du .env » les copie dans l'interface (mêmes clés : les appareils restent abonnés) ;
-  « Générer les clés » en crée de nouvelles côté serveur (la clé privée n'est jamais affichée) et désabonne tous les
-  appareils.
-- **Journal** : quelle clé, quelle action, quand — jamais la valeur (`settings_log`).
-- Le worker relit ces valeurs à chaque cycle (au plus toutes les 10 s).
-
-### Résumé et traduction (Gemini)
-
-Optionnel : renseigner la clé Gemini dans **Administration › Intégrations**, ou `GEMINI_API_KEY` (clé Google AI
-Studio) dans le `.env` du serveur, puis `docker compose up -d`. Sans clé, les boutons « Résumer » et « Traduire en français » sont masqués.
-
-- Modèles (stables, offre gratuite) : `gemini-3.5-flash-lite` pour les résumés (`GEMINI_MODEL`),
-  `gemini-3.8-flash` pour les traductions (`GEMINI_TRANSLATE_MODEL`), plus fidèle que le Lite.
-- Appels **côté serveur uniquement** : la clé n'est jamais envoyée au navigateur et la CSP ne change pas.
-- Seul l'article est envoyé (jamais les notes), dans un bloc délimité présenté au modèle comme une donnée non fiable.
-- **Résumé** : titre et texte, coupés à 24 000 caractères ; la réponse, demandée en Markdown, passe par un rendu
-  Markdown fermé (ni lien, ni image, ni HTML) puis par la même liste blanche que les articles.
-- **Traduction** : le modèle ne produit jamais de HTML. L'article assaini est découpé en passages de texte numérotés
-  (paragraphes, titres, éléments de liste, citations, légendes, cellules), envoyés en JSON `{ id: texte }` par lots
-  de 8 000 caractères (un long article fait plusieurs appels, rien n'est coupé ; au-delà de 160 000 caractères la
-  traduction est refusée). Liens, mise en forme et code en ligne y sont des marqueurs `⟦n⟧`. La réponse doit
-  reprendre exactement les mêmes identifiants et marqueurs, en texte brut, sinon le lot est redemandé une fois puis
-  refusé ; chaque traduction est réinjectée dans le nœud d'origine. Images, cibles des liens, tableaux, mise en
-  forme et blocs de code viennent donc toujours de notre HTML.
-- Limite par utilisateur : 6 demandes par minute et 60 par jour (les réponses en cache ne comptent pas) ; timeout
-  de 30 s (90 s par lot de traduction) ; quota Gemini dépassé, clé refusée ou contenu bloqué sont affichés en clair.
-- Cache en base par topic, type et modèle (`ai_outputs`), avec une version de format : un changement de format
-  (consignes, construction) refait les résultats. Supprimé avec l'article (purge à 90 jours, jamais pour un topic
-  présent dans une liste) et refait si l'article est rechargé.
-- Offre gratuite de Gemini : Google peut utiliser le texte envoyé (des articles publics) pour améliorer ses produits.
-
-### Demande à ta veille (3.3)
-
-Chaque article est indexé deux fois, par le worker après chaque cycle :
-
-- **Plein texte** (recherche exacte, locale) : titre, chapô, texte de l'article et **notes perso**, en configurations
-  française et anglaise, sans accents (`folders_fold()`, une fonction SQL `IMMUTABLE` : aucune extension).
-- **Par le sens** (embeddings `gemini-embedding-2`, 768 dimensions, multilingue) : titre, chapô et début de l'article
-  (2 000 caractères). Vecteurs en `bytea` et similarité calculée dans l'app : au rythme de ~800 articles par mois, un an
-  tient en 30 Mo et se compare en quelques millisecondes, sans changer l'image PostgreSQL (pas de pgvector). La colonne
-  `model` permet de réindexer avec un autre modèle (`GEMINI_EMBEDDING_MODEL`).
-- **Vie privée** : les notes perso et l'inventaire Ma stack ne partent **jamais** à Gemini (ni en embeddings, ni dans une
-  question). Offre gratuite : Google peut utiliser les textes envoyés (des articles publics) pour améliorer ses produits.
-- **Limites** par jour (heure de Paris), partagées par l'app et le worker : `EMBED_DAILY_LIMIT` textes indexés (1 000) et
-  `ASK_DAILY_LIMIT` questions (50). Le rattrapage de l'existant avance donc par paliers ; sa progression est affichée
-  dans Administration › Intégrations.
-
-- **Recherche** (`/recherche`, champ dans l'en-tête, `/` ou Ctrl+K) : correspondances exactes (surlignées, notes
-  incluses) puis « proches par le sens » ; filtres forum, période, source, listes, notes dans l'URL.
-- **Fusion des doublons** : un article proche (au sens des embeddings) d'un topic arrivé dans les 72 h en devient une
-  reprise ; seuil réglable dans Administration › Intégrations (0,87 par défaut) ; « Séparer » dans le menu ⋯ d'une
-  reprise. « À la une » : topics à 2 sources ou plus actifs dans les 48 h. « Sujets proches » en bas de chaque topic.
-- **Questions** (`/demander`) : réponse rédigée par Gemini **uniquement** à partir d'extraits d'articles de la veille
-  (jamais une note), en streaming, avec un renvoi `[n]` contrôlé côté serveur après chaque affirmation ; sans source
-  valide, « Rien trouvé dans ta veille ». Rien n'est envoyé au modèle sans geste explicite (Entrée sur « Demander »,
-  un clic) : une URL partagée ou rechargée redemande. Historique des 20 dernières questions, effaçable ; réponses en
-  cache 6 h, refaites à chaque nouvel article ou reprise.
-
-### Ma stack (radar de vulnérabilités)
-
-Aucune configuration obligatoire : le worker vérifie la stack toutes les 30 min (`STACK_CHECK_INTERVAL_MINUTES`), et
-« tirer pour rafraîchir » sur ses pages relance une vérification (au plus une toutes les 5 min).
-
-- **Sources** : flux et JSON des avis du CERT-FR, API CVE 2.0 de NVD (par préfixe CPE), avis de sécurité et versions
-  publiées sur GitHub. « Exploitée » vient du catalogue CISA KEV (repris par NVD) ou de l'avis CERT-FR.
-- **Clés facultatives** : la clé NVD (Administration › Intégrations, ou `NVD_API_KEY` dans le `.env`) (50 requêtes / 30 s au lieu de 5, conseillée :
-  la première vérification de Windows Server télécharge des milliers de CVE) et `GITHUB_TOKEN` (jeton en lecture
-  seule, 5 000 requêtes / h au lieu de 60).
-- Les textes des CVE et des avis sont des **données non fiables** : affichés en texte brut, et donnés à Gemini avec
-  les mêmes protections que les articles (bloc délimité, réponse JSON en texte brut vérifiée, refusée sinon).
-- Tout passe par `safe-fetch` (adresses publiques uniquement). Les journaux ne contiennent que des nombres et des
-  noms de sources : jamais un produit, une version ni un CVE de la stack. Les services interrogés (NVD, GitHub)
-  voient en revanche quels produits sont suivis.
-- Un faux positif de distribution (correctif rétroporté par Debian, Ubuntu…) s'ignore avec la raison « Corrigé par la
-  distribution (rétroportage) ».
-
-### Notifications
-
-Optionnel : « Générer les clés » dans **Administration › Intégrations**, ou générer une fois les clés VAPID sur le
-serveur :
-
-```sh
-docker compose run --rm --no-deps app node dist/vapid-keys.js
-```
-
-Copier les deux lignes affichées (`VAPID_PUBLIC_KEY=…`, `VAPID_PRIVATE_KEY=…`) dans le `.env`, puis
-`docker compose up -d`. Sans ces clés, les notifications sont désactivées. Ne plus changer ces clés ensuite (chaque
-appareil devrait se réabonner). `VAPID_SUBJECT` (`mailto:` ou `https:`) est facultatif quand `BETTER_AUTH_URL` est
-en https.
-
-- Réglages dans **Mon compte › Notifications**. Sur iPhone, les notifications ne fonctionnent que dans l'app
-  installée sur l'écran d'accueil (iOS 16.4 ou plus) ; la permission n'est demandée qu'au toucher de l'interrupteur.
-- Un abonnement n'est accepté que vers un service de push connu, en HTTPS (Apple, Google FCM, Mozilla, Windows) ;
-  l'envoi passe par `safe-fetch`. Messages chiffrés (RFC 8291) et signés VAPID (RFC 8292) avec `node:crypto`, sans
-  dépendance ; les abonnements expirés (404 / 410) sont supprimés.
-
 ### Supervision
 
-`GET /api/health` (non authentifié, sans donnée utilisateur) :
+`GET /api/health` est non authentifié et ne renvoie aucune donnée utilisateur :
 
 ```json
 {"status":"ok","db":"ok","worker":{"status":"ok","lastCycleAt":"2026-11-23T09:13:44.171Z","intervalMinutes":15,"staleAfterMinutes":45}}
 ```
 
-Réponse **503** si la base est injoignable, ou si le worker n'a terminé aucun cycle depuis plus de 3 × son intervalle
-(`worker.status` : `stale`, ou `never` s'il n'a jamais tourné) : une sonde HTTP Uptime Kuma sur cette URL détecte un
-worker planté. Le healthcheck Docker de `app` utilise `/api/health/app` (base seule), puisque le worker attend que
-l'app soit healthy pour démarrer.
+Il répond **503** dans deux cas, ce qui permet à une sonde (Uptime Kuma…) de détecter un worker planté :
 
-### Double authentification
+- la base est injoignable ;
+- le worker n'a terminé aucun cycle depuis plus de 3 fois son intervalle (`stale`, ou `never` s'il n'a jamais tourné).
 
-À activer dans **Mon compte** (clic sur ton nom dans l'en-tête) : mot de passe, QR code à scanner, code de
-confirmation ; note les codes de secours. Téléphone et codes de secours perdus :
+Le healthcheck Docker de `app` utilise `/api/health/app`, qui ne vérifie que la base.
 
-```sh
-docker compose exec app node dist/reset-password.js --email moi@example.com --password '…' --disable-2fa
-```
+### Mise à jour et retour arrière
 
-### Installer l'app (PWA)
+1. Lire les notes de la [Release](https://github.com/louisdrouhin/veille/releases).
+2. Si la version contient une migration (nouveau fichier dans `drizzle/`), faire d'abord une sauvegarde :
 
-- **iPhone / iPad** (Safari) : bouton **Partager**, puis **Sur l'écran d'accueil**. L'accueil le rappelle dans un
-  petit encart, masquable pour de bon.
-- **Android / ordinateur** (Chrome, Edge) : bouton **Installer l'app** de l'encart, ou menu du navigateur.
+   ```sh
+   docker compose exec -T db pg_dump -U veille -d veille -Fc > backups/avant-X.Y.Z.dump
+   ```
 
-Il faut du HTTPS (ou `localhost`). Dans l'app installée :
+3. `git pull`, pour avoir le fichier compose à jour.
+4. Mettre la nouvelle version dans `.env` : `APP_VERSION=X.Y.Z`.
+5. `docker compose pull && docker compose up -d`, puis vérifier `/api/health` et la version dans Paramètres ›
+   À propos.
 
-- **Hors ligne** : les pages déjà affichées et les topics déjà ouverts (article et images du proxy) restent lisibles ;
-  ailleurs, une page « Hors ligne » liste ce qui est disponible. Rien n'est envoyé hors ligne : les actions
-  (marquer comme lu, notes) demandent le réseau.
-- **Mises à jour** : après un déploiement, un message « Nouvelle version disponible » propose **Recharger** (jamais
-  de rechargement forcé).
-- **Actualiser** : pas de barre du navigateur ni de « tirer pour actualiser » sur iOS, d'où le bouton dans l'en-tête.
-- Les liens externes s'ouvrent hors de l'app (Safari / Chrome).
+**Retour arrière** : remettre l'ancienne `APP_VERSION`, puis `docker compose pull && docker compose up -d`. Les
+migrations ne sont pas annulées : après une version qui en contenait, restaurer aussi la sauvegarde.
 
-Icônes : `public/icons/` (192, 512, maskable 512) et `public/apple-touch-icon.png` (180, opaque), dessinées
-depuis `public/icon.svg`. Les balises `<link>` sont dans `lib/pwa/icons.ts` (apple-touch-icon d'abord). iOS
-récupère l'icône sans cookie, et essaie aussi `/apple-touch-icon[-180x180][-precomposed].png` à la racine : ces
-fichiers sont des copies de `apple-touch-icon.png`, publics dans `proxy.ts`. `public/favicon.ico` (16, 32, 48)
-est rendu depuis le même logo, sans balise : les navigateurs et iOS le demandent par son nom.
+### Sauvegarde et restauration
 
-### Sauvegardes et restauration
+Le service `backup` fait chaque jour un `pg_dump` au format custom (compressé), à partir de 3 h, heure de Paris
+(`BACKUP_HOUR`).
 
-Le service `backup` fait chaque jour, à partir de 3 h (heure de Paris, `BACKUP_HOUR`), un `pg_dump` au format
-custom (compressé) dans `./backups/veille-AAAA-MM-JJ_HHMM.dump`, et garde les 7 plus récents (`BACKUP_KEEP`).
-Il vérifie toutes les 10 minutes si la sauvegarde du jour est due : un redémarrage ou une journée manquée est rattrapé,
-et un premier dump est fait dès le démarrage. Écriture dans un fichier temporaire puis renommage : un dump raté ne
-remplace jamais un bon, et la rétention ne compte que les dumps réussis. Les fichiers (mode 600) appartiennent à
-`BACKUP_UID`:`BACKUP_GID` (1000 par défaut). Le conteneur devient `unhealthy` si le dernier dump a plus de 26 h.
+- **Fichiers** : `./backups/veille-AAAA-MM-JJ_HHMM.dump`, en mode 600, appartenant à `BACKUP_UID`:`BACKUP_GID`.
+- **Rétention** : les 7 plus récents (`BACKUP_KEEP`). Seuls les dumps réussis comptent, et un dump raté ne
+  remplace jamais un bon.
+- **Rattrapage** : la vérification a lieu toutes les 10 minutes, et un jour manqué est rattrapé. Un premier dump est
+  fait dès le démarrage.
+- **Santé** : le conteneur devient `unhealthy` si le dernier dump a plus de 26 h.
 
 ```sh
-ls -lh backups/                                              # sauvegardes disponibles
-docker compose logs backup                                   # dernières exécutions
-docker compose exec backup sh /usr/local/bin/veille-backup.sh once   # sauvegarde immédiate
+ls -lh backups/                                                     # sauvegardes disponibles
+docker compose logs backup                                          # dernières exécutions
+docker compose exec backup sh /usr/local/bin/veille-backup.sh once  # sauvegarde immédiate
 ```
 
-> Les dumps restent sur la même machine que la base : copie-les régulièrement ailleurs (NAS, autre machine…).
+> Les dumps restent sur la même machine que la base : copie-les régulièrement ailleurs.
 
-**Restauration** (remplace tout le contenu de la base par celui du dump) :
+**Restauration** (remplace tout le contenu de la base ; avec `--single-transaction`, une erreur ne modifie rien) :
 
 ```sh
 F=backups/veille-2026-11-23_0300.dump
@@ -421,8 +509,7 @@ docker compose start app worker
 curl -s http://localhost:3000/api/health
 ```
 
-`--single-transaction` : en cas d'erreur, rien n'est modifié. Pour vérifier un dump sans toucher à la base, le
-restaurer dans une base jetable :
+Pour vérifier un dump sans toucher à la base, le restaurer dans une base jetable :
 
 ```sh
 docker compose exec db createdb -U veille veille_verif
@@ -431,7 +518,9 @@ docker compose exec db psql -U veille -d veille_verif -c 'select count(*) from t
 docker compose exec db dropdb -U veille veille_verif
 ```
 
-## Développement
+## Développement local
+
+Il faut Node.js 22.19 ou plus.
 
 ```sh
 npm install
@@ -439,50 +528,39 @@ cp .env.example .env
 npm run db:dev        # PostgreSQL embarqué (PGlite, données dans .pglite/) sur localhost:5432
 ```
 
-Dans `.env` : `DATABASE_URL=postgres://postgres@localhost:5432/postgres` et `BETTER_AUTH_URL=http://localhost:3000`.
-Puis, dans un autre terminal :
+Dans `.env`, régler `DATABASE_URL=postgres://postgres@localhost:5432/postgres` et
+`BETTER_AUTH_URL=http://localhost:3000`. Puis, dans un autre terminal :
 
 ```sh
 npm run db:migrate
-npm run db:seed       # base de démo : forums, sources, topics, notes ; compte demo@veille.local / demo-veille-2026
+npm run db:seed       # base de démo ; compte demo@veille.local / demo-veille-2026
 npm run dev           # http://localhost:3000
 npm run worker        # optionnel, dans un autre terminal (--once pour un seul cycle)
 ```
 
+La base de démo contient 4 forums, 7 sources publiques, 20 topics, des notes, et des logiciels et CVE fictifs dans
+Ma stack.
+
 On peut aussi utiliser un vrai PostgreSQL :
 `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db`.
 
-| Script | Rôle |
+| Commande | Rôle |
 |---|---|
-| `npm test` | Tests unitaires (normalisation d'URL, parsing RSS/Atom, anti-SSRF, assainissement, CSP, récupération sur PGlite) |
-| `npm run test:integration` | Après `npm run build`. Setup de premier lancement sous concurrence et app réelle en HTTP ; workers concurrents sur un vrai PostgreSQL (testcontainers, ou `TEST_DATABASE_URL`) |
-| `npm run lint` / `npm run typecheck` | ESLint (config Next + règles React Compiler) / TypeScript strict |
-| `npm run db:generate` | Génère une migration après modification de `lib/db/schema.ts` |
-| `npm run build` | Build Next standalone + bundles `dist/{worker,migrate,create-user,reset-password}.js` |
+| `npm test` | Tests unitaires (Vitest, PGlite en mémoire) |
+| `npm run test:integration` | Après `npm run build` : setup concurrent et app réelle en HTTP, workers concurrents sur un vrai PostgreSQL (testcontainers, ou `TEST_DATABASE_URL`) |
+| `npm run lint` | ESLint (config Next + règles React Compiler) |
+| `npm run typecheck` | TypeScript strict |
+| `npm run db:generate` | Génère une migration après une modification de `lib/db/schema.ts` |
+| `npm run build` | Build Next standalone + `dist/{worker,migrate,create-user,reset-password,vapid-keys}.js` |
+| `npm run create-user` / `npm run reset-password` | Mêmes scripts qu'en production, hors Docker |
 
-## Fonctionnement en détail
+## Versions
 
-- **Worker** (`worker/index.ts`) : récupère les sources actives et non en pause, en parallèle
-  (`FETCH_CONCURRENCY`). 3 échecs consécutifs : pause d'une heure, erreur visible dans l'admin. Insertion en
-  `ON CONFLICT DO NOTHING` sur l'URL normalisée, donc le worker et « Récupérer maintenant » peuvent tourner en même temps.
-- **Premier import** d'une source : les articles arrivent marqués comme lus. Une date absente, invalide ou future est
-  remplacée par la date de récupération. Affichage en Europe/Paris.
-- **Article** : le contenu du flux est utilisé s'il fait au moins 500 caractères de texte ; sinon la page est
-  extraite à la première ouverture (rendu streamé). En cas d'échec (erreur HTTP, paywall, extraction trop courte) :
-  message, extrait et lien d'origine ; l'échec est mis en cache 24 h. Cache `article_contents` purgé après 90 jours.
-- **Favicons** : depuis le `<link rel="icon">` du site ou `/favicon.ico`, PNG / ICO / GIF / JPEG / WebP ≤ 100 Ko,
-  rafraîchis tous les 7 jours, servis par `/api/favicon/[sourceId]`.
-- **Suppressions** : supprimer une source conserve ses topics ; un forum non vide ne peut pas être supprimé.
-
-## Documentation
-
-- [`docs/SPEC.md`](docs/SPEC.md) : spécification et feuille de route (v2 : fusion multi-sources, Reddit, HN,
-  GitHub ; v3 : recherche plein texte, raccourcis, mode sombre).
-- [`docs/design/`](docs/design/) : briefs de direction artistique et design tokens. `v1/` : la base (`HANDOFF.md`,
-  `veille-tokens.css`) ; `v2/` : mode sombre, nouvel accueil (`HANDOFF-v2.md`, tokens clair + sombre fusionnés dans
-  `app/globals.css`) ; `v3/` : listes de favoris (`HANDOFF-v3.md`, tokens v2 + 11 variables) ; `v3.1/` : barre
-  d'actions de la page topic (`HANDOFF-v3.1.md`, sans nouveau token). Correspondance avec les versions de l'app et règle de
-  nommage des prochains lots (`3.0/`…) : [`docs/design/README.md`](docs/design/README.md).
+- [`CHANGELOG.md`](CHANGELOG.md) : les nouveautés de chaque version, côté utilisateur. On les retrouve aussi dans
+  Paramètres › À propos.
+- [`docs/design/`](docs/design/) : les notes de design de chaque lot (`HANDOFF-<version>.md`) et les design tokens.
+  [`docs/design/README.md`](docs/design/README.md) fait la correspondance avec les versions de l'app.
+- [`docs/SPEC.md`](docs/SPEC.md) : la spécification d'origine (v1) et sa feuille de route.
 
 ## Licence
 
