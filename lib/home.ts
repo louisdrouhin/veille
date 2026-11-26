@@ -4,6 +4,7 @@ import type { TopicRowData } from "@/components/topic/topic-grid";
 import type { ForumRowData } from "@/components/forum/forum-table";
 import type { Db } from "@/lib/db";
 import { forums, replies, sourceFavicons, sources, topics } from "@/lib/db/schema";
+import { distinctSources, FEATURED_MIN_SOURCES } from "@/lib/featured-rules";
 import { faviconUrl } from "@/lib/feeds/favicon";
 import { savedCountOf } from "@/lib/lists/queries";
 import { startOfParisDay } from "@/lib/format-date";
@@ -139,8 +140,9 @@ export type FeaturedTopic = {
 };
 
 /**
- * « À la une » (docs/design/3.3 § 2): topics with 2 sources or more (merged duplicates: replies of type
- * `source`) and some activity since `since` (48 h), the most picked up first, then the most recent.
+ * « À la une » (docs/design/3.3 § 2): topics with 2 distinct sources or more (merged duplicates: replies of type
+ * `source`; a reprise by the topic's own source, or two with the same name, count once) and some activity since
+ * `since` (48 h), the most picked up first, then the most recent.
  */
 export async function getFeatured(db: Db, { limit, since }: { limit: number; since: Date }): Promise<FeaturedTopic[]> {
   const reposts = sql<number>`count(${replies.id})`.mapWith(Number);
@@ -164,14 +166,19 @@ export async function getFeatured(db: Db, { limit, since }: { limit: number; sin
     .where(gte(topics.lastActivityAt, since))
     .groupBy(topics.id, forums.id, sources.id)
     .orderBy(desc(reposts), desc(topics.lastActivityAt), desc(topics.id))
-    .limit(limit);
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    forum: { name: r.forumName, slug: r.forumSlug },
-    sourceNames: [...new Set([r.sourceName ?? "Source supprimée", ...r.authors])],
-    savedCount: r.savedCount,
-    read: r.readAt !== null,
-    lastActivityAt: r.lastActivityAt,
-  }));
+    // Some are dropped below (same source twice): read a few more.
+    .limit(limit * 3);
+  return rows
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      forum: { name: r.forumName, slug: r.forumSlug },
+      sourceNames: distinctSources(r.sourceName, r.authors),
+      savedCount: r.savedCount,
+      read: r.readAt !== null,
+      lastActivityAt: r.lastActivityAt,
+    }))
+    .filter((t) => t.sourceNames.length >= FEATURED_MIN_SOURCES)
+    .sort((a, b) => b.sourceNames.length - a.sourceNames.length || b.lastActivityAt.getTime() - a.lastActivityAt.getTime() || b.id - a.id)
+    .slice(0, limit);
 }

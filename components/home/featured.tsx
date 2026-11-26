@@ -13,7 +13,9 @@ import type { FeaturedTopic } from "@/lib/home";
 const MOBILE_VISIBLE = 3;
 const DESKTOP_CARDS = 4;
 
-const label = (t: FeaturedTopic) => `${t.title}, repris par ${t.sourceNames.length} sources : ${t.sourceNames.join(", ")}`;
+/** « 1 source », « 3 sources ». */
+export const sourcesLabel = (n: number) => `${n} source${n > 1 ? "s" : ""}`;
+const label = (t: FeaturedTopic) => `${t.title}, repris par ${sourcesLabel(t.sourceNames.length)} : ${t.sourceNames.join(", ")}`;
 
 /** Overlapping source avatars (À la une, Briefing du matin). */
 export function SourceStack({ names, size = 18 }: { names: string[]; size?: number }) {
@@ -88,7 +90,7 @@ function FeaturedRow({ topic, hidden }: { topic: FeaturedTopic; hidden: boolean 
       </p>
       <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] leading-4 text-fg-muted">
         <SourceStack names={t.sourceNames} />
-        <span className="font-semibold text-fg">{t.sourceNames.length} sources</span>
+        <span className="font-semibold text-fg">{sourcesLabel(t.sourceNames.length)}</span>
         <span aria-hidden>·</span>
         <span className={FORUM_BADGE}>{t.forum.name}</span>
         <RelativeTime date={t.lastActivityAt} />
@@ -120,7 +122,7 @@ function FeaturedCard({ topic }: { topic: FeaturedTopic }) {
       </Link>
       <p className="mt-auto flex items-center gap-2 text-sm">
         <SourceStack names={t.sourceNames} />
-        <span className={`font-semibold ${many ? "text-hot" : "text-accent"}`}>{t.sourceNames.length} sources</span>
+        <span className={`font-semibold ${many ? "text-hot" : "text-accent"}`}>{sourcesLabel(t.sourceNames.length)}</span>
       </p>
     </li>
   );

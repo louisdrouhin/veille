@@ -161,6 +161,37 @@ describe("getFeatured", () => {
     // « Derniers non lus » leaves them out.
     expect((await getLatestUnread(db, { limit: 8, exclude: rows.map((r) => r.id) })).map((t) => t.title)).toEqual(["alone"]);
   });
+
+  it("2 distinct sources at least: a reprise by the topic's own source (or the same name twice) is not À la une", async () => {
+    // « Ariane 6 »: picked up only by its own source (same site published twice) → shown as « 1 source » before 3.4.
+    const same = await topic({ title: "Ariane 6", lastActivityAt: at("2026-11-23T09:00:00Z") });
+    const dup = await topic({ title: "dup", lastActivityAt: at("2026-11-23T09:00:00Z") });
+    const deleted = await topic({ title: "deleted-source", sourceId: null, lastActivityAt: at("2026-11-23T08:00:00Z") });
+    const real = await topic({ title: "real", lastActivityAt: at("2026-11-23T07:00:00Z") });
+    await db.insert(replies).values([
+      { topicId: same, type: "source", author: "CERT-FR", content: "" },
+      { topicId: dup, type: "source", author: "LWN", content: "" },
+      { topicId: dup, type: "source", author: "LWN", content: "" },
+      // Source of the topic deleted: « Source supprimée » + LWN are 2 sources.
+      { topicId: deleted, type: "source", author: "LWN", content: "" },
+      { topicId: real, type: "source", author: "LWN", content: "" },
+    ]);
+    const rows = await getFeatured(db, { limit: 5, since: at("2026-11-21T00:00:00Z") });
+    expect(rows.map((r) => [r.title, r.sourceNames])).toEqual([
+      ["dup", ["CERT-FR", "LWN"]],
+      ["deleted-source", ["Source supprimée", "LWN"]],
+      ["real", ["CERT-FR", "LWN"]],
+    ]);
+    expect(rows.every((r) => r.sourceNames.length >= 2)).toBe(true);
+    // After « Séparer », the reprise is gone: no longer À la une.
+    await db.delete(replies).where(eq(replies.topicId, real));
+    expect((await getFeatured(db, { limit: 5, since: at("2026-11-21T00:00:00Z") })).map((r) => r.title)).not.toContain("real");
+  });
+
+  it("« 1 source », « 3 sources »", async () => {
+    const { sourcesLabel } = await import("@/components/home/featured");
+    expect([sourcesLabel(1), sourcesLabel(3)]).toEqual(["1 source", "3 sources"]);
+  });
 });
 
 describe("migration 0006 (topics.created_at)", () => {

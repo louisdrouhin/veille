@@ -10,6 +10,7 @@
 import { and, count, desc, eq, gte, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { alerts, forums, products, replies, sources, stackItems, topics, vulnerabilities, vulnerabilityProducts } from "@/lib/db/schema";
+import { distinctSources, FEATURED_MIN_SOURCES } from "@/lib/featured-rules";
 import { severityRank } from "@/lib/stack/labels";
 import { nearestFix } from "@/lib/stack/versions";
 import type { BriefingSection, StackPoint, TopicPoint } from "./types";
@@ -77,7 +78,10 @@ async function asPoints(db: Db, ids: number[]): Promise<Map<number, TopicPoint>>
         topicId: r.id,
         title: r.title,
         sentence: null,
-        sources: [...new Set([r.sourceName ?? "Source supprimée", ...reps.filter((x) => x.topicId === r.id).map((x) => x.author)])],
+        sources: distinctSources(
+          r.sourceName,
+          reps.filter((x) => x.topicId === r.id).map((x) => x.author),
+        ),
         forum: { name: r.forumName, slug: r.forumSlug },
       },
     ]),
@@ -105,9 +109,12 @@ export async function selectFeatured(db: Db, w: Window, exclude: number[]): Prom
     .from(topics)
     .where(and(gte(topics.lastActivityAt, w.since), lt(topics.lastActivityAt, w.until), sql`${reposts} >= 1`, exclude.length ? notInArray(topics.id, exclude) : undefined))
     .orderBy(desc(reposts), desc(topics.lastActivityAt), desc(topics.id))
-    .limit(MAX_FEATURED);
+    // A reprise by the topic's own source counts once (lib/home.ts): read more, keep 2 distinct sources or more.
+    .limit(MAX_FEATURED * 3);
   const ids = rows.map((r) => r.id);
-  return ordered(ids, await asPoints(db, ids));
+  return ordered(ids, await asPoints(db, ids))
+    .filter((p) => p.sources.length >= FEATURED_MIN_SOURCES)
+    .slice(0, MAX_FEATURED);
 }
 
 /** Notable new topics not cited elsewhere (nor in the Mes services forums): picked up, score, newest. */

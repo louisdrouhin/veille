@@ -18,7 +18,10 @@ import { getHomeStack } from "@/lib/stack/queries";
 /** « À la une »: activity in the last 48 hours (docs/design/3.3 § 2). */
 const FEATURED_WINDOW_MS = 48 * 3_600_000;
 
-/** Home (docs/design/v2 § 2): À la une · Ma stack (3.0) · summary · latest unread · forums, same order on mobile and desktop. */
+/**
+ * Home: briefing (3.4) · Ma stack (3.0) · À la une (3.3) · summary · latest unread · forums, same order on mobile and
+ * desktop. A flaw to handle always comes before the news.
+ */
 export default async function HomePage() {
   await requireSession();
   const db = getDb();
@@ -58,18 +61,13 @@ export default async function HomePage() {
       <InstallBanner />
       <h1 className="sr-only">Accueil</h1>
       <div className="flex flex-col gap-4">
-        {/* Briefing du matin (3.4 § 5): at the top. On mobile it replaces the Ma stack banner, unless an alert came after it. */}
-        {briefing && !briefing.replacesStack && (
-          <div className="md:hidden">
-            <StackBlock stack={stack} />
-          </div>
-        )}
+        {/* Briefing du matin (3.4 § 5), then Ma stack, then the news: a flaw to handle always comes before À la une. */}
         {briefing && <BriefingBlock briefing={briefing} />}
-        <FeaturedSection items={featured} />
-        {/* Ma stack (3.0): above the stats, under « À la une ». */}
-        <div className={briefing ? "max-md:hidden" : undefined}>
+        {/* On mobile the briefing block replaces the Ma stack banner, unless an alert arrived after the briefing. */}
+        <div className={briefing?.replacesStack ? "max-md:hidden" : undefined}>
           <StackBlock stack={stack} />
         </div>
+        <FeaturedSection items={featured} />
         <HomeStats stats={stats} renderedAt={now.getTime()} />
         <LatestUnread topics={latest} />
         <section aria-labelledby="forums-title">
