@@ -14,7 +14,7 @@ import type { Db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { fold, FOLD_FROM } from "@/lib/search/fold";
 import { indexPending, indexProgress, refreshArticleTexts } from "@/lib/search/indexer";
-import { reserve, release, usedToday } from "@/lib/search/usage";
+import { dailyLimit, reserve, release, usedToday } from "@/lib/search/usage";
 import { decodeVector, encodeVector, loadCorpus, nearest } from "@/lib/search/vectors";
 
 let db: Db;
@@ -171,6 +171,15 @@ describe("embeddings", () => {
 });
 
 describe("daily usage", () => {
+  it("an empty variable (docker-compose, unset) means the default, not 0", () => {
+    expect(dailyLimit("embed", { EMBED_DAILY_LIMIT: "" })).toBe(1000);
+    expect(dailyLimit("ask", { ASK_DAILY_LIMIT: "  " })).toBe(50);
+    expect(dailyLimit("ask", {})).toBe(50);
+    expect(dailyLimit("embed", { EMBED_DAILY_LIMIT: "0" })).toBe(0);
+    expect(dailyLimit("embed", { EMBED_DAILY_LIMIT: "300" })).toBe(300);
+    expect(dailyLimit("embed", { EMBED_DAILY_LIMIT: "beaucoup" })).toBe(1000);
+  });
+
   it("grants up to the limit, shared, and gives back", async () => {
     expect(await reserve(db, "ask", 3, 5)).toBe(3);
     expect(await reserve(db, "ask", 3, 5)).toBe(2);
