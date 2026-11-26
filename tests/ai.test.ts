@@ -53,6 +53,11 @@ function gemini(reply: string | ((call: Call) => string) | { status?: number; js
   return { calls, fetch: fetchMock as unknown as typeof fetch };
 }
 
+
+/** A model that never answers (seen in prod while overloaded): only the abort ends the request. */
+const hanging = (async (_u: string, init: RequestInit) =>
+  new Promise<Response>((_, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason), { once: true }))) as unknown as typeof fetch;
+
 let db: Db;
 let topicId: number;
 
@@ -196,6 +201,25 @@ describe("Gemini client", () => {
       await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: once.fetch, retryDelaysMs: [0, 0] });
       expect(once.calls).toHaveLength(1);
     }
+  });
+
+  it("each attempt has its own time limit, logged with the model and its duration; a timeout is not retried", async () => {
+    const lines: string[] = [];
+    const calls = vi.fn(hanging);
+    const t = Date.now();
+    const res = await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: calls as unknown as typeof fetch, timeoutMs: 60, retryDelaysMs: [0, 0], log: (l) => lines.push(l) });
+    expect(res).toEqual({ ok: false, error: "timeout" });
+    expect(Date.now() - t).toBeLessThan(2_000);
+    expect(calls).toHaveBeenCalledTimes(1);
+    expect(lines[0]).toMatch(/^gemini-3\.5-flash-lite tentative 1 : timeout après \d+ ms$/);
+    expect(lines.join(" ")).not.toContain(CONFIG.apiKey);
+  });
+
+  it("the deadline bounds the whole call: no retry that could not finish in time", async () => {
+    const g = gemini({ status: 503 });
+    const res = await generateContent({ ...CONFIG, system: "s", user: "u", maxOutputTokens: 10, fetch: g.fetch, retryDelaysMs: [5_000, 5_000], deadline: Date.now() + 4_000 });
+    expect(res).toMatchObject({ error: "overloaded" });
+    expect(g.calls).toHaveLength(1);
   });
 
   it("every error has its own message: quota, key, model, overload, network are told apart", () => {
@@ -544,6 +568,25 @@ describe("translation by segments", () => {
       cached: true,
       fallback: false,
     });
+  });
+
+  it("main model hanging: Flash-Lite answers within the budget (the backup keeps its share of the time)", async () => {
+    await setArticle(RICH_ARTICLE);
+    const lite = gemini(wellBehaved);
+    const f = (async (u: string, init: RequestInit) => (String(u).includes("gemini-3.8-flash") ? hanging(u, init) : lite.fetch(u, init))) as unknown as typeof fetch;
+    const t = Date.now();
+    const res = await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: f, now: NOW, budgetMs: 1_200 });
+    expect(res).toMatchObject({ ok: true, model: "gemini-3.5-flash-lite", fallback: true });
+    expect(Date.now() - t).toBeLessThan(1_200 + 500);
+  });
+
+  it("both models hanging: a clear message within the budget, nothing cached", async () => {
+    await setArticle(RICH_ARTICLE);
+    const t = Date.now();
+    const res = await generateAi(db, { topicId, kind: "translation", userId: "u1" }, { config: CONFIG, fetch: hanging, now: NOW, budgetMs: 1_000 });
+    expect(res).toEqual({ ok: false, error: expect.stringContaining("n'a pas répondu à temps") });
+    expect(Date.now() - t).toBeLessThan(1_000 + 500);
+    expect(await db.select().from(aiOutputs)).toEqual([]);
   });
 
   it("no backup after a quota, a refused key or an unknown model; nor for an old Flash-Lite translation not marked as backup", async () => {

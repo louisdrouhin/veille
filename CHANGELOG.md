@@ -4,6 +4,13 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.3.4 — 26/11/2026
+
+- Correctif : quand le modèle principal de Gemini ne répond plus (bloqué chez Google), la traduction et « Demande à ta
+  veille » passent aussi sur le modèle de secours au lieu d'échouer en « n'a pas répondu à temps ».
+- Chaque demande à l'IA tient dans un temps limité (tentatives et modèle de secours compris) : tu as toujours une
+  réponse ou un message clair en moins d'une minute.
+
 ## 3.3.3 — 26/11/2026
 
 - Quand le modèle principal de Gemini reste surchargé malgré les nouvelles tentatives, la traduction et « Demande
