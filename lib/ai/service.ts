@@ -25,15 +25,22 @@ export const TRANSLATION_BATCH_CHARS = 8_000;
 export const MAX_TRANSLATION_CHARS = 160_000;
 /** Includes the « low » thinking of Flash models. */
 const TRANSLATION_MAX_OUTPUT_TOKENS = 32_000;
-const TRANSLATION_TIMEOUT_MS = 90_000;
+/**
+ * Time limits (the user waits on the page): each attempt has its own limit, and the whole request — attempts, retries
+ * and the backup model — fits in AI_BUDGET_MS, under the 60 s a reverse proxy usually allows. The main model gets the
+ * budget minus FALLBACK_RESERVE_MS when there is a backup model, so that the backup always has time to answer.
+ */
+export const AI_BUDGET_MS = 50_000;
+export const FALLBACK_RESERVE_MS = 20_000;
+export const ATTEMPT_MS = 25_000;
 /** Translation calls in parallel for one article. */
 const TRANSLATION_CONCURRENCY = 3;
 
-/** `fallback`: made by the backup model (config.model) because the main one was overloaded. */
+/** `fallback`: made by the backup model (config.model) because the main one was overloaded or did not answer in time. */
 export type AiOutput = { html: string; truncated: boolean; model: string; inputCut: boolean; fallback?: boolean };
 export type AiResult = ({ ok: true; cached: boolean } & AiOutput) | { ok: false; error: string };
 
-type Deps = { config?: AiConfig | null; fetch?: typeof fetch; now?: Date };
+type Deps = { config?: AiConfig | null; fetch?: typeof fetch; now?: Date; budgetMs?: number };
 type Article = { title: string; url: string; html: string };
 
 const inFlight = new Map<string, Promise<AiResult>>();
@@ -42,7 +49,7 @@ export const modelFor = (config: AiConfig, kind: AiKind) => (kind === "summary" 
 
 /**
  * The backup model of a kind: Flash-Lite (config.model) for the translation, when it differs from the main one.
- * Used only after an overload or a server error of the main model (FALLBACK_ERRORS, its retries done).
+ * Used only after an overload, a server error or a timeout of the main model (FALLBACK_ERRORS, its retries done).
  */
 export const fallbackModelFor = (config: AiConfig, kind: AiKind): string | null =>
   kind === "translation" && config.model !== config.translateModel ? config.model : null;
@@ -110,16 +117,20 @@ export async function generateAi(
   const article: Article = { title: row.title, url: row.url, html: row.html };
   const job = (async (): Promise<AiResult> => {
     const started = Date.now();
-    const run = (m: string) => (input.kind === "summary" ? summarize(config, article, full, deps) : translate(config, m, article, deps));
-    let res = await run(model);
+    const deadline = started + (deps.budgetMs ?? AI_BUDGET_MS);
+    const log = (line: string) => console.info(`[ai] ${input.kind} topic ${input.topicId}: ${line}`);
+    const run = (m: string, until: number) =>
+      input.kind === "summary" ? summarize(config, article, full, deps, until, log) : translate(config, m, article, deps, until, log);
+    // With a backup model, the main one leaves it FALLBACK_RESERVE_MS.
+    let res = await run(model, backup ? deadline - Math.min(FALLBACK_RESERVE_MS, (deps.budgetMs ?? AI_BUDGET_MS) / 2) : deadline);
     let used = model;
     if (!res.ok) {
       // Kind, topic and error only: never the key nor the article.
-      console.error(`[ai] ${input.kind} topic ${input.topicId}: ${res.error}${res.detail ? ` (${res.detail})` : ""}`);
+      console.error(`[ai] ${input.kind} topic ${input.topicId}: ${res.error}${res.detail ? ` (${res.detail})` : ""} après ${Date.now() - started} ms (${model})`);
       if (!backup || !FALLBACK_ERRORS.has(res.error)) return { ok: false, error: GEMINI_ERROR_MESSAGES[res.error] };
       console.info(`[ai] ${input.kind} topic ${input.topicId}: modèle de secours ${backup} (${model} : ${res.error})`);
       used = backup;
-      res = await run(backup);
+      res = await run(backup, deadline);
       if (!res.ok) {
         console.error(`[ai] ${input.kind} topic ${input.topicId}: secours en échec : ${res.error}${res.detail ? ` (${res.detail})` : ""}`);
         return { ok: false, error: GEMINI_ERROR_MESSAGES[res.error] };
@@ -190,7 +201,7 @@ export function repriseBlock(rows: { author: string; title: string | null; conte
 type Produced = { ok: true; html: string; truncated: boolean; inputCut: boolean } | { ok: false; error: GeminiError; detail?: string };
 
 /** One call to the Lite model; Markdown rendered by our closed renderer, then sanitized. */
-async function summarize(config: AiConfig, row: Article, full: string, deps: Deps): Promise<Produced> {
+async function summarize(config: AiConfig, row: Article, full: string, deps: Deps, deadline: number, log: (l: string) => void): Promise<Produced> {
   const { text, cut } = truncateForModel(full);
   const id = newMarkerId();
   const res = await generateContent({
@@ -200,6 +211,9 @@ async function summarize(config: AiConfig, row: Article, full: string, deps: Dep
     user: articleMessage(row.title, text, id),
     maxOutputTokens: SUMMARY_MAX_OUTPUT_TOKENS,
     temperature: 0.2,
+    timeoutMs: ATTEMPT_MS,
+    deadline,
+    log,
     fetch: deps.fetch,
   });
   if (!res.ok) return { ok: false, error: res.error, detail: res.status ? `HTTP ${res.status}` : undefined };
@@ -213,7 +227,7 @@ async function summarize(config: AiConfig, row: Article, full: string, deps: Dep
  * (same ids, plain text, same markers) and a refused batch is asked once more. Every segment must
  * come back, otherwise nothing is stored.
  */
-async function translate(config: AiConfig, model: string, row: Article, deps: Deps): Promise<Produced> {
+async function translate(config: AiConfig, model: string, row: Article, deps: Deps, deadline: number, log: (l: string) => void): Promise<Produced> {
   const doc = segmentArticle(row.html);
   if (!doc.segments.length) return { ok: false, error: "empty" };
   const batches = batchSegments(doc.segments, TRANSLATION_BATCH_CHARS);
@@ -231,7 +245,9 @@ async function translate(config: AiConfig, model: string, row: Article, deps: De
         temperature: 0.1,
         json: true,
         thinkingLevel: "low",
-        timeoutMs: TRANSLATION_TIMEOUT_MS,
+        timeoutMs: ATTEMPT_MS,
+        deadline,
+        log,
         fetch: deps.fetch,
       });
       if (!res.ok) return { ok: false, error: res.error, detail: res.status ? `HTTP ${res.status}` : undefined };
