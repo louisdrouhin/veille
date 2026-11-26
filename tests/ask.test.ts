@@ -56,7 +56,7 @@ describe("scope said in the question (§ 4.1)", () => {
 
 describe("the answer, checked on the server (§ 4.4)", () => {
   it("drops the references to no extract, and a statement left without any; no valid reference, or « RIEN »: no answer", () => {
-    const a = checkAnswer("OpenSSH 9.9 corrige la faille [1][7]. Le **correctif** est <b>urgent</b> [2, 3].\n- Mettre à jour [9]\n- Redémarrer sshd [1]", 3)!;
+    const a = checkAnswer("OpenSSH 9.9 corrige la faille [1][7]. Le **correctif** est <urgent> [2, 3].\n- Mettre à jour [9]\n- Redémarrer sshd [1]", 3)!;
     expect(a.cited).toEqual([1, 2, 3]);
     expect(a.blocks).toEqual([
       { kind: "p", parts: ["OpenSSH 9.9 corrige la faille ", { cite: 1 }, ". Le correctif est urgent ", { cite: 2 }, { cite: 3 }, "."] },
