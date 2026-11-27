@@ -4,6 +4,17 @@ Une version par PR livrée : **mineure** pour une fonctionnalité, **patch** pou
 `CLAUDE.md`). Les versions 2.1.0 à 2.11.0 ont été reconstituées a posteriori à partir des PR. Les dates sont
 celles de la mise en production.
 
+## 3.5.1 — 27/11/2026
+
+- Thème : la page Apparence suit aussitôt un changement fait depuis le menu du compte (et inversement), sans recharger.
+- Photo de profil : seule l'adresse de la photo en cours est gardée longtemps en cache ; une ancienne adresse est
+  revérifiée à chaque affichage, une ancienne photo ne peut donc plus rester affichée.
+- Auto-hébergement : les réglages fins (`DATABASE_POOL_SIZE`, `EMBED_PER_CYCLE`, `MERGE_THRESHOLD`,
+  `MERGE_WINDOW_HOURS`, `SEARCH_SEMANTIC_MIN`, `ASK_SEMANTIC_MIN`, `RELATED_MIN`) sont maintenant transmis par
+  `docker-compose.yml`, avec les valeurs par défaut de l'app : laissés vides, ils ne changent rien. Une taille de
+  pool vide ou invalide ne donne plus un pool de 0 connexion.
+- Base de démo : un article complet et une liste de favoris.
+
 ## 3.5.0 — 26/11/2026
 
 - Paramètres : « Mon compte » et « Admin » sont réunis dans Paramètres, une page par réglage (Profil, Sécurité,

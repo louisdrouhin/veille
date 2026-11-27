@@ -9,8 +9,11 @@
  */
 import { eq, sql } from "drizzle-orm";
 import { closeDb, getDb } from "@/lib/db";
-import { forums, products, replies, sources, stackItems, stackStatus, topics, user, vulnerabilities, type AffectedRange } from "@/lib/db/schema";
+import { articleText } from "@/lib/ai/text";
+import { articleContents, forums, listItems, lists, products, replies, sources, stackItems, stackStatus, topics, user, vulnerabilities, type AffectedRange } from "@/lib/db/schema";
 import { normalizeUrl } from "@/lib/feeds/normalize-url";
+import { sanitizeArticleHtml } from "@/lib/reader/sanitize";
+import { ARTICLE_TEXT_MAX } from "@/lib/search/indexer";
 import { recomputeAlerts } from "@/lib/stack/alerts";
 import { syncCatalog } from "@/lib/stack/catalog";
 import type { FetchedVuln } from "@/lib/stack/sources/types";
@@ -46,6 +49,29 @@ const SOURCES: { forum: (typeof FORUMS)[number]["slug"]; name: string; url: stri
   { forum: "dev-web", name: "Mozilla Hacks", url: "https://hacks.mozilla.org/feed/" },
   { forum: "labo", name: "Simon Willison", url: "https://simonwillison.net/atom/everything/", enabled: false },
 ];
+
+/**
+ * One complete article, written for the demo (not copied from the source), so that the topic page shows the reader
+ * without network access: headings, a list, code. Stored as the worker stores a feed's full content.
+ */
+const DEMO_ARTICLE = {
+  title: "Faster WebAssembly startup with lazy compilation",
+  html: `<p>Les moteurs WebAssembly compilent désormais les fonctions <strong>à la demande</strong> : seul le code réellement exécuté au démarrage passe par le compilateur de base, le reste attend son premier appel.</p>
+<h2>Ce qui change</h2>
+<p>Sur un module de 20 Mo, le temps avant la première image passe de 900 ms à moins de 250 ms. La compilation optimisée reprend ensuite en tâche de fond.</p>
+<ul><li>aucun changement côté toolchain ;</li><li>le cache de code reste partagé entre les onglets ;</li><li>les fonctions chaudes sont recompilées en priorité.</li></ul>
+<h2>Et ensuite</h2>
+<p>Les équipes travaillent sur des « hints » permettant au module d'indiquer quelles fonctions compiler en premier.</p>
+<pre><code>WebAssembly.instantiateStreaming(fetch("app.wasm"), imports)</code></pre>
+<p>Les mesures détaillées sont publiées avec l'article d'origine.</p>`,
+};
+
+/** A list of favorites (★ Enregistrer), with topics of several forums. */
+const DEMO_LIST = {
+  name: "À tester au labo",
+  color: "teal" as const,
+  titles: ["Faster WebAssembly startup with lazy compilation", "Sidecar containers graduate to stable", "Vulnérabilité critique dans OpenSSH (exécution de code à distance)"],
+};
 
 const TITLES: Record<string, string[]> = {
   "CERT-FR": [
@@ -119,6 +145,7 @@ async function main() {
     .returning({ id: sources.id, name: sources.name, forumId: sources.forumId, url: sources.url });
 
   let i = 0;
+  const topicIds = new Map<string, { id: number; url: string }>();
   let topicCount = 0;
   let noteCount = 0;
   for (const src of sourceRows) {
@@ -145,6 +172,7 @@ async function main() {
         })
         .returning({ id: topics.id });
       if (!topic) throw new Error(`Topic non inséré : ${title}`);
+      topicIds.set(title, { id: topic.id, url });
       for (const [j, content] of notes.entries()) {
         await db.insert(replies).values({
           topicId: topic.id,
@@ -160,9 +188,23 @@ async function main() {
     }
   }
 
+  const article = topicIds.get(DEMO_ARTICLE.title);
+  if (!article) throw new Error(`Topic de l'article de démo introuvable : ${DEMO_ARTICLE.title}`);
+  const html = sanitizeArticleHtml(DEMO_ARTICLE.html, article.url);
+  const fetchedAt = ago(1);
+  await db.insert(articleContents).values({ topicId: article.id, html, source: "feed", fetchedAt, text: articleText(html).slice(0, ARTICLE_TEXT_MAX), textOf: fetchedAt });
+
+  const [list] = await db.insert(lists).values({ name: DEMO_LIST.name, color: DEMO_LIST.color, position: 0 }).returning({ id: lists.id });
+  if (!list) throw new Error("Liste de démo non insérée");
+  for (const [k, title] of DEMO_LIST.titles.entries()) {
+    const t = topicIds.get(title);
+    if (!t) throw new Error(`Topic de la liste de démo introuvable : ${title}`);
+    await db.insert(listItems).values({ listId: list.id, topicId: t.id, addedAt: ago(3 - k) });
+  }
+
   const stack = await seedStack();
   console.log(
-    `Base de démo prête : ${stack} logiciels fictifs dans Ma stack, ${forumRows.length} forums, ${sourceRows.length} sources, ${topicCount} topics, ${noteCount} notes.`,
+    `Base de démo prête : ${stack} logiciels fictifs dans Ma stack, ${forumRows.length} forums, ${sourceRows.length} sources, ${topicCount} topics (dont 1 article complet), ${noteCount} notes, 1 liste.`,
   );
   console.log(`Connexion : ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }

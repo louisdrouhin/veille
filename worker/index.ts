@@ -14,7 +14,7 @@ import { closeDb, getDb } from "@/lib/db";
 import { dispatchNotifications } from "@/lib/push/notify";
 import { checkIfDue, CHECK_INTERVAL_MIN } from "@/lib/stack/sync";
 import { mergePending } from "@/lib/merge/fusion";
-import { indexPending, refreshArticleTexts } from "@/lib/search/indexer";
+import { embedPerCycle, indexPending, refreshArticleTexts } from "@/lib/search/indexer";
 import { recordCycle } from "@/lib/worker/heartbeat";
 import { runCycle } from "@/lib/worker/run-cycle";
 
@@ -81,7 +81,7 @@ async function searchIndex() {
     // The morning briefing first (docs/design/3.4): no embeddings while it is due or being written.
     if (await briefingBusy(getDb())) log("[index] en pause : briefing du matin en cours ou imminent");
     else {
-      const r = await indexPending(getDb(), { ai: aiConfig(env), env, log, budget: Math.max(1, Number(process.env.EMBED_PER_CYCLE) || 200) });
+      const r = await indexPending(getDb(), { ai: aiConfig(env), env, log, budget: embedPerCycle() });
       if (r.indexed) log(`[index] ${r.indexed} article(s) indexé(s)`);
     }
     // Fusion of duplicates (docs/design/3.3 § 2): the new articles just indexed, against the last 72 hours.

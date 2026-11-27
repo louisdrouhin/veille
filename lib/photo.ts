@@ -119,3 +119,12 @@ export function sourceKind(head: Uint8Array): "jpeg" | "png" | "webp" | "heic" |
 
 /** « 12,4 Mo » */
 export const megabytes = (n: number) => `${(n / (1024 * 1024)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
+
+/**
+ * A new picture gets a new URL (?v=updatedAt in ms, components/account/user-avatar.tsx): that exact URL is cached in this
+ * browser only, for a year. Any other `v` (a page rendered before a change, or none) is revalidated every time, so the
+ * current picture never sticks under a URL that may name another one.
+ */
+export function photoCacheControl(v: string | null, updatedAt: Date): string {
+  return v === String(updatedAt.getTime()) ? "private, max-age=31536000, immutable" : "private, no-cache";
+}

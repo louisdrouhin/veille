@@ -78,6 +78,9 @@ une app sur téléphone.
 - **★ Enregistrer** range un topic dans une ou plusieurs listes colorées.
 - **Page Listes** : renommer, changer la couleur, réordonner par glisser-déposer, supprimer.
 - **Page d'une liste** : tri par date d'ajout, retrait avec « Annuler », « Copier en Markdown ».
+
+![Une liste de favoris : topics de plusieurs forums, « Copier en Markdown »](docs/screenshots/listes.jpg)
+
 - Les articles enregistrés ne sont jamais purgés du cache de lecture, et les pages de listes restent lisibles hors
   ligne.
 
@@ -372,6 +375,7 @@ Toutes sont décrites dans [`.env.example`](.env.example).
 | `NVD_API_KEY`, `GITHUB_TOKEN`, `STACK_CHECK_INTERVAL_MINUTES` | Ma stack |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Notifications push (optionnel) |
 | `FETCH_INTERVAL_MINUTES`, `FETCH_CONCURRENCY`, `FETCH_USER_AGENT` | Worker de récupération |
+| `DATABASE_POOL_SIZE`, `EMBED_PER_CYCLE`, `MERGE_THRESHOLD`, `MERGE_WINDOW_HOURS`, `SEARCH_SEMANTIC_MIN`, `ASK_SEMANTIC_MIN`, `RELATED_MIN` | Réglages fins (optionnels) : vides, ce sont les valeurs par défaut de l'app (voir `.env.example`) |
 | `BACKUP_HOUR`, `BACKUP_KEEP`, `BACKUP_UID`, `BACKUP_GID` | Sauvegardes |
 
 - **Clés dans l'interface** : Paramètres › Intégrations gère les clés Gemini, NVD et VAPID sans toucher au `.env`,
@@ -538,8 +542,8 @@ npm run dev           # http://localhost:3000
 npm run worker        # optionnel, dans un autre terminal (--once pour un seul cycle)
 ```
 
-La base de démo contient 4 forums, 7 sources publiques, 20 topics, des notes, et des logiciels et CVE fictifs dans
-Ma stack.
+La base de démo contient 4 forums, 7 sources publiques, 20 topics (dont un article complet), des notes, une liste de
+favoris, et des logiciels et CVE fictifs dans Ma stack.
 
 On peut aussi utiliser un vrai PostgreSQL :
 `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db`.

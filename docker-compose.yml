@@ -31,6 +31,15 @@ x-app-env: &app-env
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
   VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+  # Tuning (optional). The defaults are the code's own (tests/compose-env.test.ts checks it): empty or absent changes
+  # nothing. The merge threshold and window set in Paramètres › Recherche et IA win over these values.
+  DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+  EMBED_PER_CYCLE: ${EMBED_PER_CYCLE:-200}
+  MERGE_THRESHOLD: ${MERGE_THRESHOLD:-0.87}
+  MERGE_WINDOW_HOURS: ${MERGE_WINDOW_HOURS:-72}
+  SEARCH_SEMANTIC_MIN: ${SEARCH_SEMANTIC_MIN:-0.62}
+  ASK_SEMANTIC_MIN: ${ASK_SEMANTIC_MIN:-0.55}
+  RELATED_MIN: ${RELATED_MIN:-0.78}
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL manquant}
 
 services:
@@ -54,7 +63,7 @@ services:
     # Image built, scanned and published by CI (.github/workflows/release.yml), one tag per version.
     # APP_VERSION (server .env) fixes the version: going back = setting the previous one again.
     # To build locally instead: docker-compose.build.yml.
-    image: ghcr.io/louisdrouhin/veille:${APP_VERSION:?APP_VERSION manquant (version de l'image, ex. 2.13.0)}
+    image: ghcr.io/louisdrouhin/veille:${APP_VERSION:?APP_VERSION manquant (version de l'image, ex. 3.5.1)}
     logging: *logging
     restart: unless-stopped
     depends_on:
@@ -82,7 +91,7 @@ services:
       start_period: 30s
 
   worker:
-    image: ghcr.io/louisdrouhin/veille:${APP_VERSION:?APP_VERSION manquant (version de l'image, ex. 2.13.0)}
+    image: ghcr.io/louisdrouhin/veille:${APP_VERSION:?APP_VERSION manquant (version de l'image, ex. 3.5.1)}
     logging: *logging
     restart: unless-stopped
     command: ["node", "dist/worker.js"]

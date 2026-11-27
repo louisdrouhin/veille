@@ -1,7 +1,30 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { isThemePreference, THEME_COOKIE, THEME_COOKIE_MAX_AGE, type ThemePreference } from "@/lib/theme";
+
+function subscribeTheme(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
+
+/**
+ * The theme in use on this page: <html data-theme>, which every change goes through (applyTheme: the account menu,
+ * Paramètres › Apparence, another device via AccountThemeSync). Each picker reads it here instead of keeping its own
+ * copy, so a change made in one shows at once in the other, without reloading. `serverValue`: the account's
+ * preference, for the server render and the hydration.
+ */
+export function useThemePreference(serverValue: ThemePreference): ThemePreference {
+  return useSyncExternalStore(
+    subscribeTheme,
+    () => {
+      const t = document.documentElement.dataset.theme;
+      return isThemePreference(t) ? t : serverValue;
+    },
+    () => serverValue,
+  );
+}
 
 /** Switches the page's theme at once (before the server has saved it). */
 export function applyTheme(theme: string): void {
