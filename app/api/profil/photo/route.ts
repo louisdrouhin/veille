@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { userPhotos } from "@/lib/db/schema";
-import { checkPhoto, PHOTO_MAX_BYTES } from "@/lib/photo";
+import { checkPhoto, PHOTO_MAX_BYTES, photoCacheControl } from "@/lib/photo";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,8 @@ const HEADERS = {
 export async function GET(request: Request) {
   const userId = await me(request);
   if (!userId) return new Response(null, { status: 401 });
-  const size = new URL(request.url).searchParams.get("taille") === "512" ? "large" : "small";
+  const params = new URL(request.url).searchParams;
+  const size = params.get("taille") === "512" ? "large" : "small";
   const [row] = await getDb().select().from(userPhotos).where(eq(userPhotos.userId, userId));
   if (!row) return new Response(null, { status: 404, headers: { ...HEADERS, "Cache-Control": "private, no-store" } });
   const body = size === "large" ? row.large : row.small;
@@ -47,8 +48,7 @@ export async function GET(request: Request) {
       ...HEADERS,
       "Content-Type": row.mime,
       "Content-Length": String(body.length),
-      // A new picture gets a new URL (?v=updatedAt): cached in this browser only, for long.
-      "Cache-Control": "private, max-age=31536000, immutable",
+      "Cache-Control": photoCacheControl(params.get("v"), row.updatedAt),
     },
   });
 }

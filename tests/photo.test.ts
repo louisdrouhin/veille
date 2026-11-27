@@ -132,6 +132,19 @@ describe("route /api/profil/photo", () => {
     expect(new Uint8Array(await kept.arrayBuffer())).toEqual(jpeg(512, 512));
   });
 
+  it("a long cache only for the URL of the current picture; a new picture gets a new URL", async () => {
+    const v1 = ((await (await post({ large: jpeg(512, 512), small: jpeg(64, 64) })).json()) as { version: number }).version;
+    const at = (v: string) => route.GET(new Request(`${ORIGIN}/api/profil/photo?taille=64${v}`));
+    expect((await at(`&v=${v1}`)).headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+    expect((await at("")).headers.get("cache-control")).toBe("private, no-cache");
+    await new Promise((r) => setTimeout(r, 5));
+    const v2 = ((await (await post({ large: jpeg(512, 512), small: jpeg(64, 64) })).json()) as { version: number }).version;
+    expect(v2).toBeGreaterThan(v1);
+    // The old URL now names another picture: never cached for long again.
+    expect((await at(`&v=${v1}`)).headers.get("cache-control")).toBe("private, no-cache");
+    expect((await at(`&v=${v2}`)).headers.get("cache-control")).toContain("immutable");
+  });
+
   it("deleted (same origin only)", async () => {
     await post({ large: jpeg(512, 512), small: jpeg(64, 64) });
     expect((await route.DELETE(new Request(`${ORIGIN}/api/profil/photo`, { method: "DELETE", headers: { "sec-fetch-site": "cross-site" } }))).status).toBe(403);

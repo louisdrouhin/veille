@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore, useTransition } from "react";
-import { applyTheme } from "@/components/theme/theme-sync";
+import { applyTheme, useThemePreference } from "@/components/theme/theme-sync";
 import { IconCheck } from "@/components/ui/icons";
 import { SavedHint, useSave } from "@/components/settings/saved";
 import { setTheme } from "@/lib/actions/account";
@@ -76,7 +76,8 @@ function hint(value: ThemePreference, systemDark: boolean | null): string {
  * account by the setTheme action. No « Enregistrer » button.
  */
 export function ThemePicker({ initial }: { initial: ThemePreference }) {
-  const [value, setValue] = useState(initial);
+  // <html data-theme>: also follows a change made from the account menu while this page is open.
+  const value = useThemePreference(initial);
   const [error, setError] = useState(false);
   const [, startTransition] = useTransition();
   const systemDark = useSystemDark();
@@ -84,13 +85,11 @@ export function ThemePicker({ initial }: { initial: ThemePreference }) {
   const { state: savedState, save } = useSave();
   function choose(next: ThemePreference) {
     const previous = value;
-    setValue(next);
     setError(false);
     applyTheme(next);
     startTransition(async () => {
       const ok = await save(async () => ((await setTheme(next).catch(() => ({ ok: false }))).ok ? { ok: true } : { ok: false, error: "Thème non enregistré : réessaie." }));
       if (ok) return;
-      setValue(previous);
       applyTheme(previous);
       setError(true);
     });

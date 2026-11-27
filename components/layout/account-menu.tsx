@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { UserAvatar, type AvatarUser } from "@/components/account/user-avatar";
-import { applyTheme } from "@/components/theme/theme-sync";
+import { applyTheme, useThemePreference } from "@/components/theme/theme-sync";
 import { IconCheck, IconChevronDown, IconLogout } from "@/components/ui/icons";
 import { setTheme } from "@/lib/actions/account";
 import { authClient } from "@/lib/auth-client";
@@ -31,7 +31,8 @@ const ITEM =
 export function AccountMenu({ user }: { user: MenuUser }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [theme, setThemeState] = useState(user.theme);
+  // <html data-theme>: also follows a change made in Paramètres › Apparence.
+  const theme = useThemePreference(user.theme);
   const [, start] = useTransition();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -56,12 +57,10 @@ export function AccountMenu({ user }: { user: MenuUser }) {
 
   const chooseTheme = (next: ThemePreference) => {
     const previous = theme;
-    setThemeState(next);
     applyTheme(next);
     start(async () => {
       const saved = await setTheme(next).catch(() => ({ ok: false }));
       if (!saved.ok) {
-        setThemeState(previous);
         applyTheme(previous);
       }
     });

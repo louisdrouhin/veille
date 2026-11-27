@@ -17,6 +17,12 @@ import { encodeVector } from "./vectors";
 
 type Env = Partial<Record<string, string | undefined>>;
 export const ARTICLE_TEXT_MAX = 20_000;
+/** Articles indexed at most per worker cycle (EMBED_PER_CYCLE overrides it). */
+export const DEFAULT_EMBED_PER_CYCLE = 200;
+
+export function embedPerCycle(env: Partial<Record<string, string | undefined>> = process.env): number {
+  return Math.max(1, Number(env.EMBED_PER_CYCLE) || DEFAULT_EMBED_PER_CYCLE);
+}
 
 /** Plain text of the articles stored or reloaded since their last pass. Returns how many were done. */
 export async function refreshArticleTexts(db: Db, limit = 200): Promise<number> {

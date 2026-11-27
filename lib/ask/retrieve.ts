@@ -18,7 +18,8 @@ import { scopeStart, type AskScope } from "./scope";
 
 export const MAX_EXTRACTS = 12;
 const EXTRACT_CHARS = 1_400;
-const ASK_SEMANTIC_MIN = 0.55;
+/** Similarity at or above which an extract can answer a question (ASK_SEMANTIC_MIN overrides). */
+export const ASK_SEMANTIC_MIN = 0.55;
 
 export type Extract = {
   n: number;
